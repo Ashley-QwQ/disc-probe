@@ -1,17 +1,17 @@
 // Shipped design page + real local layout endpoint. No optical devices.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {spawn,spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import {once} from 'node:events';
 import {mkdtemp,mkdir,readFile,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join,resolve} from 'node:path';
-import {existsSync} from 'node:fs';
+import {join,resolve,sep} from 'node:path';
 import {request} from 'node:http';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
-const edge=process.env.KIT_TEST_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge=selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 
-test('findings 1 and 6: portable work import, confirmed ISO contents and inert DOM',{skip:!existsSync(edge),timeout:170000},async(testCase)=>{
+test('findings 1 and 6: portable work import, confirmed ISO contents and inert DOM',{skip:!edge,timeout:170000},async(testCase)=>{
   const dir=await mkdtemp(join(tmpdir(),'dp-disc-files-'));let server,browser,ws;
   try{
     const geo=join(dir,'results','geo-H-20261107-101500');
@@ -28,9 +28,9 @@ test('findings 1 and 6: portable work import, confirmed ISO contents and inert D
     while(Date.now()<until){try{info=JSON.parse(await readFile(join(dir,'server-info.json'),'utf8'));break;}catch{}if(server.exitCode!==null)throw Error(stderr);await pause(100);}
     assert(info,stderr);
     const profile=join(dir,'profile');
-    browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+    browser=launchBrowser(edge, profile, ['--mute-audio','--no-sandbox','--remote-debugging-port=0','about:blank'],{disableGpu: true, stdio:'ignore',windowsHide:true});
     let port;
-    while(Date.now()<until){try{port=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0];if(port)break;}catch{}await pause(100);}
+    while(Date.now()<until){try{port=(await readFile(devToolsPortFile(browser),'utf8')).split(/\r?\n/)[0];if(port)break;}catch{}await pause(100);}
     assert(port,'browser startup');
     const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();
     ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await once(ws,'open');
@@ -138,8 +138,8 @@ test('findings 1 and 6: portable work import, confirmed ISO contents and inert D
     });
     assert.deepEqual(errors,[]);
   }finally{
-    ws?.close();browser?.kill();server?.kill();
-    // Edge may briefly retain a profile lock. Leave any locked isolated temp artifact on D:.
-    await pause(500);if(resolve(dir).startsWith(resolve(tmpdir())+'\\'))try{await rm(dir,{recursive:true,force:true});}catch{}
+    await stopBrowser(browser,ws);
+    server?.kill();
+    if(resolve(dir).startsWith(resolve(tmpdir())+sep))await rm(dir,{recursive:true,force:true,maxRetries:8,retryDelay:200});
   }
 });

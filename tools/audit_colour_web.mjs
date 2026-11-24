@@ -1,6 +1,7 @@
-// Run from the repository root with Node 22+ and headless Edge installed.
+// Run from the repository root with Node 22+ and a local Chromium browser.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from '../tests/browser.mjs';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import {spawn} from 'node:child_process';
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { once } from 'node:events';
@@ -52,14 +53,12 @@ async function click(selector) {
 try {
   await until(() => ready.includes('\n'), 'loopback server');
   const { port, geo } = JSON.parse(ready.split('\n')[0]);
-  edge = spawn(process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', [
-    '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
-    '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank',
-  ], { stdio: 'ignore', windowsHide: true });
+  edge = launchBrowser(selectBrowser({legacy: ['KIT_TEST_BROWSER']}), profile, [
+    '--remote-debugging-port=0', 'about:blank',], { stdio: 'ignore', windowsHide: true });
   const cdpPort = await until(async () => {
-    try { return (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]; }
-    catch (error) { if (error.code !== 'ENOENT') throw error; }
-  }, 'Edge CDP');
+    try { return (await readFile(devToolsPortFile(edge), 'utf8')).split('\n')[0]; }
+    catch (error) { if (!['ENOENT', 'EBUSY', 'EPERM', 'EACCES'].includes(error.code)) throw error; }
+  }, 'Browser CDP');
   const tabs = await (await fetch('http://127.0.0.1:' + cdpPort + '/json/list')).json();
   socket = new WebSocket(tabs.find(tab => tab.type === 'page').webSocketDebuggerUrl);
   await once(socket, 'open');
@@ -70,7 +69,7 @@ try {
   await cdp('Page.enable');
   await cdp('Runtime.enable');
   await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/home/` });
-  await until(() => js('document.documentElement.dataset.handshake === "ready"'), 'GUI handshake');
+  await until(() => js('document.documentElement?.dataset.handshake === "ready"'), 'GUI handshake');
   await js(`(async () => {
     window.design = await import('/home/design.js');
     const item = { id: 'audit', kind: 'saved', name: 'Audit DVD', s: 'good', geo: ${JSON.stringify(geo)} };
@@ -126,8 +125,7 @@ try {
   assert(!result.error, result.error);
   console.log(JSON.stringify(result.result));
 } finally {
-  socket?.close();
-  if (edge && edge.exitCode === null) { const exited = once(edge, 'exit'); edge.kill(); await exited; }
+  await stopBrowser(edge,socket);
   if (server.exitCode === null) { const exited = once(server, 'exit'); server.stdin.end(); await exited; }
   await rm(profile, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
 }

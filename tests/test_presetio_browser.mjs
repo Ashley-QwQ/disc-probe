@@ -1,15 +1,12 @@
 // File-only browser integration with mocked API: no product server or drives.
+import {runBrowser, selectBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import {existsSync, readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {spawnSync} from 'node:child_process';
 
-const browser = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-if (!existsSync(browser)) {
-  throw Error('presetio browser requires Chromium; set KIT_TEST_BROWSER');
-}
+const browser = selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-presetio-'));
 const home = new URL('../discprobe/web/home/', import.meta.url);
 const index = readFileSync(new URL('index.html', home), 'utf8');
@@ -360,10 +357,9 @@ try {
     // and run a case once more if it never reported (a real failure reports FAIL, not PENDING).
     let result,report;
     for(let attempt=0;attempt<2;attempt++){
-      result=spawnSync(browser,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
-        '--allow-file-access-from-files','--user-data-dir='+join(dir,'profile-'+i+'-'+attempt),'--window-size='+Math.max(500,c.width)+','+c.height,
+      result=runBrowser(browser, join(dir,'profile-'+i+'-'+attempt), ['--mute-audio','--no-sandbox','--allow-file-access-from-files','--window-size='+Math.max(500,c.width)+','+c.height,
         '--force-device-scale-factor=1','--hide-scrollbars','--virtual-time-budget=15000','--dump-dom','--screenshot='+screenshot,pathToFileURL(wrapper).href],
-        {encoding:'utf8',timeout:60000,maxBuffer:4*1024*1024,windowsHide:true});
+        {disableGpu: true, encoding:'utf8',timeout:60000,maxBuffer:4*1024*1024,windowsHide:true});
       assert.ifError(result.error);
       report=result.stdout.match(/<pre id="result"[^>]*>([\s\S]*?)<\/pre>/)?.[1];
       if(report!=='PENDING')break;

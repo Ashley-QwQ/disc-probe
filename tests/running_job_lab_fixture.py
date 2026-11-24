@@ -93,6 +93,7 @@ if any(arg == "geo" for arg in sys.orig_argv):
     ui.event = observe
 ''', encoding='utf-8')
     env = lab_env(lab)
+    env.pop("DISC_PROBE_NO_DRIVES", None)
     env['PYTHONPATH'] = os.pathsep.join((str(hook), env['PYTHONPATH']))
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))

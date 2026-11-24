@@ -1,9 +1,9 @@
+import {runBrowser, selectBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import {readFileSync, readdirSync, writeFileSync, mkdtempSync, rmSync, existsSync} from 'node:fs';
+import {readFileSync, readdirSync, writeFileSync, mkdtempSync, rmSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {pathToFileURL, fileURLToPath} from 'node:url';
-import {spawnSync} from 'node:child_process';
 import vm from 'node:vm';
 import {observeActivity, dataURLBlob} from '../discprobe/web/home/kit/shared.js';
 import {LampPreview} from '../discprobe/web/home/design/editor-lamp.mjs';
@@ -130,7 +130,7 @@ lamp.pause();assert(workers[0].dead);assert.equal(lamp.inflight,null);
 lamp.view(args);const image={close(){this.closed=true;}};decode(image);await pending;
 assert(image.closed);assert.equal(lamp.shown,null);old({data:{type:'error',rev:1,error:'stale'}});assert.notEqual(lamp.phase,'error');lamp.dispose();
 
-const edge=process.env.KIT_TEST_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';assert(existsSync(edge));
+const edge=selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 const dir=mkdtempSync(join(tmpdir(),'discprobe-ime-'));
 try {
   const fixture=join(dir,'ime.html');
@@ -140,8 +140,8 @@ const check=(ok,msg)=>{if(!ok)throw Error(msg)};
 try{${assertions}document.getElementById('result').textContent='PASS: 14 entries x 3 synthetic KeyboardEvents';}
 catch(e){document.getElementById('result').textContent='FAIL: '+e.stack;}
 </script></body></html>`);
-  const r=spawnSync(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check','--allow-file-access-from-files',
-    '--user-data-dir='+join(dir,'profile'),'--virtual-time-budget=5000','--dump-dom',pathToFileURL(fixture).href],{encoding:'utf8',timeout:30000,windowsHide:true});
+  const r=runBrowser(edge, join(dir,'profile'), ['--mute-audio','--no-sandbox','--allow-file-access-from-files',
+    '--virtual-time-budget=5000','--dump-dom',pathToFileURL(fixture).href],{disableGpu: true, encoding:'utf8',timeout:30000,windowsHide:true});
   assert.ifError(r.error);
   const report=r.stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)?.[1];
   assert.equal(report,'PASS: 14 entries x 3 synthetic KeyboardEvents');

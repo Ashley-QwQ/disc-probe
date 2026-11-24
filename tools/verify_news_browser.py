@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 import threading
@@ -20,12 +19,13 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from discprobe import news, webui
+from tools.browser import run_browser
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--out", required=True, type=Path)
-    p.add_argument("--browser", default="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe")
+    p.add_argument("--browser")
     args = p.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="news-capture-", dir=args.out.parent) as temp:
@@ -91,12 +91,11 @@ document.getElementById('result').textContent='PASS '+params.get('case')+' '+par
                     for theme in ("paper", "dark"):
                         name = f"{case}-{theme}"
                         profile = temp / (name + "-profile")
-                        result = subprocess.run([args.browser, "--headless=new","--mute-audio", "--disable-gpu", "--no-sandbox",
-                            "--no-first-run", "--no-default-browser-check", "--user-data-dir=" + str(profile),
+                        result = run_browser(profile, ["--mute-audio", "--no-sandbox",
                             "--window-size=1440,1000", "--force-device-scale-factor=1", "--hide-scrollbars",
                             "--virtual-time-budget=40000", "--dump-dom", "--screenshot=" + str(args.out / (name + ".png")),
                             f"http://127.0.0.1:{server.server_port}/news-capture.html?theme={theme}&case={case}"],
-                            capture_output=True, timeout=60)
+                            executable=args.browser, disable_gpu=True, timeout=60)
                         dom = result.stdout.decode("utf-8", errors="replace")
                         report = re.search(r'<pre id="result"[^>]*>([\s\S]*?)</pre>', dom)
                         (args.out / (name + ".html")).write_text(dom, encoding="utf-8")

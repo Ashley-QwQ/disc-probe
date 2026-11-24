@@ -1,6 +1,6 @@
-// Exercise the bundled library through real Edge inputs and an isolated, in-memory core.
+// Exercise the bundled library through real browser input and an isolated, in-memory core.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const web = fileURLToPath(new URL('../discprobe/web', import.meta.url));
 const manifest = JSON.parse(await readFile(join(web, 'gui.json'), 'utf8'));
-const edge = process.env.EDGE || process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge = selectBrowser({legacy: ['EDGE', 'KIT_TEST_BROWSER']});
 const temp = resolve(tmpdir());
 const profile = await mkdtemp(join(temp, 'shelf-edge-'));
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.mjs':'text/javascript',
@@ -74,10 +74,10 @@ server.listen(0, '127.0.0.1');
 await once(server, 'listening');
 const {port} = server.address();
 assert.notEqual(port, 8765);
-const browser = spawn(edge, ['--headless=new', '--disable-gpu', '--disable-background-networking', '--disable-component-update',
-  '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', '--mute-audio',
-  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1', `--user-data-dir=${profile}`, 'about:blank'],
-  {stdio:'ignore', windowsHide:true});
+const browser = launchBrowser(edge, profile, ['--disable-component-update',
+  '--remote-debugging-port=0', '--mute-audio',
+  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1', 'about:blank'],
+  {disableGpu: true, stdio:'ignore', windowsHide:true});
 
 let socket, sequence = 0;
 const requests = new Map();
@@ -134,7 +134,7 @@ async function navigate(width, motion) {
 }
 
 try {
-  const debug = await until(async () => (await readFile(join(profile,'DevToolsActivePort'),'utf8').catch(()=>'' )).split(/\r?\n/)[0], 'Edge CDP port');
+  const debug = await until(async () => (await readFile(devToolsPortFile(browser),'utf8').catch(()=>'' )).split(/\r?\n/)[0], 'Browser CDP port');
   assert.notEqual(debug,'8765');
   const pages = await fetch(`http://127.0.0.1:${debug}/json/list`).then(r=>r.json());
   socket = new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);
@@ -249,14 +249,7 @@ try {
   assert.ok(calls.filter(call=>call.path==='/api/run').every(call=>call.body.action==='checkdisc'));
   console.log('Library: 10 rows, direct selection, arrows, wheel, touch, direction, reduced motion, CD photo/rename/export, and DVD check-disc hand-off.');
 } finally {
-  if (socket?.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({id:++sequence,method:'Browser.close'}));
-    socket.close();
-  }
-  if (browser.exitCode === null) {
-    await Promise.race([once(browser,'exit'),wait(2500)]);
-    if (browser.exitCode === null) browser.kill();
-  }
+  await stopBrowser(browser,socket);
   server.closeAllConnections();
   server.close();
   assert.equal(dirname(resolve(profile)),temp);

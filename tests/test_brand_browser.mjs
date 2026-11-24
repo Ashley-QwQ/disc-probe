@@ -1,16 +1,15 @@
-// Real Edge glyph selection and requested screenshots; local synthetic data, no drives.
+// Real browser glyph selection and requested screenshots; local synthetic data, no drives.
+import {PROFILE_RM, devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
-import {spawn} from 'node:child_process';
 import {createServer} from 'node:http';
 import {existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
 import {resolve, join, extname, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {stopEdge, endProfileProcesses, PROFILE_RM} from './edge_cleanup.mjs';
 
 const root = fileURLToPath(new URL('../discprobe/web/', import.meta.url));
-const edge = process.env.BRAND_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge = selectBrowser({legacy: ['BRAND_TEST_BROWSER']});
 const tempRoot = process.env.BRAND_TEST_TEMP || join(tmpdir(), 'discprobe-brand-browser');
 const shots = process.env.BRAND_SCREENSHOTS;
 mkdirSync(tempRoot, {recursive:true});
@@ -43,9 +42,8 @@ const server = createServer((req,res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const child = spawn(edge, ['--headless=new','--mute-audio','--remote-debugging-port=0',`--user-data-dir=${profile}`,
-  '--disable-gpu','--disable-background-networking','--no-first-run','--hide-scrollbars','about:blank'],
-  {stdio:'ignore',windowsHide:true});
+const child = launchBrowser(edge, profile, ['--mute-audio','--remote-debugging-port=0','--hide-scrollbars','about:blank'],
+  {disableGpu: true, stdio:'ignore',windowsHide:true});
 const sleep = ms => new Promise(r => setTimeout(r,ms));
 let ws, seq = 0;
 const pending = new Map(), evidence = [];
@@ -66,8 +64,8 @@ async function fontsFor(selector) {
   return (await send('CSS.getPlatformFontsForNode',{nodeId})).fonts;
 }
 try {
-  for (let i=0;i<80 && !existsSync(join(profile,'DevToolsActivePort'));i++) await sleep(100);
-  const port = readFileSync(join(profile,'DevToolsActivePort'),'utf8').split('\n')[0];
+  for (let i=0;i<80 && !existsSync(devToolsPortFile(child));i++) await sleep(100);
+  const port = readFileSync(devToolsPortFile(child),'utf8').split('\n')[0];
   const tabs = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   ws = new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((r,j)=>{ws.addEventListener('open',r,{once:true});ws.addEventListener('error',j,{once:true});});
@@ -117,10 +115,10 @@ try {
     }
   }
   if(shots)writeFileSync(join(shots,'font-evidence.json'),JSON.stringify(evidence,null,2));
-  console.log('PASS: Edge Chinese title glyphs use Disc Title SC Heavy; Latin uses Archivo; body unchanged; 3 viewports/icons verified');
+  console.log('PASS: Chinese title glyphs use Disc Title SC Heavy; Latin uses Archivo; body unchanged; 3 viewports/icons verified');
 } finally {
-  await stopEdge(child, ws);
+  await stopBrowser(child, ws);
   server.closeAllConnections(); await new Promise(r=>server.close(r));
   assert.ok(resolve(profile).startsWith(resolve(tempRoot)+sep));
-  endProfileProcesses(profile); await rm(profile,PROFILE_RM);
+  await rm(profile,PROFILE_RM);
 }

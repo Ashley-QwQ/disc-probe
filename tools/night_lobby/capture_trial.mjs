@@ -1,4 +1,5 @@
-// Local fixture + headless Edge. Only base is substituted in the second capture.
+// Local fixture in headless Chromium. Only base is substituted in the second capture.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from '../../tests/browser.mjs';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {readFileSync, writeFileSync, existsSync, mkdirSync} from 'node:fs';
@@ -38,12 +39,11 @@ try {
   for(let i=0;i<300&&!output.includes('\n')&&server.exitCode===null;i++)await pause(100);
   assert(output.includes('\n'),errors);
   const ports=JSON.parse(output.split('\n')[0]);
-  browser=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
-    '--headless=new','--disable-gpu','--disable-background-networking','--no-first-run',
-    '--no-default-browser-check','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],
-    {stdio:'ignore',windowsHide:true,env});
-  for(let i=0;i<300&&!existsSync(join(profile,'DevToolsActivePort'));i++)await pause(100);
-  const port=readFileSync(join(profile,'DevToolsActivePort'),'utf8').split('\n')[0];
+  browser=launchBrowser(selectBrowser(), profile, [
+    '--remote-debugging-port=0','about:blank'],
+    {disableGpu: true, stdio:'ignore',windowsHide:true,env});
+  for(let i=0;i<300&&!existsSync(devToolsPortFile(browser));i++)await pause(100);
+  const port=readFileSync(devToolsPortFile(browser),'utf8').split('\n')[0];
   const tabs=await(await fetch('http://127.0.0.1:'+port+'/json/list')).json();
   ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j;});
@@ -102,8 +102,7 @@ try {
   assert.equal(evidence[0].worldTransform,evidence[1].worldTransform);
   assert.deepEqual(evidence[0].layerTransforms,evidence[1].layerTransforms);
 } finally {
-  if(ws&&ws.readyState===1){await cdp('Browser.close').catch(()=>{});ws.close();}
-  browser?.kill();server.stdin.end();
+  await stopBrowser(browser,ws);server.stdin.end();
   await pause(1500);
   for(const p of [profile,fixture]) {
     assert(resolve(p).startsWith(resolve(trial)+'/')||resolve(p).startsWith(resolve(trial)+'\\'));

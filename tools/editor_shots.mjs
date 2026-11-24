@@ -1,20 +1,17 @@
-// Headless Edge screenshots through the DevTools protocol.
-// node cdpshot.mjs plan.json outdir
+// Headless screenshots through the DevTools protocol.
+// node tools/editor_shots.mjs plan.json outdir
 // plan: [{url, theme:"light"|"dark", steps:[{eval:"js"}|{wait:ms}|{shot:"name"}|{key:"S", shift:true}]}]
-import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import {devToolsPortFile, launchBrowser, removeProfile, selectBrowser, stopBrowser} from '../tests/browser.mjs';
+import {readFileSync, writeFileSync, mkdirSync, mkdtempSync} from "node:fs";
+import { join, resolve } from "node:path";
 
 const [planPath, outDir] = process.argv.slice(2);
 const plan = JSON.parse(readFileSync(planPath, "utf8"));
 mkdirSync(outDir, { recursive: true });
-const PORT = 9334;
 const outputRoot=resolve(outDir);
-const profile = resolve(outputRoot, ".edge-profile");
-if(!profile.startsWith(outputRoot+sep)||profile===outputRoot)throw Error('Profile must stay inside the screenshot output directory');
-const edge = spawn("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-  ["--headless=new","--mute-audio", `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`, "--no-first-run",
-   "--hide-scrollbars", "--window-size=1440,900", "about:blank"], { stdio: "ignore", detached: false });
+const profile = mkdtempSync(join(outputRoot, ".browser-profile-"));
+const browser = launchBrowser(selectBrowser(), profile, ["--mute-audio", "--remote-debugging-port=0",
+  "--hide-scrollbars", "--window-size=1440,900", "about:blank"], {stdio: "ignore"});
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let ws, seq = 0;
@@ -22,13 +19,18 @@ const pending = new Map();
 async function connect() {
   for (let i = 0; i < 50; i++) {
     try {
-      const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+      const port = readFileSync(devToolsPortFile(browser), 'utf8').split(/\r?\n/)[0];
+      const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
       const page = list.find((t) => t.type === "page");
       if (page) { ws = new WebSocket(page.webSocketDebuggerUrl); break; }
     } catch {}
     await sleep(200);
   }
-  await new Promise((r) => ws.addEventListener("open", r, { once: true }));
+  if (!ws) throw Error('Browser debugging endpoint did not start');
+  await new Promise((r, reject) => {
+    ws.addEventListener("open", r, {once: true});
+    ws.addEventListener("error", reject, {once: true});
+  });
   ws.addEventListener("message", (m) => {
     const d = JSON.parse(m.data);
     if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
@@ -63,7 +65,6 @@ try {
   }
   writeFileSync(join(outDir,'browser-errors.json'),JSON.stringify(errors,null,2));
 } finally {
-  edge.kill();
-  await sleep(800);
-  try { rmSync(profile, { recursive: true, force: true }); } catch {}
+  await stopBrowser(browser, ws);
+  removeProfile(profile, outputRoot);
 }

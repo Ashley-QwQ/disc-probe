@@ -1,16 +1,16 @@
-// Actual DOM/events/assets in Edge, file URLs only. No server, backend, or device access.
+// Real DOM, events and assets with a mock backend. No device access.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
+import {serveBrowserFixture} from './browser_fixtures.mjs';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
+import {mkdtempSync, writeFileSync, readFileSync} from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { spawn } from 'node:child_process';
-const edge = process.env.PASTWORKS_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-assert.ok(existsSync(edge), 'Set PASTWORKS_TEST_BROWSER to a Chromium executable');
+const edge = selectBrowser({legacy: ['PASTWORKS_TEST_BROWSER']});
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-pastworks-'));
 const preview = new URL('../discprobe/web/home/pastworks-preview.html', import.meta.url);
-const home = new URL('../discprobe/web/home/index.html?mock', import.meta.url);
+const manifest = JSON.parse(readFileSync(new URL('../discprobe/web/gui.json', import.meta.url), 'utf8'));
 const screenshots = process.env.PASTWORKS_SCREENSHOTS;
 const sheetShots = process.env.PASTWORKS_SHEET_SCREENSHOTS;
 const html = width => `<!doctype html><meta charset="utf-8"><iframe id="view" style="width:${width}px;height:900px;border:0" src="${preview}"></iframe><pre id="result">PENDING</pre>
@@ -62,6 +62,7 @@ try {
   check(!demo.page.state.focused && demo.page.state.phase === 'idle', 'first Esc closes detail only');
   check(d.activeElement === cell, 'focus restored to work');
   cell.click(); d.getElementById('back').click(); check(!demo.page.state.focused, 'Back has same detail-first order');
+  await wait(0); // Back queues focus scrolling. Let it finish before testing user scrolling.
   // Scroll only transforms the cached layers; thumbnails and layout are stable.
   const scroll = page.querySelector('.pw-scroll');
   const scrollTop = Math.min(300, scroll.scrollHeight - scroll.clientHeight); scroll.scrollTop = scrollTop; scroll.dispatchEvent(new w.Event('scroll'));
@@ -175,10 +176,10 @@ async function until(expression) {
   assert.fail(`Timed out: ${expression}`);
 }
 
-async function sheetLayout() {
+async function sheetLayout(origin) {
   await cdp('Emulation.setFocusEmulationEnabled', { enabled: true });
-  await cdp('Page.navigate', { url: home.href });
-  await until('location.search === "?mock" && document.documentElement.dataset.navigation === "ready" && !!document.querySelector("#lobby-open[data-target=filebox]")');
+  await cdp('Page.navigate', { url: origin + '/home/index.html?mock' });
+  await until('location.search === "?mock" && document.documentElement?.dataset.navigation === "ready" && !!document.querySelector("#lobby-open[data-target=filebox]")');
   const lobby = "document.getElementById('lobby-open')";
   const scroll = "document.querySelector('.pw-scroll')";
   const ready = `!document.querySelector('.pw')?.hidden && ${scroll} && !${scroll}.inert && !${lobby}.hasAttribute('aria-busy')`;
@@ -324,14 +325,16 @@ async function sheetLayout() {
   console.log('Past works sheet native wheel, touch drag and no-overflow filter passed');
 }
 
+const fixtures = await serveBrowserFixture(new Map([['/api/version', ['application/json', JSON.stringify({
+  api_version: '1.0', capabilities: [...manifest.required_capabilities, ...manifest.optional_capabilities],
+})]]]));
 try {
   // Bounded headless test process. Real time lets image.decode() finish; virtual-time dump-dom
   // can end before the full-size cell envelope textures decode and hide genuine visual defects.
-  browserProcess = spawn(edge, ['--headless=new','--mute-audio', '--disable-gpu', '--disable-background-networking', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
-    '--allow-file-access-from-files', '--remote-debugging-port=0', `--user-data-dir=${join(dir, 'profile')}`, 'about:blank'],
-  { windowsHide: true, stdio: 'ignore' });
+  browserProcess = launchBrowser(edge, join(dir, 'profile'), ['--mute-audio', '--no-sandbox', '--allow-file-access-from-files', '--remote-debugging-port=0', 'about:blank'],
+  { disableGpu: true, windowsHide: true, stdio: 'ignore' });
   browserProcess.on('error', error => { throw error; });
-  const portFile = join(dir, 'profile', 'DevToolsActivePort');
+  const portFile = devToolsPortFile(browserProcess);
   let port;
   for (let i = 0; i < 100 && !port; i++) {
     try {
@@ -361,6 +364,7 @@ try {
     console.log(`Past works browser integration passed (${width}px, file URLs)`);
   }
   const lobby = readFileSync(new URL('../discprobe/web/home/lobby.js', import.meta.url), 'utf8');
+  const lobbyArt = readFileSync(new URL('../discprobe/web/home/lobby/lobby.json', import.meta.url), 'utf8');
   assert.match(lobby, /lobby-open[\s\S]*?stopImmediatePropagation\(\)[\s\S]*?pastworks\.js[\s\S]*?capture: true/);
   const lobbyFixture = join(dir, 'lobby-entry.html');
   writeFileSync(lobbyFixture, `<!doctype html><meta charset="utf-8"><style>body{margin:0}.lobby{position:fixed;inset:0}.pw{--edge:20px;--row:52px;--foot:72px;--paper:#ebe7e0;--paper-2:#e4dfd7;--ink:#1d1b18;--ink-2:#5d5850;--font:system-ui}</style>
@@ -368,6 +372,9 @@ try {
     <button id="theme"></button><button id="back" hidden>返回 / Back</button><pre id="result">PENDING</pre>
     <script type="module">
     const $=id=>document.getElementById(id), check=(v,m)=>{if(!v)throw Error(m)}, wait=ms=>new Promise(r=>setTimeout(r,ms));
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=(url,opts)=>String(url).endsWith('/lobby/lobby.json')
+      ? Promise.resolve(new Response(${JSON.stringify(lobbyArt)})) : nativeFetch(url,opts);
     let legacy=0,newWorks=0; $('lobby-open').addEventListener('click',()=>legacy++);
     const api={$,lang:()=> 'zh',reduce:false,lobbyState:()=>null,toLobby(){document.documentElement.dataset.mode=''},newWork(){newWorks++;document.documentElement.dataset.mode='newplan';$('back').hidden=false}};
     try {
@@ -411,21 +418,10 @@ try {
       writeFileSync(resolve(screenshots, `pastworks-${width}-${theme}-${view}.png`), Buffer.from(shot.data, 'base64'));
     }
   }
-  await sheetLayout();
+  await sheetLayout(fixtures.origin);
 } finally {
-  if (socket?.readyState === WebSocket.OPEN) { await cdp('Browser.close').catch(() => {}); socket.close(); }
-  if (browserProcess) {
-    const exited = () => browserProcess.exitCode !== null || browserProcess.signalCode !== null;
-    const closed = new Promise(resolve => browserProcess.once('close', resolve));
-    if (!exited()) {
-      await Promise.race([closed, delay(2000)]);
-      if (!exited()) {
-        browserProcess.kill();
-        await Promise.race([closed, delay(5000)]);
-      }
-    }
-    assert.ok(exited(), 'fixture browser must exit before removing its profile');
-  }
+  await stopBrowser(browserProcess, socket);
+  await fixtures.close();
   assert.ok(resolve(dir).startsWith(resolve(tmpdir(), 'discprobe-pastworks-')));
   // Keep the event loop available while Chromium releases Windows profile handles.
   await rm(dir, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });

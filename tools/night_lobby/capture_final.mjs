@@ -1,7 +1,8 @@
 // Capture the written lobby and three destinations reached by clicking actual lobby targets.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from '../../tests/browser.mjs';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {readFileSync, writeFileSync, existsSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -23,11 +24,10 @@ async function until(expression){for(let i=0;i<600;i++){if(await evaluate(expres
 try{
   for(let i=0;i<300&&!output.includes('\n')&&server.exitCode===null;i++)await pause(100);
   assert(output.includes('\n'),stderr);const ports=JSON.parse(output.split('\n')[0]);
-  browser=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
-    '--headless=new','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
-    '--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{env,stdio:'ignore',windowsHide:true});
-  for(let i=0;i<300&&!existsSync(join(profile,'DevToolsActivePort'));i++)await pause(100);
-  const port=readFileSync(join(profile,'DevToolsActivePort'),'utf8').split('\n')[0];
+  browser=launchBrowser(selectBrowser(), profile, [
+    '--remote-debugging-port=0','about:blank'],{disableGpu: true, env,stdio:'ignore',windowsHide:true});
+  for(let i=0;i<300&&!existsSync(devToolsPortFile(browser));i++)await pause(100);
+  const port=readFileSync(devToolsPortFile(browser),'utf8').split('\n')[0];
   const tabs=await(await fetch('http://127.0.0.1:'+port+'/json/list')).json();
   ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j;});
@@ -61,7 +61,7 @@ try{
   ]){await lobby();await evaluate(`document.querySelector(${JSON.stringify(route.selector)}).click()`);
     await until(`document.documentElement.dataset.mode===${JSON.stringify(route.mode)}`);await shot(route.name,route.selector);}
 }finally{
-  if(ws&&ws.readyState===1){await cdp('Browser.close').catch(()=>{});ws.close();}browser?.kill();server.stdin.end();await pause(1500);
+  await stopBrowser(browser,ws);server.stdin.end();await pause(1500);
   for(const p of [profile,fixture]){assert(resolve(p).startsWith(resolve(final)+'\\')||resolve(p).startsWith(resolve(final)+'/'));
     await rm(p,{recursive:true,force:true,maxRetries:5,retryDelay:500});}
 }

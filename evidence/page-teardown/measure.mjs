@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {execFile, execFileSync, spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
-import {join, resolve} from 'node:path';
+import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {promisify} from 'node:util';
-import {removeProfile, stopEdge} from '../../tests/edge_cleanup.mjs';
+import {devToolsPortFile, launchBrowser, removeProfile, selectBrowser, stopBrowser} from '../../tests/browser.mjs';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const tmp = resolve('D:/dp-dev/tmp/pageteardown');
-const edge = process.env.PAGEMEM_EDGE ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge = selectBrowser({legacy: ['PAGEMEM_EDGE'], edgeOnly: true});
 const python = process.env.PYTHON ?? 'python';
 const system = fileURLToPath(new URL('windows.ps1', import.meta.url));
 const queryWindows = promisify(execFile);
@@ -139,7 +139,6 @@ async function measure(config, output, imageBody) {
   assert.ok(disks.length === 2 && disks.every(disk => disk.Free >= 5_000_000_000),
     `D/F disk space below 5 GB: ${JSON.stringify(disks)}`);
   const dir = mkdtempSync(join(tmp, 'run-'));
-  const profile = join(dir, 'edge');
   const lab = join(dir, 'lab');
   const local = join(dir, 'local');
   mkdirSync(local);
@@ -168,21 +167,23 @@ async function measure(config, output, imageBody) {
       return response.json();
     };
     await until(() => request('/api/state').catch(() => null), 'isolated lab HTTP ready');
-    browser = spawn(edge, [
-      '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync',
+    browser = launchBrowser(edge, undefined, [
+      '--disable-sync',
       '--disable-component-update',
       '--disable-features=msEdgeSidebarV2,msEdgeShopping,msEdgeRewards,CalculateNativeWinOcclusion',
       '--disable-backgrounding-occluded-windows',
-      '--mute-audio', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
+      '--mute-audio', '--remote-debugging-port=0',
       '--proxy-server=127.0.0.1:9', `--proxy-bypass-list=<-loopback>;127.0.0.1:${port}`,
       '--force-device-scale-factor=1', '--window-position=0,0', `--window-size=${width},${height}`,
-      ...(software ? ['--disable-gpu', '--disable-lcd-text'] : []),
-      ...(headless ? ['--headless=new'] : []), 'about:blank',
-    ], {env, windowsHide:headless, stdio:'ignore'});
+      ...(software ? ['--disable-lcd-text'] : []),
+      'about:blank',
+    ], {env, headless, disableGpu:software, windowsHide:headless, stdio:'ignore'});
+    const portFile = devToolsPortFile(browser);
+    const profile = dirname(portFile);
     browser.on('error', error => { fault = error; });
     const debugPort = await until(() => {
       if (fault || browser.exitCode !== null) throw fault ?? Error(`Edge exited with ${browser.exitCode}`);
-      try { return readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split(/\r?\n/)[0]; } catch {}
+      try { return readFileSync(portFile, 'utf8').split(/\r?\n/)[0]; } catch {}
     }, 'private Edge CDP port', 30_000);
     const debug = loopback(debugPort);
     const version = await fetch(debug + '/json/version', {signal:AbortSignal.timeout(4000)}).then(r => r.json());
@@ -540,12 +541,7 @@ async function measure(config, output, imageBody) {
     throw error;
   } finally {
     try {
-      if (browser?.pid) {
-        // The CDP socket was read only from this profile's DevToolsActivePort file.
-        await stopEdge(browser, cdp?.socket);
-        await windows('close', profile, browser.pid);
-        if (existsSync(profile)) removeProfile(profile, dir);
-      }
+      await stopBrowser(browser, cdp?.socket);
     } finally {
       try {
         if (server.pid && server.exitCode === null && server.signalCode === null) {

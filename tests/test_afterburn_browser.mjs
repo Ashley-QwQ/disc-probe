@@ -1,16 +1,15 @@
 // Real Disc Lab burn and HTTP persistence; a small ISO keeps the run bounded. No physical devices.
+import {PROFILE_RM, devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
-import {existsSync,readFileSync,writeFileSync,mkdirSync,mkdtempSync,realpathSync,rmSync} from 'node:fs';
+import {existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
-import {spawn,spawnSync} from 'node:child_process';
-import {stopEdge,endProfileProcesses,PROFILE_RM} from './edge_cleanup.mjs';
+import {spawn, spawnSync} from 'node:child_process';
 
 const base=process.env.AFTERBURN_TEST_ROOT ?? join(tmpdir(),'discprobe-afterburn');mkdirSync(base,{recursive:true});
 const dir=mkdtempSync(join(base,'browser-')), shots=join(base,'shots');mkdirSync(shots,{recursive:true});
 const checkShots=process.env.CHECKBURN_SHOTS ?? shots;mkdirSync(checkShots,{recursive:true});
-const edge=process.env.PASTWORKS_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-assert.ok(existsSync(edge));
+const edge=selectBrowser({legacy: ['PASTWORKS_TEST_BROWSER']});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 let server,browser,socket,seq=0;const pending=new Map(), results=[];
 function cdp(method,params={}){const id=++seq;const p=new Promise((resolve,reject)=>pending.set(id,{resolve,reject}));socket.send(JSON.stringify({id,method,params}));return p;}
@@ -26,9 +25,8 @@ try{
   for(let i=0;i<300&&!ready;i++){try{ready=JSON.parse(readFileSync(join(dir,'lab','ready.json'),'utf8'));}catch{}if(!ready)await delay(100);}
   assert.ok(ready,output);
   const origin=`http://127.0.0.1:${ready.port}`;
-  browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
-    '--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
-  let port;for(let i=0;i<100&&!port;i++){try{port=readFileSync(join(dir,'profile','DevToolsActivePort'),'utf8').split(/\r?\n/)[0];}catch{}if(!port)await delay(100);}
+  browser=launchBrowser(edge, join(dir,'profile'), ['--mute-audio','--remote-debugging-port=0','about:blank'],{disableGpu: true, windowsHide:true,stdio:'ignore'});
+  let port;for(let i=0;i<100&&!port;i++){try{port=readFileSync(devToolsPortFile(browser),'utf8').split(/\r?\n/)[0];}catch{}if(!port)await delay(100);}
   assert.ok(port,'browser ready');
   const targets=await fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json());
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);
@@ -163,8 +161,8 @@ try{
   writeFileSync(join(base,'browser-results.json'),JSON.stringify({checks:results.length,results,work:ready.work,dir,report:state.record.report},null,2));
   console.log(`PASS: ${results.length} Disc Lab/browser checks; ${shots}`);
 }finally{
-  await stopEdge(browser,socket);
-  endProfileProcesses(join(dir,'profile'));
+  await stopBrowser(browser,socket);
+
   if(server?.exitCode===null)spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
   if (dirname(realpathSync(dir)) === realpathSync(base)) {
     rmSync(dir,PROFILE_RM);

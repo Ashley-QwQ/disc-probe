@@ -1,25 +1,23 @@
-// Full home-page DOM with file assets and synthetic core responses. No product server or devices.
+// Full home-page DOM on loopback with synthetic core responses. No product server or devices.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
+import {serveBrowserFixture} from './browser_fixtures.mjs';
 import assert from 'node:assert/strict';
-import {existsSync, readFileSync, writeFileSync, mkdtempSync, mkdirSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdtempSync, mkdirSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
-import {pathToFileURL} from 'node:url';
-import {spawn} from 'node:child_process';
 import {hasBatch, geoChoice} from '../discprobe/web/home/design/export-rules.mjs';
 
 const home = new URL('../discprobe/web/home/', import.meta.url);
 const index = readFileSync(new URL('index.html', home), 'utf8');
 const manifest = JSON.parse(readFileSync(new URL('../gui.json', home), 'utf8'));
-const edge = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-assert.ok(existsSync(edge), 'Set KIT_TEST_BROWSER to Chromium');
+const edge = selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-review-'));
 const shots = resolve(process.env.REVIEW_SHOTS_DIR || '.impeccable/review-fixes'); mkdirSync(shots, {recursive:true});
 const discShots = resolve(process.env.DISC_FIELD_SHOTS_DIR || '.impeccable/disc-field'); mkdirSync(discShots, {recursive:true});
 const ownShots = resolve(process.env.OWN_PARAMS_SHOTS_DIR || '.impeccable/own-params'); mkdirSync(ownShots, {recursive:true});
-const fixture = join(dir, 'review.html');
 const communityFeed=JSON.parse(readFileSync(new URL('faxnews/community.json',home),'utf8'));
-const bootstrap = `<base href="${home}"><script>
+const bootstrap = `<base href="/home/"><script>
 localStorage.setItem('dp-lang','zh');localStorage.setItem('dp-motion','off');localStorage.setItem('dp-sound','off');
 window.reviewErrors=[];addEventListener('error',e=>reviewErrors.push(e.message));addEventListener('unhandledrejection',e=>reviewErrors.push(String(e.reason)));
 window.reviewCalls=[];
@@ -34,8 +32,8 @@ window.fetch=async (path,opts)=>{
      ({entries:window.reviewImportRows||[],written:payload.operation==='import'?(window.reviewImportRows||[]).map(r=>({index:r.index,path:'presets/'+r.preset.id+'.json'})):[],duplicates:[]})};
    throw Error('Unexpected core access: '+path);
  }
- if(url.protocol!=='file:')throw Error('No network in this test: '+url);
- return nativeFetch(path,opts);
+ if(url.origin!==location.origin)throw Error('No external network in this test: '+url);
+ return nativeFetch(url,opts);
 };
 window.EventSource=class {addEventListener(){} close(){}};
 window.reviewHandshake=async path=>({ok:true,json:async()=>path==='/gui.json'?${JSON.stringify(manifest)}:{api_version:'1.0',capabilities:${JSON.stringify([...manifest.required_capabilities,...manifest.optional_capabilities])}.filter(c=>!location.search.includes('no-presets')||c!=='presets-io')}});
@@ -44,7 +42,7 @@ let html = index.replace('<head>', '<head>'+bootstrap)
   .replace('await handshake();', 'await handshake(document, window.reviewHandshake, {protocol:"http:",search:""});');
 const tail = html.lastIndexOf('</script>');
 html = html.slice(0,tail) + '\nwindow.review={api,DATA,render,newplan:await import("./newplan.js")};\n' + html.slice(tail);
-writeFileSync(fixture, html);
+const server = await serveBrowserFixture(new Map([['/fixture', ['text/html; charset=utf-8', html]]]));
 const delay = ms => new Promise(r=>setTimeout(r,ms));
 let browser, socket, seq=0; const pending=new Map();
 async function cdp(method,params={}) {
@@ -67,15 +65,14 @@ async function shot(name, own=false) {
   writeFileSync(join(own==='disc'?discShots:own?ownShots:shots,name+'.png'),Buffer.from(data,'base64'));
 }
 async function open(extra='') {
-  await cdp('Page.navigate',{url:pathToFileURL(fixture).href+'?mock&'+extra});
+  await cdp('Page.navigate',{url:server.origin+'/fixture?mock&'+extra});
   await until('!!window.review','home fixture ready');
 }
 try {
-  browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-sandbox','--no-first-run','--no-default-browser-check',
-    '--allow-file-access-from-files','--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
+  browser=launchBrowser(edge, join(dir,'profile'), ['--mute-audio','--no-sandbox','--remote-debugging-port=0','about:blank'],{disableGpu: true, windowsHide:true,stdio:'ignore'});
   let port;
   for(let i=0;i<100&&!port;i++) {
-    try {port=readFileSync(join(dir,'profile','DevToolsActivePort'),'utf8').split(/\r?\n/)[0];}catch(e){if(!['ENOENT','EBUSY','EPERM','EACCES'].includes(e.code))throw e;}
+    try {port=readFileSync(devToolsPortFile(browser),'utf8').split(/\r?\n/)[0];}catch(e){if(!['ENOENT','EBUSY','EPERM','EACCES'].includes(e.code))throw e;}
     if(!port)await delay(100);
   }
   assert.ok(port,'CDP endpoint ready');
@@ -288,8 +285,8 @@ try {
   await check('reviewCalls.every(c=>c.path==="/api/presets" || c.path==="/api/community" && c.method==="GET")','only mocked preset and community reads, no device commands');
   console.log('PASS: library/new-work DOM, suggestions, keyboard, routing, parameters, motion, capability gate; eight disc-field 1440×900 screenshots');
 } finally {
-  if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}
-  if(browser){const closed=new Promise(r=>browser.once('close',r));if(browser.exitCode===null){await Promise.race([closed,delay(2000)]);if(browser.exitCode===null){browser.kill();await Promise.race([closed,delay(5000)]);}}}
+  await stopBrowser(browser,socket);
+  await server.close();
   assert.ok(resolve(dir).startsWith(resolve(tmpdir(), 'discprobe-review-')));
   await rm(dir,{recursive:true,force:true,maxRetries:8,retryDelay:250});
 }

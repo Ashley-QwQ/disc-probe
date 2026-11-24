@@ -1,6 +1,7 @@
-// Offline editor in Edge. Measurements use the screen disc outline and the CSS opening.
+// Offline editor. Measurements use the screen disc outline and the CSS opening.
+import {launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import {execFileSync} from 'node:child_process';
 import { once } from 'node:events';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -8,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
 
 const home = resolve('discprobe/web/home');
+const browser = selectBrowser({legacy: ['KIT_TEST_BROWSER'], edgeOnly: process.env.EDITOR_FIT_NATIVE_ZOOM === '1'});
+const nativeZoom = !browser.shell;
 const fonts = resolve(home, '../fonts');
 const out = resolve(process.env.EDITOR_FIT_OUT ?? tmpdir());
 const phase = process.env.EDITOR_FIT_PHASE;
@@ -16,14 +19,16 @@ const baselineDesign = baseline && execFileSync('git', ['show', baseline + ':dis
 const shots = phase && join(out, 'shots', phase);
 if (shots) await mkdir(shots, { recursive: true });
 await mkdir(out, { recursive: true });
-const profile = await mkdtemp(join(out, 'edge-fit-'));
+const profile = await mkdtemp(join(out, 'editor-fit-'));
 const extension = join(profile, 'test-zoom');
-await mkdir(extension);
-await writeFile(join(extension, 'manifest.json'), JSON.stringify({
-  manifest_version: 3, name: 'Editor fit test zoom', version: '1.0', permissions: ['tabs'],
-  background: { service_worker: 'zoom.js' },
-}));
-await writeFile(join(extension, 'zoom.js'), 'chrome.runtime.onInstalled.addListener(() => {});');
+if (nativeZoom) {
+  await mkdir(extension);
+  await writeFile(join(extension, 'manifest.json'), JSON.stringify({
+    manifest_version: 3, name: 'Editor fit test zoom', version: '1.0', permissions: ['tabs'],
+    background: { service_worker: 'zoom.js' },
+  }));
+  await writeFile(join(extension, 'zoom.js'), 'chrome.runtime.onInstalled.addListener(() => {});');
+}
 const html = (await readFile(join(home, 'index.html'), 'utf8'))
   .replace('data-handshake="pending"', 'data-handshake="fixture" data-theme="light"')
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '').replace('<head>', '<head><base href="/home/">')
@@ -83,11 +88,9 @@ const server = createServer(async (req, res) => {
   }
 }).listen(0, '127.0.0.1');
 await once(server, 'listening');
-const edge = spawn(process.env.KIT_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', [
-  '--headless=new', '--mute-audio', '--disable-background-networking', '--no-first-run',
-  '--no-default-browser-check', '--remote-debugging-pipe', '--enable-unsafe-extension-debugging',
-  `--user-data-dir=${profile}`, 'about:blank',
-], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'], windowsHide: true });
+const edge = launchBrowser(browser, profile, [
+  '--mute-audio', '--remote-debugging-pipe', ...(nativeZoom ? ['--enable-unsafe-extension-debugging'] : []),
+  'about:blank',], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'], windowsHide: true });
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const dimensions = [[1918, 893], [1366, 768], [1440, 800], [1280, 720]];
@@ -119,17 +122,18 @@ const cdp = (method, params = {}, sessionId) => new Promise((ok, fail) => {
   });
 });
 try {
-  const { id: extensionId } = await cdp('Extensions.loadUnpacked', { path: extension });
+  const extensionId = nativeZoom ? (await cdp('Extensions.loadUnpacked', {path: extension})).id : null;
   let tab, worker;
-  for (let i = 0; i < 200 && !(tab && worker); i++) {
+  for (let i = 0; i < 200 && !(tab && (!nativeZoom || worker)); i++) {
     const { targetInfos } = await cdp('Target.getTargets');
     tab = targetInfos.find(target => target.type === 'page');
-    worker = targetInfos.find(target => target.url === `chrome-extension://${extensionId}/zoom.js`);
-    if (!(tab && worker)) await pause(25);
+    if (nativeZoom) worker = targetInfos.find(target => target.url === `chrome-extension://${extensionId}/zoom.js`);
+    if (!tab || (nativeZoom && !worker)) await pause(25);
   }
-  assert.ok(tab && worker, 'Edge starts with the local zoom extension');
+  assert.ok(tab, 'Browser starts with a fixture tab');
+  if (nativeZoom) assert.ok(worker, 'Browser starts with the local zoom extension');
   const attach = async target => (await cdp('Target.attachToTarget', { targetId: target.targetId, flatten: true })).sessionId;
-  const pageSession = await attach(tab), zoomSession = await attach(worker);
+  const pageSession = await attach(tab), zoomSession = nativeZoom ? await attach(worker) : null;
   const send = (method, params) => cdp(method, params, pageSession);
   const run = async (expression, sessionId = pageSession) => {
     const result = await cdp('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, sessionId);
@@ -144,15 +148,29 @@ try {
     assert.fail(expression);
   };
   const frame = () => run('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
-  const viewport = (width, height) => send('Emulation.setDeviceMetricsOverride', {
-    width, height, deviceScaleFactor: 1, mobile: false,
-  });
+  let screenWidth, screenHeight, scale = 1;
+  const viewport = (width, height) => {
+    screenWidth = width;
+    screenHeight = height;
+    return send('Emulation.setDeviceMetricsOverride', {
+      width: Math.round(width / scale), height: Math.round(height / scale),
+      deviceScaleFactor: scale, mobile: false,
+    });
+  };
   const browserZoom = async zoom => {
-    assert.equal(await run(`(async () => {
-      const [tab] = await chrome.tabs.query({ active: true });
-      await chrome.tabs.setZoom(tab.id, ${zoom});
-      return chrome.tabs.getZoom(tab.id);
-    })()`, zoomSession), zoom);
+    if (nativeZoom) {
+      assert.equal(await run(`(async () => {
+        const [tab] = await chrome.tabs.query({ active: true });
+        await chrome.tabs.setZoom(tab.id, ${zoom});
+        return chrome.tabs.getZoom(tab.id);
+      })()`, zoomSession), zoom);
+    } else {
+      // The shell has no extensions. Give the editor the CSS viewport and DPR of this zoom.
+      scale = zoom;
+      await viewport(screenWidth, screenHeight);
+      assert.deepEqual(await run('[innerWidth, innerHeight]'),
+        [Math.round(screenWidth / zoom), Math.round(screenHeight / zoom)]);
+    }
     await until(`Math.abs(devicePixelRatio - ${zoom}) < .001`);
   };
   const select = view => run(`document.querySelector('[data-v="${view}"]').click()`);
@@ -314,9 +332,8 @@ try {
   console.log(JSON.stringify({ measurements: measurements.length, screenshots: shots ? 13 : 0 }));
 } finally {
   if (phase) await writeFile(join(out, `fit-${phase}.json`), JSON.stringify({ measurements, errors }, null, 2));
-  edge.kill();
+  await stopBrowser(edge);
   server.close();
-  await pause(500);
   assert.ok(profile.startsWith(out + sep));
   await rm(profile, { recursive: true, force: true, maxRetries: 6, retryDelay: 200 });
 }

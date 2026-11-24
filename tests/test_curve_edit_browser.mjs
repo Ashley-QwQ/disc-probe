@@ -1,4 +1,5 @@
 // Real CLI child + HTTP backend + shipped editor. Synthetic data, zero devices.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {existsSync, readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ import {tmpdir} from 'node:os';
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 
-const edge = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge = selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 const home = new URL('../discprobe/web/home/', import.meta.url);
 const index = readFileSync(new URL('index.html', home), 'utf8');
 const source = readFileSync(new URL('curve-edit.js', home), 'utf8');
@@ -30,7 +31,7 @@ test('curve display ticks: 3–5 nice steps, zero, bounds and finite labels', ()
     assert.ok(ticks.values.every(Number.isFinite));
   }
 });
-test('curve editing: real CLI rejection, save gate, keyboard and responsive layout', {skip:!existsSync(edge), timeout:90000}, async () => {
+test('curve editing: real CLI rejection, save gate, keyboard and responsive layout', {skip:!edge, timeout:90000}, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'discprobe-curve-'));
   let browser, server, ws;
   const stop = async process => {
@@ -57,11 +58,10 @@ test('curve editing: real CLI rejection, save gate, keyboard and responsive layo
     }
     assert.ok(url, serverError);
     const profile = join(dir, 'profile');
-    browser = spawn(edge, ['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
-      '--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'], {stdio:'ignore',windowsHide:true});
+    browser = launchBrowser(edge, profile, ['--mute-audio','--no-sandbox','--remote-debugging-port=0','about:blank'], {disableGpu: true, stdio:'ignore',windowsHide:true});
     let port;
     while (Date.now() < deadline) {
-      try { port = (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).trim().split(/\r?\n/)[0]; if (port) break; } catch {}
+      try { port = (await readFile(devToolsPortFile(browser), 'utf8')).trim().split(/\r?\n/)[0]; if (port) break; } catch {}
       await pause(100);
     }
     assert.ok(port, 'browser startup');
@@ -168,7 +168,7 @@ test('curve editing: real CLI rejection, save gate, keyboard and responsive layo
     assert.equal(await run('window.editor.state.validated'), false);
     console.log('Real CLI/browser: automatic, editing, rejection, valid save, 390px/1000px; synthetic only');
   } finally {
-    ws?.close(); await stop(browser); await stop(server);
+  await stopBrowser(browser, ws); await stop(server);
     assert.equal(dirname(resolve(dir)), resolve(tmpdir()));
     assert.ok(resolve(dir).startsWith(join(resolve(tmpdir()), 'discprobe-curve-')));
     await rm(dir, {recursive:true,force:true,maxRetries:5,retryDelay:200});

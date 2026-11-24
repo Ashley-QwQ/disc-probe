@@ -53,5 +53,7 @@ with socket.socket() as sock:
     sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
 (root/'ready.json').write_text(json.dumps(dict(port=port)),encoding='utf-8')
 env=dict(os.environ,TEMP=str(root.parent),TMP=str(root.parent),DISCPROBE_HOME=str(root))
+# The practice process installs Disc Lab's virtual drive provider.
+env.pop("DISC_PROBE_NO_DRIVES", None)
 raise SystemExit(subprocess.call([sys.executable,'-X','utf8','-B','-m','disclab','practice',
     '--media',media,'--burn-time','0.3','--lab',str(root),'--port',str(port)],cwd=ROOT,env=env))

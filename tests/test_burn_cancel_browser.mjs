@@ -1,14 +1,14 @@
-// Real HTTP, real Disc Lab practice and shipped UI. All output and Edge profiles stay on D:.
+// Real HTTP, real Disc Lab practice and shipped UI. All output and browser profiles stay on D:.
+import {devToolsPortFile, launchBrowser, removeProfile, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
-import {existsSync,mkdirSync,mkdtempSync,readFileSync,writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
-import {spawn,spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 
 const base=process.env.BURN_CANCEL_TEST_ROOT??join(tmpdir(),'discprobe-burncancel');mkdirSync(base,{recursive:true});
 const dir=mkdtempSync(join(base,'browser-')),lab=join(dir,'lab'),shots=join(base,'shots');mkdirSync(shots,{recursive:true});
-const edge=process.env.PASTWORKS_TEST_BROWSER??'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-assert.ok(existsSync(edge));
+const edge=selectBrowser({legacy: ['PASTWORKS_TEST_BROWSER']});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 let server,browser,socket,seq=0,origin,output='';const pending=new Map(),checks=[];
 const cdp=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
@@ -43,14 +43,14 @@ try{
   const payload={action:'calibrate',media:'dvd',drive:'X:',args:{iso:'iso/stop.iso',speed:'4x',burn_speed:4}};
   const token=await request('/api/burn-token',payload);
   const job=await request('/api/run',{...payload,burn_token:token.token});
-  browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
-  let port;for(let i=0;i<100&&!port;i++){try{port=readFileSync(join(dir,'profile','DevToolsActivePort'),'utf8').split(/\r?\n/)[0];}catch{}if(!port)await delay(100);}assert.ok(port);
+  browser=launchBrowser(edge, join(dir,'profile'), ['--mute-audio','--remote-debugging-port=0','about:blank'],{disableGpu: true, windowsHide:true,stdio:'ignore'});
+  let port;for(let i=0;i<100&&!port;i++){try{port=readFileSync(devToolsPortFile(browser),'utf8').split(/\r?\n/)[0];}catch{}if(!port)await delay(100);}assert.ok(port);
   const targets=await fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json());
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
   socket.onmessage=({data})=>{const m=JSON.parse(data),p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(JSON.stringify(m.error))):p.resolve(m.result);}};
   await cdp('Page.enable');await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
-  // Windows Server turns animation effects off, which headless Edge reports as reduced motion; start from no preference.
+  // Windows Server turns animation effects off, which a headless browser can report as reduced motion; start from no preference.
   await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   await cdp('Page.addScriptToEvaluateOnNewDocument',{source:`localStorage.setItem('dp-lang','zh');window.bcErrors=[];addEventListener('error',e=>bcErrors.push(e.message));addEventListener('unhandledrejection',e=>bcErrors.push(String(e.reason)));`});
   await cdp('Page.navigate',{url:origin+'/home/'});
@@ -158,6 +158,7 @@ try{
   console.log(JSON.stringify({passed:checks.length,dir,shots},null,2));
 }finally{
   writeFileSync(join(dir,'practice.log'),output);writeFileSync(join(dir,'checks.json'),JSON.stringify(checks,null,2));
-  socket?.close();browser?.kill();
-  if(server?.pid)spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
+  await stopBrowser(browser,socket);
+  if(server?.pid && server.exitCode===null)spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
+  for(const path of [join(dir,'profile'),lab])if(existsSync(path))removeProfile(path,dir);
 }
