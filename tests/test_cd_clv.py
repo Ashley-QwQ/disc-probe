@@ -201,15 +201,18 @@ def test_cd_clv_refuses_cav():
 
 @workspace_test
 def test_cd_clv_cli_validates_anchor_before_opening(tmp_path):
+    # Its own results folder: conftest puts the app's home (works, live-measurement registry) in tmp_path too.
+    out = tmp_path / "results"
+    out.mkdir()
     for options, message in (([], "needs an independently"),
         (["--linear-mm-s", "-1"], "finite and positive"), (["--pitch-um", "nan"], "finite and positive"),
         (["--linear-mm-s", "0"], "finite and positive"),
         (["--linear-mm-s", "19200", "--pitch-um", "1.6"], "Choose one"),
         (["--pitch-um", "1.6", "--clv-zones", "3"], "at least five")):
         result = subprocess.run([sys.executable, "-m", "discprobe", "geo", "--media", "cd", "--cd-clv",
-                                 "--out", str(tmp_path), *options], capture_output=True, text=True)
+                                 "--out", str(out), *options], capture_output=True, text=True)
         assert result.returncode != 0 and message in result.stderr
-        assert not list(tmp_path.iterdir())
+        assert not list(out.iterdir())
 
 
 @workspace_test
