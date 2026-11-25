@@ -54,7 +54,7 @@ The disc and drive for this evidence are RITEKF1 DVD-R and GH70N. Photos are tie
 | | |
 |---|---|
 | Media | **DVD only.** There is no CD or Blu-ray data yet. |
-| Snapshot | {{SNAPSHOT_HUMAN}}, from search run `{{EPOCH}}`. The run is planned to finish on {{END_DATE}} (hard stop {{HARD_DATE}}). |
+| Snapshot | {{SNAPSHOT_HUMAN}}, from search run `{{EPOCH}}`. {{RUN_STATE_EN}} |
 | Coarse pass | {{COARSE_GPU}} of {{COARSE_JOBS}} coarse targets ({{COARSE_GPU_PCT}} %) have finished all GPU restarts; {{COARSE_REF}} ({{COARSE_REF_PCT}} %) have also finished whole-block CPU refinement.{{HELPER_NOTE_EN}} |
 | Dense pass | {{DENSE_GPU}} of {{DENSE_JOBS}} finer targets ({{DENSE_GPU_PCT}} %) have finished GPU search; {{DENSE_REF}} ({{DENSE_REF_PCT}} %) are refined. |
 | Results | {{WHOLE_TARGETS}} of {{ALL_JOBS}} targets ({{WHOLE_PCT}} %) have at least one whole-block measured pattern. {{CONVERGED}} targets meet the stopping rule (converged). |

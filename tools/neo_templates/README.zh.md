@@ -49,7 +49,7 @@ Disc Probe 用六张色卡盘的实拍取色数据拟合了色表。网页用这
 | | |
 |---|---|
 | 介质 | **只有 DVD。** CD 和蓝光暂无数据。 |
-| 快照 | {{SNAPSHOT_HUMAN}}，来自搜索轮次 `{{EPOCH}}`。这一轮计划 {{END_DATE}} 跑完（最晚 {{HARD_DATE}} 停）。 |
+| 快照 | {{SNAPSHOT_HUMAN}}，来自搜索轮次 `{{EPOCH}}`。{{RUN_STATE_ZH}} |
 | 粗搜 | {{COARSE_JOBS}} 个粗网格目标里，{{COARSE_GPU}} 个（{{COARSE_GPU_PCT}}%）已跑完全部 GPU 重启；其中 {{COARSE_REF}} 个（{{COARSE_REF_PCT}}%）也做完了整块 CPU 精修。{{HELPER_NOTE_ZH}} |
 | 加密 | {{DENSE_JOBS}} 个加密目标里，{{DENSE_GPU}} 个（{{DENSE_GPU_PCT}}%）跑完 GPU 搜索，{{DENSE_REF}} 个（{{DENSE_REF_PCT}}%）精修完。 |
 | 结果 | {{ALL_JOBS}} 个目标里有 {{WHOLE_TARGETS}} 个（{{WHOLE_PCT}}%）至少有一个整块实测过的纹理；{{CONVERGED}} 个达到停止条件（收敛）。 |

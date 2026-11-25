@@ -906,10 +906,22 @@ def helper_notes(helper):
                                f' those targets get no refinement this run and stay at the coarse stage.')
 
 
+FINAL = False  # --final: the run has ended and this is its last snapshot
+
+
+def run_state(end, hard):
+    """The status-table sentence about when the run ends."""
+    if FINAL:
+        return dict(RUN_STATE_ZH='这一轮已经结束，这是它的最终快照。', RUN_STATE_EN='The run has ended; this is its final snapshot.')
+    return dict(RUN_STATE_ZH=f'这一轮计划 {end} 跑完（最晚 {hard} 停）。',
+                RUN_STATE_EN=f'The run is planned to finish on {end} (hard stop {hard}).')
+
+
 def doc_values(meta, counts, prov):
     p = meta['progress']; c = p['coarse_pass']; d = p['dense_pass']; a = p['all_jobs']
     s = p['status_counts']
     return dict(**helper_notes(meta.get('cpu_helper')),
+        **run_state(prov['campaign']['planned_end_utc'][:10], prov['campaign']['deadline_utc'][:10]),
         VERSION=VERSION, EPOCH=prov['epoch'], SNAPSHOT_UTC=prov['snapshot_utc'], SNAPSHOT_DATE=prov['snapshot_utc'][:10],
         TARGETS=sum(s.values()), CONVERGED=s.get('converged', 0) + s.get('exhausted', 0), SEARCHED=s.get('searched', 0),
         TODO=s.get('todo', 0),
@@ -1039,7 +1051,7 @@ def build_reader(coverage_csv, cand_path, values, dest, cards_ref):
             targets[i][9] = sum(c['basis'] == 'whole-block' for c in row['candidates'])
             targets[i][10] = len(row['candidates'])
     meta = dict(version=values['VERSION'], snapshot=values['SNAPSHOT_HUMAN'], epoch=values['EPOCH'],
-                end=values['END_DATE'], hard=values['HARD_DATE'], coarse_gpu=values['COARSE_GPU_PCT'],
+                end=values['END_DATE'], hard=values['HARD_DATE'], final=FINAL, coarse_gpu=values['COARSE_GPU_PCT'],
                 coarse_ref=values['COARSE_REF_PCT'], whole_pct=values['WHOLE_PCT'], targets=values['TARGETS'],
                 converged=values['CONVERGED'], kinds=READER_KINDS, status=READER_STATUS, risk=READER_RISK,
                 progress={k: values['_progress'][k] for k in ('coarse_pass', 'dense_pass', 'all_jobs')})
@@ -1639,7 +1651,10 @@ def main():
     ap.add_argument('--check-only', action='store_true')
     ap.add_argument('--docs-only', action='store_true',
                     help='re-render README/SCHEMA/index.html and PROVENANCE hashes of the staged pack; data files untouched')
+    ap.add_argument('--final', action='store_true', help='the run has ended: describe this snapshot as its final one')
+    ap.add_argument('--version', default=VERSION, help=f'pack version label (default {VERSION})')
     args = ap.parse_args()
+    globals().update(FINAL=args.final, VERSION=args.version)  # module-level labels the renderers read
     args.reader_ref = args.reader_ref or ('56f2cf7' if args.snapshot else args.cards_ref)
     args.extra = args.extra if args.extra is not None else ([] if args.snapshot else list(DEFAULT_EXTRA))
     if args.snapshot:
