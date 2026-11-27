@@ -2138,7 +2138,12 @@ class Handler(BaseHTTPRequestHandler):
                 if not target.is_relative_to(root) or not target.is_file():
                     self._send(404, b"Not found\n", "text/plain; charset=utf-8")
                 else:
-                    self._send(200, target.read_bytes(), mimetypes.guess_type(target.name)[0] or "application/octet-stream")
+                    ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+                    if target.suffix.lower() in (".js", ".mjs"):
+                        # Windows' registry calls .mjs text/plain, and a browser refuses to run a module
+                        # typed that way: the page stays blank while the server reports nothing wrong.
+                        ctype = "text/javascript; charset=utf-8"
+                    self._send(200, target.read_bytes(), ctype)
         except APIError as exc:
             self._error(exc)
         except ValueError as exc:
