@@ -1377,7 +1377,7 @@ class Backend:
                     job.history.append(dict(type='log', job=job.id, level='warning', text='Could not save burn history.'))
             # info has no engine result event; associate only newly created reports on this job's device.
             candidates = [r for r in guide.scan(self.out) if job.before.get(r.path) != result_signature(r)
-                          and r.kind == job.action and r.tag == guide_drive_tag(job.drive)
+                          and r.kind == job.action and r.tag in guide_drive_tags(job.drive)
                           and not r.simulated]
             if candidates:
                 run = candidates[0]
@@ -2455,9 +2455,21 @@ def result_signature(run):
                  for p in sorted(Path(run.path).glob("*.json")))
 
 
-def guide_drive_tag(drive):
-    # Mirrors _outdir's device tag; never opens the device.
-    return (drive or "").replace(":", "")
+def guide_drive_tags(drive):
+    """The tags _outdir can give this drive's result folders; never opens the device. A Windows letter loses its
+    colon (E: -> E). A Linux drive is tagged with its device name (/dev/sr0 -> sr0), or with the sg node it
+    falls back to when sr0 is held elsewhere (sg.SgDevice)."""
+    drive = drive or ""
+    if "/" not in drive:
+        return {drive.replace(":", "")}
+    name = os.path.basename(drive.rstrip("/"))
+    tags = {name}
+    if sys.platform.startswith("linux") and re.fullmatch(r"sr\d+", name):
+        from .sg import _sg_for_sr
+        sg = _sg_for_sr(f"/dev/{name}")
+        if sg:
+            tags.add(os.path.basename(sg))
+    return tags
 
 
 def _warn_linux_drive_permissions(drives):

@@ -12,6 +12,7 @@ import tempfile
 import threading
 import time
 from types import SimpleNamespace
+import types
 import unittest
 from unittest.mock import patch
 
@@ -277,6 +278,30 @@ time.sleep(60)
         with self.assertRaises(webui.APIError):
             b.start(dict(payload, burn_token=token))
         self.assertEqual(b.jobs, {})
+
+    def test_linux_info_job_finds_its_report(self):
+        # _outdir tags a Linux drive's folders with its device name (info-sr0-...), not its path
+        out = self.root / "results" / "info-sr0-20261127-170000"
+        report = dict(configuration=dict(status=0, parsed=dict(current_profile=0x11, current_profile_name="DVD-R Sequential")),
+                      track_1=dict(status=0, parsed=dict(blank=True)), inquiry=dict(status=0, parsed=dict(vendor="PIONEER", product="BD-RW BDR-S09")))
+        script = (f"import json, pathlib; p = pathlib.Path({str(out)!r}); p.mkdir(parents=True); "
+                  f"(p / 'info.json').write_text(json.dumps({report!r}))")
+        def runner(argv, **kwargs):
+            return webui.Child([sys.executable, "-c", script], **kwargs)
+        b = webui.Backend(self.root, runner=runner, drive_provider=lambda: [dict(id="/dev/sr0", disc=None)])
+        self.addCleanup(b.close)
+        ident = b.start(dict(action="info", drive="/dev/sr0"))["job"]
+        eventually(lambda: "disc" in (b.jobs[ident].result or {}))
+        disc = b.jobs[ident].result["disc"]
+        self.assertEqual((disc["present"], disc["media"], disc["blank"]), (True, "dvd", True))
+
+    def test_drive_tags_follow_outdir(self):
+        self.assertEqual(webui.guide_drive_tags("E:"), {"E"})
+        self.assertEqual(webui.guide_drive_tags(None), {""})
+        fake_sg = types.SimpleNamespace(_sg_for_sr=lambda path: "/dev/sg3" if path == "/dev/sr0" else None)
+        with patch.object(webui.sys, "platform", "linux"), patch.dict(sys.modules, {"discprobe.sg": fake_sg}):
+            self.assertEqual(webui.guide_drive_tags("/dev/sr0"), {"sr0", "sg3"})
+            self.assertEqual(webui.guide_drive_tags("/dev/sg3"), {"sg3"})
 
     def test_real_fake_child_done(self):
         b = self.backend("print('fake child only')")
