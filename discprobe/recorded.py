@@ -49,7 +49,10 @@ def track_end(track):
     return track.get('track_start', 0) + size if size else None
 
 
-def check(report, read=None, *, audio=False):
+def check(report, read=None, *, audio=False, recorded_end=False):
+    """recorded_end: on a closed disc, read the end of the track's recorded data rather than the end READ
+    CAPACITY gives. A closed CD's last two sectors there are run-out, not data; some drives retry such a
+    sector for seconds (an HP GT31N slim drive took over 3 s). Measurements keep the READ CAPACITY end."""
     def parsed(key):
         entry = report.get(key, {})
         return (entry.get('parsed') or {}) if entry.get('status') in (None, 0) and not entry.get('error') else {}
@@ -93,6 +96,8 @@ def check(report, read=None, *, audio=False):
         result['open_recorded_sectors'] = end
     # Probe only recorded data. Audio uses different sector bytes/READ CD.
     probe_end = end if not closed else reported
+    if recorded_end and closed and end is not None and reported is not None:
+        probe_end = min(end, reported)
     if read and probe_end and not audio and disc.get('disc_status') != 'empty':
         try:
             res = read(mmc.read10(probe_end - 1, 1), 2048)

@@ -237,3 +237,63 @@ def test_burn_state_fails_only_on_evidence():
     assert short['status'] == 'failed' and '1638 of 4096' in short['reason']
     unknown = recorded.burn_state('X:', 4096, device_factory=factory(0, readable=False))
     assert unknown['status'] == 'completed' and unknown['unconfirmed']
+
+
+class SlowRunOut(Disc):
+    """A closed CD: READ CAPACITY counts two run-out sectors past the track's data, and the drive retries a
+    read there until its own timeout (an HP GT31N in a USB case, 3 s)."""
+    def __init__(self, *, slow_from=4094):
+        super().__init__(written=4096, reported=4096, track_reported=4094)
+        self.slow_from = slow_from
+
+    def execute(self, cdb, data_len=0, direction=1, timeout_s=None):
+        if cdb[0] == 0x28 and int.from_bytes(cdb[2:6], 'big') >= self.slow_from:
+            self.calls.append(cdb)
+            raise TimeoutError('READ(10): The semaphore timeout period has expired.')
+        return super().execute(cdb, data_len, direction, timeout_s)
+
+
+def _reads(dev):
+    return [int.from_bytes(c[2:6], 'big') for c in dev.calls if c[0] == 0x28]
+
+
+def test_info_reads_the_recorded_end_of_a_closed_cd_not_its_run_out():
+    dev = SlowRunOut()
+    wrapped = info.InfoDevice(dev)
+    try:
+        report = info.collect(wrapped)
+    finally:
+        wrapped.close()
+    assert _reads(dev) == [4093]
+    assert wrapped.errors == [] and wrapped.unsupported == []
+    assert 'capacity_check' not in report
+
+
+def test_info_carries_on_when_the_optional_end_read_times_out():
+    dev = SlowRunOut(slow_from=0)
+    wrapped = info.InfoDevice(dev)
+    try:
+        report = info.collect(wrapped)
+    finally:
+        wrapped.close()
+    assert wrapped.errors == [] and not wrapped.failed
+    assert len(wrapped.unsupported) == 1 and 'READ(10)' in wrapped.unsupported[0]
+    assert report['capacity']['parsed']['last_lba'] == 4095 and 'capacity_check' not in report
+    # an ordinary command that times out still stops info
+    with pytest.raises(TimeoutError):
+        wrapped2 = info.InfoDevice(dev)
+        try:
+            wrapped2.execute(mmc.read10(0, 1), 2048)
+        finally:
+            assert wrapped2.failed and wrapped2.errors
+            wrapped2.close()
+
+
+def test_measurements_keep_the_read_capacity_end_read():
+    report = recorded.metadata(SlowRunOut().execute)
+    seen = []
+    def read(cdb, size):
+        seen.append(int.from_bytes(cdb[2:6], 'big'))
+        return ScsiResult(2, b'', Sense(3, 0x11, 0), 0, 100)
+    recorded.check(report, read)
+    assert seen == [4095]

@@ -31,6 +31,10 @@ class Unsupported(OSError):
     """The drive refused one command quickly; info carries on."""
 
 
+class _Stuck(TimeoutError):
+    """The drive call itself has not returned: nothing more can be sent to it."""
+
+
 class InfoDevice:
     """Wall-clock and native bounds for info, including optional identity reads."""
     def __init__(self, dev=None, budget_s=INFO_BUDGET_S, *, opener=None, operation=None):
@@ -77,7 +81,7 @@ class InfoDevice:
         try:
             value, error = result.get(timeout=max(.001, seconds))
         except queue.Empty:
-            raise TimeoutError(f'{step} timed out after {seconds:g}s. {NEXT_ACTION}') from None
+            raise _Stuck(f'{step} timed out after {seconds:g}s. {NEXT_ACTION}') from None
         if error is not None:
             raise error
         return value
@@ -85,7 +89,9 @@ class InfoDevice:
     def __getattr__(self, name):
         return getattr(self.dev, name)
 
-    def execute(self, cdb, data_len=0, direction=DATA_IN, timeout_s=COMMAND_TIMEOUT_S):
+    def execute(self, cdb, data_len=0, direction=DATA_IN, timeout_s=COMMAND_TIMEOUT_S, *, optional=False):
+        """optional: a check info can do without. When the drive answers it with a timeout of its own, info
+        notes it and carries on; a call that has not returned still stops info."""
         from .scsi import check_allowed
         step = check_allowed(cdb)
         remaining = self.deadline - time.monotonic()
@@ -100,7 +106,7 @@ class InfoDevice:
                                 timeout_s=min(timeout_s, COMMAND_TIMEOUT_S)),
                                 min(COMMAND_TIMEOUT_S + 1, remaining), step)
         except OSError as exc:
-            if not _timed_out(exc):
+            if not _timed_out(exc) or optional and not isinstance(exc, _Stuck):
                 # The drive answered with an error (blank DVD-R: READ DISC
                 # STRUCTURE gives ERROR_IO_DEVICE). It is not stuck, so note the
                 # command as unavailable and keep asking the rest.
@@ -195,7 +201,9 @@ def collect(dev) -> dict:
     r["mode_page_2a"] = _run(dev, "MODE SENSE 2A", mmc.mode_sense10(0x2A), 256, mmc.parse_mode_page_2a)
     from .recorded import check
     audio = any(not t['data'] and t['track'] != 0xAA for t in (r['toc'].get('parsed') or {}).get('tracks', []))
-    capacity_check = check(r, lambda cdb, size: dev.execute(cdb, size, DATA_IN, timeout_s=COMMAND_TIMEOUT_S), audio=audio)
+    optional = dict(optional=True) if isinstance(dev, InfoDevice) else {}
+    capacity_check = check(r, lambda cdb, size: dev.execute(cdb, size, DATA_IN, timeout_s=COMMAND_TIMEOUT_S, **optional),
+                           audio=audio, recorded_end=True)
     if capacity_check['warnings']:
         r['capacity_check'] = capacity_check
     _collect_dvd_details(dev, r)
