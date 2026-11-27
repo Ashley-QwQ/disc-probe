@@ -10,7 +10,7 @@ import { countdown, countdownText } from "./kit/countdown.mjs";
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
-import { adviceHTML, budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
+import { adviceHTML, budgetHTML, cdPhoto, jobFailureText, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
 import { photoReasonWords, adoptionWords, applicationWords, savedBurnWords, sliderWords, reasonOf, seconds as photoSeconds } from "./photowords.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { cutaway } from "./drive-scene.js";
@@ -2447,7 +2447,8 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   flow.jobWord = action; $("job-name").textContent = stepWords(action); paint(); paintJob();
   const drive = ["info","timing","geo","burn","calibrate","starter"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
-  let why = "", lastLine = "", burnGate;            // the core's own reason survives later summary events
+  let why = "", burnGate;                           // the core's own reason survives later summary events
+  const lines = [];                                 // the last log lines: a stop's reason comes before its advice
   // checking the disc reports no progress of its own: the bar stays empty and the words say it is reading
   // (a guessed percentage or time left would only be wrong); it fills when the answer is in
   if (action === "info") {
@@ -2460,7 +2461,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       if (event.type === 'diagnostics') f.retryDiagnostics = event;
       if (event.type === "error" && event.message) why = event.message;
       if (event.type === "error" && event.burn_gate) burnGate = event.burn_gate;
-      if (event.type === "log" && event.text?.trim()) lastLine = event.text.trim();
+      if (event.type === "log" && event.text?.trim()) { lines.push(event.text.trim()); if (lines.length > 20) lines.shift(); }
       // the measurement record: each geometry rung the core reports ("41.0 mm: moved +0.123 deg ...")
       if (event.type === "log" && /^\s*\d+(\.\d+)? mm: /.test(event.text || "")) {
         // the core's own words, no clock: lines replayed after a reload would all show the reload's time
@@ -2546,7 +2547,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
     if (action === "calibrate" && result?.ok) f.resultJob = { id:current.id };
     return result;
   } catch (error) {
-    if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;
+    if (error.status === 422 && (why || lines.length)) error.message = why || jobFailureText(lines);
     if (burnGate) error.burnGate = burnGate;
     throw error;
   } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
@@ -2554,6 +2555,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
 async function inspectDisc() {
   if (!api.selectedDrive()) await api.syncState?.();          // plugged in since the page opened?
   if (!api.selectedDrive()) throw new Error(liveText('没找到光驱。接好光驱，等电脑认出它，再点“重新检测”。', 'No drive found. Connect the drive, wait for the computer to see it, then press Check again.'));
+  await api.findDiscDrive?.();                                // several drives: the one holding a disc
   const want = flow.item.row || flow.detected?.media || "dvd";
   const expectedMid = flow.detected?.mid || flow.item.mid || flow.item.readMid;
   const result = await realJob("info");

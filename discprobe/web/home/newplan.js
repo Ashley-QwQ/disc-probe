@@ -802,7 +802,7 @@ async function readDrive() {
   const readingState = state;
   state.reading = true; paintLeft();
   let disc;
-  try { disc = await api.readDisc(); } catch { disc = undefined; }
+  try { await api.findDiscDrive?.(); disc = await api.readDisc(); } catch { disc = undefined; }
   if (state !== readingState || !isOn()) return;
   state.reading = false; state.readFailed = disc === undefined;
   state.detected = disc;

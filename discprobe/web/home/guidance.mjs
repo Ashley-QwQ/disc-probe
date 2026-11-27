@@ -239,6 +239,16 @@ export function stopReason(reason = '', {burnStarted = false} = {}) {
   return pair(r, r);
 }
 
+// The words for a job that failed, from its log lines. A command that stops prints "Stopped: <why>", then
+// where its diagnostics went, then "Next: <advice>" (zh: 已停止： / 下一步：). The last line alone is only the
+// advice, so the reason comes first; without a Stopped line the last line is all there is.
+export function jobFailureText(lines = []) {
+  const stop = /^(?:Stopped|已停止)[:：]/, next = /^(?:Next|下一步)[:：]/;
+  const at = lines.findLastIndex((line) => stop.test(line));
+  if (at < 0) return lines.at(-1) ?? '';
+  return [lines[at], lines.slice(at + 1).find((line) => next.test(line))].filter(Boolean).join(' ');
+}
+
 // ---------------------------------------------------------------- the start guide (guide.js)
 // The same four things, in the same order, as guide.py tutorial_lines. Nothing here is measured: it is what
 // the tool is for and how it is meant to be used, so each line says "goal" or "needs" and never "done".

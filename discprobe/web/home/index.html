@@ -938,6 +938,7 @@
     return [...batches, {kind:"new", row, name:"", mid:"", s:"new"}];
   }
   let chosenDrive = DATA.drive[0]?.id;
+  let driveByHand = false;           // a drive picked on the shelf's drive stop: the page no longer moves it
   if (!backend.mock) document.documentElement.dataset.live = "true";
   const COLS = ["dvd", "cd", "bd", "drive"];
   const ROWPOS = [0, 1, 2, 2.66];      // how many rows back each stop stands (the burner is past BD)
@@ -1481,7 +1482,7 @@
     const list = DATA[col];
     idx = ((idx % list.length) + list.length) % list.length;
     const item = list[idx];
-    if (item.kind === "drive" && item.id) chosenDrive = item.id;
+    if (item.kind === "drive" && item.id) { chosenDrive = item.id; driveByHand = true; }
     const switched = paintedCol !== col || (paintedItem?.id || paintedItem) !== (item.id || item);
     const animate = prepareCopyMotion(dir, initial, item);
     paintRack(item);
@@ -1796,11 +1797,28 @@
     return pendingReads.get(drive);
   }
   const inLobby = () => !root.dataset.mode && root.dataset.home === "lobby";
+  const driveBusy = (drive) => backendState?.jobs?.some(j => j.drive === drive && j.exit === null);
   function refreshLobbyDisc() {
     if (backend.mock || !inLobby() || document.hidden) return;
     const drive = api.selectedDrive();
-    if (!drive || backendState?.jobs?.some(j => j.drive === drive && j.exit === null)) return;
-    return readDisc(drive).catch(() => {});
+    if (!drive || driveBusy(drive)) return;
+    return canMoveDrive() ? findDiscDrive() : readDisc(drive).catch(() => {});
+  }
+  // With several drives the disc may be in any of them. Until one is picked on the drive stop, the chosen
+  // drive is read first; only when it is read as empty are the other idle drives read, in order, and the
+  // first holding a disc becomes the chosen one. A drive that is busy or could not be read is kept.
+  const canMoveDrive = () => !backend.mock && !driveByHand && col !== "drive" && (backendState?.drives?.length ?? 0) > 1;
+  async function findDiscDrive() {
+    const current = api.selectedDrive();
+    if (!canMoveDrive() || !current || driveBusy(current)) return;
+    const here = await readDisc(current).catch(() => undefined);
+    const still = () => canMoveDrive() && api.selectedDrive() === current;
+    if (here?.present !== false || !still()) return;
+    for (const id of backendState.drives.map(d => d.id).filter(id => id !== current && !driveBusy(id))) {
+      const disc = await readDisc(id).catch(() => undefined);
+      if (!still()) return;
+      if (disc?.present) { chosenDrive = id; paintDriveLine(); return; }
+    }
   }
   const activeCalibration = () => backendState?.jobs?.find(j => j.action === "calibrate" && j.exit === null);
   const hasCalibration = () => !$("job").hidden || !!activeCalibration();
@@ -1833,7 +1851,7 @@
       for (const c of ["dvd", "cd", "bd"]) { const i = DATA[c].findIndex(row => row === item || item?.id && row.id === item.id); if (i >= 0) return [c, i]; }
       return ["dvd", 0];
     },
-    readDisc, driveDisc, discName, refreshLobbyDisc,
+    readDisc, driveDisc, discName, refreshLobbyDisc, findDiscDrive,
     waitForDiscCheck: (drive) => pendingReads.get(drive)?.catch(() => {}),
     // the footer bar for the running job: how far (0..1) and on what kind of disc (its colours)
     jobProgress(p, media = "dvd") {

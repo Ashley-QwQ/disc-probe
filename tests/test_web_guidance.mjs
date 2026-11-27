@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {measurementRecovery, calibrationBudget, cdPhoto, afterBurn, budgetHTML, recoveryAction, recoveryCommands, remeasure, stopReason} from '../discprobe/web/home/guidance.mjs';
+import {measurementRecovery, calibrationBudget, cdPhoto, afterBurn, budgetHTML, jobFailureText, recoveryAction, recoveryCommands, remeasure, stopReason} from '../discprobe/web/home/guidance.mjs';
 for (const lang of ['zh','en']) {
   const verdicts = ['good','usable','too_noisy','drive_changed','narrow_span','stopped_early','unknown'];
   for (const verdict of verdicts) {
@@ -100,3 +100,11 @@ console.log('Bilingual recovery, budget and failed-job tests passed');
   assert.match(advice('burn', 'en', {external: true}), /PowerShell/);
   assert.match(advice('burn', 'zh', {external: true}), /检测刻好的盘/);
 }
+
+// a failed job: the reason ("Stopped: ...") comes before the advice, not the advice alone
+assert.equal(jobFailureText(['Reading drive information', 'Stopped: READ CAPACITY timed out after 4s.', 'Diagnostics: results/info-E-1/diagnostics.zip',
+  'Next: Save and inspect these logs first.']), 'Stopped: READ CAPACITY timed out after 4s. Next: Save and inspect these logs first.');
+assert.equal(jobFailureText(['已停止：读取超时', '诊断包：x.zip', '下一步：先保存日志']), '已停止：读取超时 下一步：先保存日志');
+assert.equal(jobFailureText(['Stopped: no advice follows']), 'Stopped: no advice follows');
+assert.equal(jobFailureText(['first', 'only the last line']), 'only the last line');
+assert.equal(jobFailureText([]), '');

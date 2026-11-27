@@ -24,20 +24,24 @@ scenario_path.write_text(json.dumps({
     "discs": {"media": media, "count": 1, "seed": 178,
               "mid": "DLABRW01" if case == "rw" else "RITEKF1",
               "initial_state": initial if case in ("rom", "written", "rw") else "blank"},
+    # second: two drives, the first empty and the blank in the second (the page has to find it)
+    "drives": ["X:", "Y:"] if case == "second" else ["X:"],
 }), encoding="utf-8")
 box = make_scenario_box(lab, load_scenario(scenario_path))
 with lab.locked_state() as state:
     drive = state["drives"]["X:"]
-    drive.update(tray=None if case in ("empty", "tray-open") else box["discs"][0],
+    drive.update(tray=None if case in ("empty", "tray-open", "second") else box["discs"][0],
                  open=case == "tray-open")
+    if case == "second":
+        state["drives"]["Y:"].update(tray=box["discs"][0], open=False)
 
 # Two saved batches, so automatic drive selection and the history fallback give different answers.
-if case == 'blank':
+if case in ('blank', 'second'):
     who = dict(disc='RITEKF1', drive='DISCLAB GH70N-LIKE', firmware='LAB1')
     fit = dict(media='dvd', u=180518., v=5.591, bit_nm_assumed=133.3, chi2_per_dof=1,
                measured_span_mm=[24.49,57.1], angle_sigma_measured_span_deg=.1)
     geo = write_geo(root, fit=fit, identity=who)
-    record_drive_identity(geo, who, 'X:')
+    record_drive_identity(geo, who, 'Y:' if case == 'second' else 'X:')
 else:
     write_geo(root, identity=dict(disc="RITEKF1", drive="Disc Lab"))
 write_geo(root, "20261108-101500", identity=dict(disc="HIST/R02/01", drive="Disc Lab"))

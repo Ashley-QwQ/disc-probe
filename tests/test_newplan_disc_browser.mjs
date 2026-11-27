@@ -24,6 +24,9 @@ const cases = [
   {key: 'rw', lang: 'en', theme: 'light', words: /rewritable disc has data.*Erase it/, disc: {blank: false, rewritable: true}},
   {key: 'empty', lang: 'en', theme: 'light', words: /No disc in the drive/, disc: {present: false, tray: 'empty'}},
   {key: 'tray-open', lang: 'zh', theme: 'dark', words: /光驱托盘开着/, disc: {present: false, tray: 'open'}},
+  // two drives, X: empty: the page reads X:, finds it empty and moves to Y:, which holds the blank
+  {key: 'second', lang: 'zh', theme: 'light', words: /空白盘.*RITEKF1/, drives: ['X:', 'Y:'], drive: 'Y:',
+   disc: {kind: 'DVD-R Sequential', blank: true, mid: 'RITEKF1'}},
 ];
 
 async function waitFor(probe, name) {
@@ -106,7 +109,7 @@ async function runScene(scenario, verify) {
     }, key + ': Lab server did not answer');
     assert.notEqual(new URL(url).port, '8765');
     const state = await fetch(new URL('/api/state', url)).then(r => r.json());
-    assert.deepEqual(state.drives.map(drive => drive.id), ['X:']);
+    assert.deepEqual(state.drives.map(drive => drive.id), scenario.drives ?? ['X:']);
     if (setupScript) await cdp('Page.removeScriptToEvaluateOnNewDocument', {identifier: setupScript});
     ({identifier: setupScript} = await cdp('Page.addScriptToEvaluateOnNewDocument', {source: `
       localStorage.setItem('dp-theme', ${JSON.stringify(theme)});
@@ -131,7 +134,12 @@ async function runScene(scenario, verify) {
     await until(`document.documentElement.dataset.mode === "newplan" &&
       ${scenario.words}.test(document.querySelector(".np-disc-help")?.textContent)`, key + ': drive status missing');
     const final = await fetch(new URL('/api/state', url)).then(r => r.json());
-    for (const [field, value] of Object.entries(scenario.disc)) assert.equal(final.drives[0].disc[field], value, key);
+    const holder = final.drives.find(drive => drive.id === (scenario.drive ?? 'X:'));
+    for (const [field, value] of Object.entries(scenario.disc)) assert.equal(holder.disc[field], value, key);
+    if (scenario.drive) {
+      assert.equal(final.drives.find(drive => drive.id === 'X:').disc.present, false, key + ': X: was read first');
+      assert.match(await evaluate('document.getElementById("drivebar-disc").textContent'), /^Y:/, key + ': drive bar follows Y:');
+    }
     const form = await evaluate(`({
       dial: document.querySelector('.np-face-text').textContent,
       batch: document.querySelector('.np-batch').placeholder,
@@ -140,8 +148,8 @@ async function runScene(scenario, verify) {
       lang: document.documentElement.lang.split('-')[0]
     })`);
     assert.deepEqual(form, {
-      dial: key === 'blank' ? 'DVD-R' : 'DVD+R',
-      batch: key === 'blank' ? 'RITEKF1 DVD-R' : 'History DVD+R',
+      dial: ['blank', 'second'].includes(key) ? 'DVD-R' : 'DVD+R',
+      batch: ['blank', 'second'].includes(key) ? 'RITEKF1 DVD-R' : 'History DVD+R',
       next: true, theme, lang,
     });
     await capture(`${key}-${theme}-${lang}-1440`);
