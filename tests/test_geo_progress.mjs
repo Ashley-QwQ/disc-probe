@@ -45,7 +45,8 @@ const eventBody = normalized.match(/const onEvent = event => \{([\s\S]*?)\n  \};
 const stageSetup = normalized.match(/^const stepEta = .*;$/m)[0];
 const handler = new Function('event', 'flow', 'f', 'current', 'flog', 'api', '$', 'action',
   'imageRing', 'setPlate', 'showInterior', 'updateInterior', 'paintStage', 'paintRuler', 'isCal', 'paint',
-  'closeBurnStop', 'STEP_PHASE', 'sfx', 'stepWords', 'paintJob', 'st', 'cut', stageSetup + eventBody);
+  // `lines` is the job's own log buffer, declared just before the handler in realJob
+  'closeBurnStop', 'STEP_PHASE', 'sfx', 'stepWords', 'paintJob', 'st', 'cut', stageSetup + '\nconst lines = [];\n' + eventBody);
 const noop = () => {};
 const flow = { realPhase: 'geo' }, current = {clock: {estimate(s) { eta = s; }, clear() { eta = null; }}};
 let fraction, eta, interiorEta, ringValue, jobPaints = 0;

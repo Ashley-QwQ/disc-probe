@@ -7,7 +7,7 @@
     "steps": {"zh": ["打开刻完页的「看不到图？」或把盘放进光驱运行 checkburn。有原 ISO 就用 --iso 核对。", "关灯，把手电放在眼睛旁边，倾斜盘并慢慢转动。只有环时，核对是不是用了同批盘的标定。"], "en": ["Open “Can’t see the picture?” on the post-burn page, or insert the disc and run checkburn. Use --iso if you have the original image.", "Turn off the room lights, hold a torch beside your eyes and slowly tilt and turn the disc. If you only see rings, check whether the calibration used the same batch."]},
     "commands": ["python -m discprobe checkburn --drive <drive>", "python -m discprobe checkburn --drive <drive> --iso <image.iso>"],
     "manual": {"zh": "docs/CHECKBURN.md#刻完看不到图", "en": "docs/CHECKBURN.md#no-picture-after-burning"},
-    "sources": [{"path": "discprobe/burner.py", "line": 708, "keyword": "Read-back sample:"}, {"path": "README.md", "line": 223, "keyword": "手机手电"}, {"path": "discprobe/web/home/guidance.mjs", "line": 357, "keyword": "核对是不是同一批盘"}, {"path": "docs/CHECKBURN.md", "line": 12, "keyword": "ISO 9660"}, {"path": "docs/why-calibrate.zh.md", "line": 9, "keyword": "整幅图也可能沿圆周抹成一圈圈的环"}]
+    "sources": [{"path": "discprobe/burner.py", "line": 708, "keyword": "Read-back sample:"}, {"path": "README.md", "line": 223, "keyword": "手机手电"}, {"path": "discprobe/web/home/guidance.mjs", "line": 367, "keyword": "核对是不是同一批盘"}, {"path": "docs/CHECKBURN.md", "line": 12, "keyword": "ISO 9660"}, {"path": "docs/why-calibrate.zh.md", "line": 9, "keyword": "整幅图也可能沿圆周抹成一圈圈的环"}]
   },
   {
     "id": "bd-picture-calibrate",
