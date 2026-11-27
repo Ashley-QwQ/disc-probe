@@ -1,0 +1,34 @@
+{
+  "command": [
+    "F:/dp-archive/tools/blender-5.2.2-windows-x64/blender.exe",
+    "-b",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_fax.blend",
+    "--disable-autoexec",
+    "-t",
+    "8",
+    "--python-exit-code",
+    "1",
+    "--python",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_fax_nightb.py",
+    "--",
+    "--layers",
+    "filebox",
+    "--variants",
+    "paper",
+    "--ss",
+    "4",
+    "--no-mist",
+    "--force",
+    "--device",
+    "CPU",
+    "--outdir",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\cpu-compat-filebox"
+  ],
+  "exit": 0,
+  "seconds": 281.694,
+  "environment": {
+    "CYCLES_CPU_NO_AVX2": "1"
+  },
+  "priority": "BELOW_NORMAL",
+  "purpose": "Test reproduction compatibility with original pre-AVX2 x79 CPU; paper only; no publication"
+}

@@ -1,0 +1,20 @@
+{
+  "RITEKF1": {
+    "media": "dvd",
+    "capacity_sectors": 2295104,
+    "evidence": "Blank capacity reported for the RITEKF1 batch in the 2026-11-21 library walk-through"
+  },
+  "MCC 02RG20": {
+    "media": "dvd",
+    "name": "Verbatim DVD-R",
+    "capacity_sectors": 2297888,
+    "image_sectors": 2295104,
+    "u": 179980.30192,
+    "v": 5.53741687,
+    "bit_nm_assumed": 133.3,
+    "burn_speed": "4x",
+    "evidence": "reporter scan spiral, 0.28 degree RMS over 25.5-55.5 mm; batch-specific",
+    "source": "https://github.com/exotic-namruth/dvdr-portrait-etching",
+    "issue": "https://github.com/Ashley-QwQ/disc-probe/issues/33"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [
+    {
+      "innerRadiusMm": 24.92158485099949,
+      "outerRadiusMm": 57.83899120331769,
+      "sectors": 359845,
+      "usableSectors": 359843,
+      "pitchLinear": 2.068519008741503e-06,
+      "pitchQuadratic": -8.112654946632936e-05,
+      "pitchCubic": 7.269583576013415e-05,
+      "id": "D275-1",
+      "displayName": "RITEK (铼德) office series",
+      "description": "Community starting point https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/275"
+    }
+  ],
+  "dvdPresets": [],
+  "bluRayPresets": []
+}

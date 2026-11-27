@@ -1,6 +1,6 @@
 """Burnable DVD image of a picture, placed with a measured geometry (u = r0/b, v = p/b).
 
-Every 16-byte group of every sector gets the picture's value at its position on the
+Every byte group of every sector gets the picture's value at its position on the
 disc: dark groups are recorded as one texture (A5), light ones as another. Positions
 come from the same model the `geo` ladder fits,
 
@@ -23,22 +23,62 @@ import re
 import numpy as np
 
 from . import dvd, iso9660
-from .calib import GROUP_BITS, GROUP_BYTES, SECTOR_BITS, sector_bits, theta
+from .qos import keep_full_speed
+from .calib import GROUP_BYTES, SECTOR_BITS, SECTOR_BITS_BD, sector_bits
 
 CELL_MM = 0.02
 HALF_MM = 60.0
 SIZE = int(2 * HALF_MM / CELL_MM)
+# The cell sizes a design may have, in micrometres, and its side in cells. 20 um is the default;
+# 10 and 5 um were checked under a microscope on an LTVA1 burn (lines part at 5 um, a 10 um
+# checkerboard is clear). The cell size is the design's: a square array of one of these sides.
+CELL_SIDES = {20: 6000, 10: 12000, 5: 24000}
 
 
-def _grid_coords():
-    c = (np.arange(SIZE) + 0.5) * CELL_MM - HALF_MM
+def cell_mm(design) -> float:
+    """The cell size of a design, from its side: the array always spans the 120 mm disc."""
+    return 2 * HALF_MM / design.shape[0]
+
+
+def group_bytes(design, media: str = "dvd") -> int:
+    """Sampling step from this design's grid, never from the default CELL_MM.
+
+    20 um keeps the legacy 16 bytes on DVD and BD. A finer grid takes the
+    largest power-of-two step whose track length stays below half a cell:
+    DVD 2 bytes at 10 um (16 channel bits a byte, 4.27 um; a pair that straddles
+    a sync code spans 48 bits, each byte still within 3.2 um of the sample) and
+    1 byte at 5 um; BD 4 / 2 bytes (its sector's track in equal slices).
+    """
+    cell = cell_mm(design)
+    if cell > .010 + 1e-12:
+        return GROUP_BYTES
+    byte_mm = SECTOR_BITS_BD / dvd.SECTOR_BYTES * .0000745 if media == "bd" else 16 * .00013333
+    step = GROUP_BYTES
+    while step > 1 and step * byte_mm >= cell / 2:
+        step //= 2
+    return step
+
+
+def check_cells(design, cell_um: int | None = None) -> int:
+    """The design's cell size in um, if it is one of CELL_SIDES (and the one asked for, if any)."""
+    n = design.shape[0]
+    um = next((u for u, side in CELL_SIDES.items() if side == n), None)
+    if design.ndim != 2 or design.shape[1] != n or um is None:
+        raise ValueError("a design is a square array of " + ", ".join(f"{s} x {s} ({u} um cells)" for u, s in CELL_SIDES.items()))
+    if cell_um is not None and cell_um != um:
+        raise ValueError(f"the design has {um} um cells ({n} x {n}), not {cell_um} um")
+    return um
+
+
+def _grid_coords(size: int = SIZE):
+    c = (np.arange(size) + 0.5) * (2 * HALF_MM / size) - HALF_MM
     return c[None, :], -c[:, None]  # x right, y up
 
 
-def grid_design(r_min=24.5, r_max=56.0, spacing=5.0, line=0.3) -> np.ndarray:
+def grid_design(r_min=24.5, r_max=56.0, spacing=5.0, line=0.3, size: int = SIZE) -> np.ndarray:
     """True = dark. Cartesian grid, radial lines every 30 degrees, circles every
     spacing mm, and a block letter F (asymmetric, so a mirrored burn is obvious)."""
-    x, y = _grid_coords()
+    x, y = _grid_coords(size)
     r = np.hypot(x, y)
     th = np.degrees(np.arctan2(y, x))
     half = line / 2
@@ -62,13 +102,14 @@ def upright(im):
     return ImageOps.exif_transpose(im) if im.getexif().get(0x0112, 1) != 1 else im
 
 
-def picture_design(path: str, diameter_mm: float = 116.0, threshold: float = 0.5) -> np.ndarray:
+def picture_design(path: str, diameter_mm: float = 116.0, threshold: float = 0.5, cell: float = CELL_MM) -> np.ndarray:
     """A grey picture fitted to a circle of the given diameter, thresholded (dark = True).
 
     Its longer side spans the diameter and it keeps its shape; what it doesn't cover stays light.
     """
     from PIL import Image
-    n = round(diameter_mm / CELL_MM)
+    n = round(diameter_mm / cell)
+    side = round(2 * HALF_MM / cell)
     limit = Image.MAX_IMAGE_PIXELS
     Image.MAX_IMAGE_PIXELS = None       # Pillow's size limit guards against files from strangers; this one was chosen by hand
     try:
@@ -79,15 +120,15 @@ def picture_design(path: str, diameter_mm: float = 116.0, threshold: float = 0.5
             g = np.asarray(im.convert("L").resize(size), dtype=np.float32) / 255
     finally:
         Image.MAX_IMAGE_PIXELS = limit
-    out = np.zeros((SIZE, SIZE), bool)
-    y, x = (SIZE - g.shape[0]) // 2, (SIZE - g.shape[1]) // 2
+    out = np.zeros((side, side), bool)
+    y, x = (side - g.shape[0]) // 2, (side - g.shape[1]) // 2
     out[y:y + g.shape[0], x:x + g.shape[1]] = g < threshold
     return out
 
 
 def clear_inside(design: np.ndarray, r_mm: float) -> np.ndarray:
     """The design with everything inside this radius turned to background."""
-    x, y = _grid_coords()
+    x, y = _grid_coords(design.shape[0])
     out = design.copy()
     out[np.hypot(x, y) < r_mm] = False
     return out
@@ -104,12 +145,38 @@ class Correction:
         return np.polyval(self.coef, (np.clip(r, self.lo, self.hi) - 40.0) / 15.0)
 
 
+def drawing_span(design):
+    """Actual non-background pixels, in mm; row chunks avoid another full-size grid."""
+    coords = (np.arange(design.shape[0]) + .5) * (2 * HALF_MM / design.shape[0]) - HALF_MM
+    lo, hi = float('inf'), 0.
+    for offset in range(0, len(coords), 128):
+        y, x = np.nonzero(design[offset:offset + 128])
+        if len(x):
+            radii = np.hypot(coords[x], coords[y + offset])
+            lo, hi = min(lo, float(radii.min())), max(hi, float(radii.max()))
+    half_cell = HALF_MM / len(coords)
+    return [max(0., lo - half_cell), hi + half_cell] if math.isfinite(lo) else None
+
+
 def load_correction(path: str) -> Correction:
     """phi(r) in degrees from an angle-correction file (polynomial, held constant outside its range)."""
     with open(path, encoding="utf-8") as f:
         c = json.load(f)
     lo, hi = c["radius_valid_mm"]
+    if 'spline' in c:
+        return SplineCorrection(c['spline'], lo, hi)
     return Correction(c["poly_in_x"], lo, hi)
+
+
+class SplineCorrection:
+    """Same clipped phi(r) contract as Correction, with a cubic B-spline payload."""
+    def __init__(self, spline, lo, hi):
+        from scipy.interpolate import BSpline
+        self.lo, self.hi = float(lo), float(hi)
+        self.spline = BSpline(spline['t'], spline['c'], spline['k'])
+
+    def __call__(self, r):
+        return self.spline(np.clip(r, self.lo, self.hi))
 
 
 def _timing_source(c: dict) -> str | None:
@@ -121,7 +188,7 @@ def _timing_source(c: dict) -> str | None:
 def correction_from_timing(path: str) -> bool:
     """True for a correction made from a geo run by tools/geo_polyfit.py, False for one from grid scans."""
     with open(path, encoding="utf-8") as f:
-        return str(json.load(f).get("source")).startswith("tools/geo_polyfit.py ")
+        return str(json.load(f).get("source")).startswith(("tools/geo_polyfit.py ", 'geo automatic'))
 
 
 def geometry_fit(geo: str) -> dict | None:
@@ -209,20 +276,22 @@ def texture_bytes(spec: str, lbas: np.ndarray) -> np.ndarray:
 
 
 def _sample(design, u, v, bit_mm, lba0, count, correction=None, media="dvd"):
-    """Design value at every 16-byte group of the given sectors (False / 0 outside)."""
-    bits, group_bits = sector_bits(media)
+    """Design value at every grid-selected byte group (False / 0 outside)."""
+    bits, group_bits = sector_bits(media, group_bytes(design, media))
     lbas = np.arange(lba0, lba0 + count)
     n = lbas[:, None].astype(np.float64) * bits + group_bits[None, :]
     s = np.sqrt(u * u + v * n / math.pi)
-    th = -theta(n, u, v)  # clockwise in data-side view
+    th = -(2.0 * n / (s + u))  # theta's identical expression, reusing its square root
     r = bit_mm * s
     if correction is not None:
         # A byte at model angle th shows up at th + phi(r): give it the design there.
         th = th + np.radians(correction(r))
-    ix = np.floor((r * np.cos(th) + HALF_MM) / CELL_MM).astype(np.int64)
-    iy = np.floor((HALF_MM - r * np.sin(th)) / CELL_MM).astype(np.int64)
-    ok = (ix >= 0) & (ix < SIZE) & (iy >= 0) & (iy < SIZE)
-    return np.where(ok, design[np.clip(iy, 0, SIZE - 1), np.clip(ix, 0, SIZE - 1)], 0).astype(design.dtype)
+    size = design.shape[0]
+    cell = cell_mm(design)
+    ix = np.floor((r * np.cos(th) + HALF_MM) / cell).astype(np.int64)
+    iy = np.floor((HALF_MM - r * np.sin(th)) / cell).astype(np.int64)
+    ok = (ix >= 0) & (ix < size) & (iy >= 0) & (iy < size)
+    return np.where(ok, design[np.clip(iy, 0, size - 1), np.clip(ix, 0, size - 1)], 0).astype(design.dtype)
 
 
 def _textures(design: np.ndarray, dark: str, light: str, textures):
@@ -236,8 +305,19 @@ def _textures(design: np.ndarray, dark: str, light: str, textures):
 
 def _sector_q(design, texs, u, v, bit_mm, lba0, count, correction, media="dvd"):
     lbas = np.arange(lba0, lba0 + count)
-    labels = np.repeat(_sample(design, u, v, bit_mm, lba0, count, correction, media).astype(np.int64),
-                       GROUP_BYTES, axis=1)
+    step = group_bytes(design, media)
+    samples = _sample(design, u, v, bit_mm, lba0, count, correction, media)
+    if all(len(t) == 2 for t in texs):
+        # A single-byte texture has no phase: gather once per group, then
+        # expand bytes, rather than expanding int64 labels and texture stacks.
+        palette = np.array([bytes.fromhex(t)[0] for t in texs], dtype=np.uint8)
+        indices = samples.astype(np.uint8) if samples.dtype == bool else samples
+        groups = palette[indices]
+        if step == 1:
+            return groups
+        return np.broadcast_to(groups[:, :, None], (*groups.shape, step)).copy().reshape(count, dvd.SECTOR_BYTES)
+    labels = np.repeat(samples.astype(np.int64),
+                       step, axis=1)
     stack = np.stack([texture_bytes(t, lbas) for t in texs])
     return np.take_along_axis(stack, labels[None], 0)[0]
 
@@ -269,8 +349,14 @@ def workers() -> int:
 
 
 def _job_init(job: dict) -> None:
+    keep_full_speed()       # a worker process is a new process: it opts out of EcoQoS for itself
     _JOB.clear()
     _JOB.update(job)
+    if "design_file" in job:
+        _JOB["design"] = np.load(job["design_file"], mmap_mode="r")
+
+
+SHARED_DESIGN_BYTES = 64 << 20     # above this the workers read the design from one file, not a copy each
 
 
 def _job_chunk(span):
@@ -278,6 +364,16 @@ def _job_chunk(span):
     lead_lba, seeded by the chunk start), scrambled as the drive will scramble it."""
     a, n = span
     j = _JOB
+    if 'picture_lba' in j:
+        # Reserved sectors are initialized to zero, never sent through the pattern
+        # encoder. The planned filesystem is copied only after workers finish.
+        data = np.zeros((n, dvd.SECTOR_BYTES), dtype=np.uint8)
+        for low, high in j['picture_lba']:
+            lo, hi = max(a, low), min(a+n, high)
+            if lo < hi:
+                q = _sector_q(j['design'], j['texs'], j['u'], j['v'], j['bit_mm'], lo, hi-lo, j['correction'], j['media'])
+                data[lo-a:hi-a] = q ^ _scramble_masks(j['media'], np.arange(lo, hi))
+        return a, n, data.tobytes()
     q = _sector_q(j["design"], j["texs"], j["u"], j["v"], j["bit_mm"], a, n, j["correction"], j["media"])
     if a < j["lead_lba"]:
         k = min(n, j["lead_lba"] - a)
@@ -314,37 +410,96 @@ def _write_chunks(path: str, job: dict, spans, first_lba: int):
         finally:
             _JOB.clear()
         return
+    print(f"Starting {count} worker processes (DISCPROBE_WORKERS={os.environ.get('DISCPROBE_WORKERS', 'auto')}); preparing image chunks...", flush=True)
     from concurrent.futures import ProcessPoolExecutor, as_completed
     with open(path, "wb") as f:
         f.truncate(total * dvd.SECTOR_BYTES)
-    with ProcessPoolExecutor(max_workers=count, initializer=_job_init,
-                             initargs=({**job, "path": path, "first_lba": first_lba},)) as pool:
-        for done in as_completed([pool.submit(_job_chunk_to_file, span) for span in spans]):
-            yield done.result()
+    shared = {**job, "path": path, "first_lba": first_lba}
+    design_file = None
+    if job["design"].nbytes > SHARED_DESIGN_BYTES:      # 576 MB at 5 um: once on disk, not once per worker
+        design_file = path + ".design.npy"
+        np.save(design_file, np.ascontiguousarray(job["design"]))
+        shared = {k: v for k, v in shared.items() if k != "design"} | {"design_file": design_file}
+    try:
+        with ProcessPoolExecutor(max_workers=count, initializer=_job_init, initargs=(shared,)) as pool:
+            for done in as_completed([pool.submit(_job_chunk_to_file, span) for span in spans]):
+                yield done.result()
+    finally:
+        if design_file:
+            try:
+                os.remove(design_file)
+            except OSError:
+                pass
 
 
 def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
               dark: str = "A5", light: str = "B9", log=print, meta: dict | None = None, correction=None,
-              textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd") -> str:
+              textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd",
+              disc_id=False, disc_id_code=None, file_layout=None) -> str:
     """With first_lba, the file holds only sectors first_lba.. for appending to a disc already written up to
     there; it then has no file system of its own. Sectors below lead_lba hold random data instead of the design:
     a GU70N in a USB case failed to write a picture from the first sector on, yet wrote textures after random data."""
     texs = _textures(design, dark, light, textures)
+    identity = None
+    from . import discid
+    if file_layout is not None:
+        if media != 'dvd' or first_lba or lead_lba:
+            raise ValueError('随盘文件只支持完整单层 DVD，不支持追加或随机内圈')
+        if total_sectors != file_layout.total_sectors:
+            raise ValueError('File layout capacity differs from the image')
+        if bool(file_layout.identity_spans) != discid.requested(disc_id, disc_id_code):
+            raise ValueError('File layout and disc identity options differ')
+        from pathlib import Path
+        if Path(path).resolve().is_relative_to(file_layout.folder.resolve()):
+            raise ValueError('Output ISO must be outside the source folder')
+    if discid.requested(disc_id, disc_id_code):
+        if first_lba:
+            raise ValueError("Disc identity needs a complete ISO, not --start-lba")
+        discid.positions(total_sectors)
+        # DVD ECC covers 16 sectors; BD clusters cover 32. Keep the entire
+        # containing block/cluster clear, including parity beyond the ID file.
+        labels = _sample(design, u, v, bit_nm * 1e-6, 0, 32, correction, media)
+        if file_layout is None and np.any(labels[min(32, max(0, lead_lba)):] != 0):
+            raise ValueError("Disc identity overlaps the drawing; leave an inner background margin")
+        identity = discid.create(code=disc_id_code, design=design, u=u, v=v, bit_nm=bit_nm,
+                                 textures=texs, meta=meta, command=(meta or {}).get("identity_command", "image"))
+        discid.encode_copy(identity, 0)
+        discid.notice()
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     job = {"design": design, "texs": texs, "u": u, "v": v, "bit_mm": bit_nm * 1e-6, "correction": correction,
            "media": media, "lead_lba": lead_lba}
-    spans = [(a, min(CHUNK, total_sectors - a)) for a in range(first_lba, total_sectors, CHUNK)]
+    if file_layout is not None:
+        job['picture_lba'] = file_layout.picture_lba
+    # Bound coordinate/label arrays to the old number of sample points per
+    # chunk, even at per-byte resolution (DVD: 128 sectors at 10/5 um).
+    chunk = max(1, CHUNK * group_bytes(design, media) // GROUP_BYTES)
+    spans = [(a, min(chunk, total_sectors - a)) for a in range(first_lba, total_sectors, chunk)]
     next_report, count, written = 0.0, total_sectors - first_lba, 0
     for a, n in _write_chunks(path, job, spans, first_lba):
         written += n
-        if written / count >= next_report:
+        if written / count >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
             log(f"  {100 * written / count:5.1f} %")
-            next_report += 0.2
-    if not first_lba:
-        iso9660.add(path, total_sectors, "DISCPROBE_IMAGE")
+            next_report += getattr(log, "every", 0.2)
+    file_hashes = None
+    if file_layout is not None:
+        from .discfiles import write_files
+        file_hashes = write_files(path, file_layout, identity)
+    elif not first_lba:
+        iso9660.add(path, total_sectors, "DISCPROBE_IMAGE", identity)
     spec = {"kind": "dvd-picture", "media": media, "u": u, "v": v, "bit_nm": bit_nm,
             "total_sectors": total_sectors,
-            "first_lba": first_lba, "lead_lba": lead_lba, "textures": texs, "cell_mm": CELL_MM, **(meta or {})}
+            "first_lba": first_lba, "lead_lba": lead_lba, "textures": texs, "cell_mm": cell_mm(design),
+            "group_bytes": group_bytes(design, media), **(meta or {})}
+    if file_layout is not None:
+        spec['disc_files'] = file_layout.as_dict()
+        spec['disc_files']['sha256'] = file_hashes
+    spec['capacity_words'] = dict(image_length_sectors=total_sectors - first_lba,
+                                   mapping_end_lba_exclusive=total_sectors,
+                                   geometric_total_sectors=None, blank_writable_sectors=None,
+                                   random_mirror_sectors=None,
+                                   uses='image file length; burn checks this blank writable capacity separately')
+    if identity is not None:
+        spec["disc_identity_layout"] = discid.layout(total_sectors, media)
     if design.dtype == bool:
         spec.update(dark=dark, light=light)
     spec_path = os.path.splitext(path)[0] + ".image.json"
@@ -355,24 +510,43 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
 
 def verify_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
                dark: str = "A5", light: str = "B9", samples: int = 300, seed: int = 3, correction=None,
-               textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd") -> list[str]:
+               textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd", file_layout=None) -> list[str]:
     """Descramble random sectors and compare every byte with a recomputation from the design (past lead_lba)."""
     problems = []
     if os.path.getsize(path) != (total_sectors - first_lba) * dvd.SECTOR_BYTES:
         return ["size mismatch"]
     texs = _textures(design, dark, light, textures)
+    from . import discid
+    reserved = set(discid.sectors_for(total_sectors)) if not first_lba and discid.read_image(path) else set()
     rng = np.random.default_rng(seed)
     with open(path, "rb") as f:
         for lba in rng.integers(max(32, first_lba, lead_lba), total_sectors, samples):
+            if file_layout is not None and not file_layout.is_picture(int(lba)):
+                continue
+            if lba in reserved:
+                continue
             f.seek((int(lba) - first_lba) * dvd.SECTOR_BYTES)
             rec = np.frombuffer(f.read(dvd.SECTOR_BYTES), dtype=np.uint8) ^ _scramble_masks(media, np.array([int(lba)]))[0]
             want = _sector_q(design, texs, u, v, bit_nm * 1e-6, int(lba), 1, correction, media)[0]
             if not np.array_equal(rec, want):
                 problems.append(f"LBA {lba} differs from the design")
+    if file_layout is not None:
+        from .iso_read import read_tree
+        from .discid import file_sha256
+        actual = read_tree(path, hashes=True)
+        expected = {e.relative: e for e in file_layout.entries if not e.directory and e.source is not None}
+        if set(actual) - {'DISCPROBE.ID'} != set(expected):
+            problems.append('ISO file tree differs from source')
+        for name, entry in expected.items():
+            if name not in actual or actual[name]['sha256'] != file_sha256(entry.source):
+                problems.append(f'ISO file differs: {name}')
     return problems
 
 
 def preview(design: np.ndarray, path: str, size: int = 1200) -> None:
     from PIL import Image
-    img = Image.fromarray(np.where(design, 0, 255).astype(np.uint8)).resize((size, size))
+    pixels = np.empty(design.shape, np.uint8)
+    np.equal(design, 0, out=pixels)
+    pixels *= np.uint8(255)
+    img = Image.fromarray(pixels).resize((size, size))
     img.save(path)

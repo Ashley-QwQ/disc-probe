@@ -1,0 +1,2 @@
+COMMAND: node tests/test_selection_edit.mjs
+selection pixels: source resolution, feather, alpha partition, rotation, bounds, names passed

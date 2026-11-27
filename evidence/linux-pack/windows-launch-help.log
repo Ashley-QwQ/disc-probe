@@ -1,0 +1,8 @@
+usage: launch_web.py [-h] [--local-only] [--no-drives]
+
+Portable launcher: bind first, then open the bundled lobby.
+
+options:
+  -h, --help    show this help message and exit
+  --local-only
+  --no-drives   offline design session; do not enumerate devices

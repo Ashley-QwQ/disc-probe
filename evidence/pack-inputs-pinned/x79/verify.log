@@ -1,0 +1,1468 @@
+Archive SHA-256: c552518c7d323585ba66ac742cfb359b03ee554946e2ecfe951663fe5d58b7fb
+Modes immediately after unzip: {"start-linux.sh": "0o755", "linux/python/bin/idle3": "0o755", "linux/python/bin/idle3.13": "0o755", "linux/python/bin/pip": "0o755", "linux/python/bin/pip3": "0o755", "linux/python/bin/pip3.13": "0o755", "linux/python/bin/pydoc3": "0o755", "linux/python/bin/pydoc3.13": "0o755", "linux/python/bin/python": "0o755", "linux/python/bin/python3": "0o755", "linux/python/bin/python3.13": "0o755"}
+$ ["bash", "/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/start-linux.sh", "--help"]
+usage: python -m discprobe webui [-h] [--open] [--gui PATH] [--port PORT]
+                                 [--lan] [--local-only] [--no-drives]
+                                 [--new-instance] [--media {dvd,cd,bd}]
+                                 [--out OUT] [--texlib TEXLIB] [--table TABLE]
+                                 [--materials MATERIALS]
+                                 [status|stop] ...
+
+serve the web GUI backend
+
+positional arguments:
+  [status|stop]
+    status              show the running web service and optical-drive lock
+                        holders
+    stop                stop the web service after its tasks finish
+
+options:
+  -h, --help            show this help message and exit
+  --open                open the lobby in the default browser
+  --gui PATH            GUI folder containing gui.json (default: bundled GUI)
+  --port PORT           preferred HTTP port (default: 8765; uses a free port
+                        if occupied)
+  --lan                 accepted for compatibility; no-op (LAN is on by
+                        default)
+  --local-only          listen only on 127.0.0.1; disable LAN phone access
+  --no-drives           offline design session; do not enumerate drives (or
+                        DISC_PROBE_NO_DRIVES=1)
+  --new-instance        start a separate service without replacing the
+                        existing instance
+  --media {dvd,cd,bd}   disc type
+  --out OUT             results directory (default: results)
+  --texlib TEXLIB       read-only texture library directory (otherwise
+                        DISCPROBE_TEXLIB)
+  --table TABLE         override the bundled colour-picture table with an NPZ
+                        file
+  --materials MATERIALS
+                        override the bundled colour-picture material set with
+                        JSON
+$ ["/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/linux/python/bin/python3", "-X", "utf8", "-B", "-c", "\nimport importlib.metadata as metadata, json, pathlib, sys\nimport cv2, numpy, PIL, scipy\nroot = pathlib.Path(sys.prefix)\nassert root == pathlib.Path.cwd() / 'linux/python'\nfor mod in (cv2, numpy, PIL, scipy):\n    assert pathlib.Path(mod.__file__).is_relative_to(root)\nbuild = json.loads(pathlib.Path('release-build.json').read_text(encoding='utf-8'))['linux']\nassert sys.version.split()[0] == build['python']\nactual = {name: metadata.version(name) for name in build['dependencies']}\nassert actual == build['dependencies']\ntry:\n    metadata.version('opencv-python')\nexcept metadata.PackageNotFoundError:\n    pass\nelse:\n    raise AssertionError('GUI OpenCV distribution is present')\nprint(json.dumps(dict(python=sys.version.split()[0], executable=sys.executable, dependencies=actual)))\n"]
+{"python": "3.13.14", "executable": "/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/linux/python/bin/python3.13", "dependencies": {"numpy": "2.5.1", "opencv-python-headless": "5.0.0.93", "pillow": "12.3.0", "scipy": "1.18.1"}}
+$ ["/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "selftest"]
+parsers
+  ok    ATIP lead-in time
+  ok    ATIP lead-out = CD80 capacity
+  ok    MSF 00:02:00 is LBA 0
+  ok    GET PERFORMANCE descriptor
+  ok    DVD physical format
+  ok    DVD-R MID from Field IDs 3 and 4
+  ok    WRITE(10) refused
+  ok    WRITE(12) refused
+  ok    CLOSE TRACK refused
+  ok    FORMAT UNIT refused
+results at a terminal
+  ok    ok is green, FAIL red, and a section stands apart
+a folder with files missing
+  ok    it says the files are incomplete, not a traceback
+period estimation
+  ok    fundamental found among harmonics: 7.10001 ms
+  ok    jitter 49.1 us
+timer tick diagnosis
+  ok    win32 plain period 15.6250 ms stops before an unreliable fit
+  ok    win32 plain period 7.8125 ms stops before an unreliable fit
+  ok    win32 plain period 5.2083 ms stops before an unreliable fit
+  ok    win32 plain period 10.0000 ms stops before an unreliable fit
+  ok    win32 evict period 15.6250 ms stops before an unreliable fit
+  ok    win32 evict period 7.8125 ms stops before an unreliable fit
+  ok    win32 evict period 5.2083 ms stops before an unreliable fit
+  ok    win32 evict period 10.0000 ms stops before an unreliable fit
+  ok    linux plain period 15.6250 ms stops before an unreliable fit
+  ok    linux plain period 7.8125 ms stops before an unreliable fit
+  ok    linux plain period 5.2083 ms stops before an unreliable fit
+  ok    linux plain period 10.0000 ms stops before an unreliable fit
+  ok    linux evict period 15.6250 ms stops before an unreliable fit
+  ok    linux evict period 7.8125 ms stops before an unreliable fit
+  ok    linux evict period 5.2083 ms stops before an unreliable fit
+  ok    linux evict period 10.0000 ms stops before an unreliable fit
+rotation zone consistency
+  ok    middle zone period conflict is not CAV
+  ok    missing middle zone is unknown
+  ok    incoherent middle zone is unknown
+  (skipped the GH70N record: evidence/ is not part of this copy)
+  ok    a speed change landing on a whole multiple is not CAV
+simulated drive: cav, FUA honoured, zero-length flush ignored, 1-sector reads
+  ok    cache strategy fua
+  ok    rotation CAV (period ratio 1.0)
+  ok    zone 0.05: T 6.60001 ms
+  ok    zone 0.5: T 6.59954 ms
+  ok    zone 0.95: T 6.60021 ms
+  ok    target 0.15: measured 263.16, true 262.66, error 0.50 deg (sem 0.789)
+  ok    target 0.35: measured 105.15, true 106.44, error 1.28 deg (sem 0.544)
+  ok    target 0.55: measured 218.12, true 216.94, error 1.18 deg (sem 0.569)
+  ok    target 0.75: measured 80.22, true 80.72, error 0.50 deg (sem 0.785)
+  ok    target 0.95: measured 355.93, true 355.64, error 0.29 deg (sem 0.39)
+  worst phase error 1.28 deg
+simulated drive: cav, FUA honoured, zero-length flush ignored, 16-sector reads
+  ok    cache strategy fua
+  ok    rotation CAV (period ratio 1.0)
+  ok    zone 0.05: T 6.60001 ms
+  ok    zone 0.5: T 6.59954 ms
+  ok    zone 0.95: T 6.60021 ms
+  ok    target 0.15: measured 263.16, true 262.66, error 0.50 deg (sem 0.789)
+  ok    target 0.35: measured 105.15, true 106.44, error 1.28 deg (sem 0.544)
+  ok    target 0.55: measured 218.12, true 216.94, error 1.18 deg (sem 0.569)
+  ok    target 0.75: measured 80.22, true 80.72, error 0.50 deg (sem 0.785)
+  ok    target 0.95: measured 355.93, true 355.64, error 0.29 deg (sem 0.39)
+  worst phase error 1.28 deg
+simulated drive: cav, FUA honoured, zero-length flush ignored, 1-sector reads, 35.0 ms firmware overhead per media read
+  ok    cache strategy fua
+  ok    rotation CAV (period ratio 1.0)
+  ok    zone 0.05: T 6.59993 ms
+  ok    zone 0.5: T 6.59975 ms
+  ok    zone 0.95: T 6.59992 ms
+  ok    target 0.15: measured 263.17, true 262.66, error 0.51 deg (sem 0.791)
+  ok    target 0.35: measured 105.17, true 106.44, error 1.27 deg (sem 0.543)
+  ok    target 0.55: measured 218.11, true 216.94, error 1.17 deg (sem 0.569)
+  ok    target 0.75: measured 80.22, true 80.72, error 0.50 deg (sem 0.782)
+  ok    target 0.95: measured 355.94, true 355.64, error 0.29 deg (sem 0.391)
+  worst phase error 1.27 deg
+simulated drive: cav, FUA ignored, zero-length flush honoured, 1-sector reads
+  ok    cache strategy flush
+  ok    rotation CAV (period ratio 1.0)
+  ok    zone 0.05: T 6.60012 ms
+  ok    zone 0.5: T 6.6 ms
+  ok    zone 0.95: T 6.59979 ms
+  ok    target 0.15: measured 262.89, true 262.66, error 0.23 deg (sem 0.635)
+  ok    target 0.35: measured 107.56, true 106.44, error 1.12 deg (sem 0.68)
+  ok    target 0.55: measured 218.68, true 216.94, error 1.73 deg (sem 0.633)
+  ok    target 0.75: measured 80.84, true 80.72, error 0.12 deg (sem 0.73)
+  ok    target 0.95: measured 354.79, true 355.64, error 0.85 deg (sem 0.611)
+  worst phase error 1.73 deg
+simulated drive: cav, FUA ignored, zero-length flush ignored, 1-sector reads
+  ok    cache strategy evict
+  ok    rotation CAV (period ratio 0.9999)
+  ok    zone 0.05: T 6.59982 ms
+  ok    zone 0.5: T 6.59968 ms
+  ok    zone 0.95: T 6.59949 ms
+  ok    target 0.15: measured 262.99, true 262.66, error 0.32 deg (sem 0.682)
+  ok    target 0.35: measured 106.50, true 106.44, error 0.06 deg (sem 0.594)
+  ok    target 0.55: measured 215.65, true 216.94, error 1.29 deg (sem 0.619)
+  ok    target 0.75: measured 81.75, true 80.72, error 1.03 deg (sem 0.756)
+  ok    target 0.95: measured 355.88, true 355.64, error 0.23 deg (sem 0.646)
+  worst phase error 1.29 deg
+simulated drive: clv, FUA honoured, zero-length flush ignored, 1-sector reads
+  ok    cache strategy fua
+  ok    rotation CLV (period ratio 2.124)
+timing stops early on unreadable discs and non-CAV drives
+  ok    unreadable disc stopped after 4 reads
+  ok    one medium error does not switch the read command to READ(10)
+  ok    slow cache hits are still recognised as cached (strategy fua)
+  ok    a CLV drive stops before the phase test
+  ok    a zone with no clear period gives unknown, not CAV from the other two
+cdprobe: DiscImageStudio project and probe pattern for a CD probe disc
+  ok    the project has exactly DiscImageStudio's CD project fields
+  ok    generic burn values: ri 24.92 mm, ro 57.8386 mm, pitch 1.4865 um, one layer at 100 %
+  ok    the pattern is a 512 px greyscale PNG carrying its features for the project's band
+  ok    spoke 0 is black on white; from 105 to 285 deg the band is inverted (background black, spoke 180 white)
+  ok    a bad sector count, non-CD radii and an existing project are refused
+pitch model numerical fit
+  ok    quadratic pitch prediction error 0.000000 deg
+  ok    quadratic span uncertainty includes fitted pitch parameters
+grid acceptance coverage and deviations
+  (skipped: evidence/ is not part of this copy)
+ladder safe unwrapping
+  ok    bridged DVD rungs stay safe and on the correct whole-turn branch
+  ok    exhausted candidates are recorded as partial
+ladder geometry measurement on the simulated drive (35 ms re-read overhead)
+  ok    the full-disc sigma counts DVD sectors in DVD channel bits (0.9232 deg)
+  ok    14 rungs, angle error over 0-98 % of the disc 0.611 deg (reported 1 sigma 0.898, chi2/dof 0.48)
+  ok    check points: a steady drive reads as steady, one that changes partway as changed (chi2/dof 0.42 and 0.42, so the fit alone can't tell)
+  ok    reading whole ECC blocks gives the same geometry: 0.000 deg apart over 0-85 % of the disc
+  ok    texture-ring disc: 12 random stretches found, 0 rungs and 0 stretches on a pattern
+  ok    angle error over the measured span 1.382 deg
+  ok    one 0.5 mm picture band splits the range in two: [(71000, 497000), (523000, 1947000)]
+ladder stops on a wrong whole-turn count
+  ok    stopped after 6 rungs: after the rung at LBA 993344: chi2/dof 118.8, worst residual...
+ladder on a simulated CD-DA track (DiscImageStudio picture burn, drive read offset -603 bytes)
+  ok    24 rungs with far reads: ri +1 nm, ro -1 nm from the truth (chi2/dof 1.24)
+  ok    read offset left at 0 moves ri by +40 nm (expected +39 nm)
+  ok    a cache that keeps the target past one far read: 2 far reads, ri -5 nm
+  ok    a cache that even four far reads leave in place falls back to evict
+  ok    timing --media cd still refuses an audio track (only geo reads one)
+  ok    --read-offset-bytes is refused on a data CD
+  ok    the preset from an audio fit is dis_equivalent: ri +0 nm, ro -0 nm
+/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/discprobe/disexport.py:83: RuntimeWarning: fit stopped without a first-order certificate; inspect fit uncertainty
+  sol = least_squares(resid, np.zeros(5), jac=jac, x_scale=1.0, xtol=1e-14, ftol=1e-14, gtol=1e-14, max_nfev=400)
+  ok    and names the read offset, with the along-track constant left unknown
+  ok    disexport --along-track-frames on an audio fit writes the stated constant
+  ok    --sectors far too small for the span is refused with a reason
+  ok    disexport on an audio fit does not warn about the along-track constant
+  ok    image --media cd refuses an audio fit
+  ok    tiles --media cd refuses an audio fit
+  ok    geo on an audio track points at the preset, not at a picture ISO
+  ok    a retry keeps the read offset
+  ok    that advice has Chinese
+/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/discprobe/disexport.py:83: RuntimeWarning: fit has flat or unidentifiable parameter directions; uniqueness is unproved
+  sol = least_squares(resid, np.zeros(5), jac=jac, x_scale=1.0, xtol=1e-14, ftol=1e-14, gtol=1e-14, max_nfev=400)
+/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/discprobe/disexport.py:83: RuntimeWarning: fit stopped without a first-order certificate; inspect fit uncertainty
+  sol = least_squares(resid, np.zeros(5), jac=jac, x_scale=1.0, xtol=1e-14, ftol=1e-14, gtol=1e-14, max_nfev=400)
+geo checks the spindle before it starts
+  ok    CLV's period follows the radius, a constant speed's doesn't
+  ok    a period read as whole turns isn't taken for CLV
+  ok    and where the radii are about 2 to 1 it can't tell, so it carries on
+  ok    CLV stops before any rung: the drive is not turning at a constant speed here (5.52 ms a turn at 2
+  ok    and says to reload and keep the speed
+  ok    if it was left alone already, it doesn't suggest that again
+  ok    a span too narrow to tell isn't judged
+  ok    constant rotation carries on
+  ok    --speed keep sends no speed command
+  ok    keep is understood
+  ok    the default still sets 4x
+DiscImageStudio preset export
+  ok    constant-pitch map exports with ~zero cubic terms, max angle difference 0.0011 deg
+  ok    full-capacity conversion difference is reported
+  ok    an angle correction reaches the exported pitch terms, max angle difference 0.0010 deg
+Warning: Measured radius coverage is unknown; extrapolation cannot be checked.
+  ok    CD fit exports as a CD preset, outer 58.082 mm, pitch 1.49690 um by the DIS formula
+Warning: Measured radius coverage is unknown; extrapolation cannot be checked.
+  ok    along-track constant reaches the CD preset (206.0 of 206 frames)
+Warning: Measured radius coverage is unknown; extrapolation cannot be checked.
+  ok    a preset that misses the measured map is refused and not written
+preset install: the details
+  ok    a leftover sectors on a DVD preset doesn't set its total
+  ok    and doesn't cost a usableSectors that fits
+  ok    --id and --name lose the spaces around them
+  ok    an empty or reserved --id/--name is refused (' ', None)
+  ok    an empty or reserved --id/--name is refused (None, '')
+  ok    an empty or reserved --id/--name is refused ('__manual__', None)
+  ok    a quality figure of NaN or infinity counts as missing
+  ok    --install alone leaves a dis_preset.json in the folder as it was
+  ok    without --install the default file is written as before
+  ok    a simulated geo says so in its summary
+  ok    so a renamed folder still counts as simulated
+  ok    and can't be installed
+a correction from another geo run
+  ok    the run it was made from passes
+  ok    any other run is named
+  ok    an older file is judged by its folder: the same one passes
+  ok    and another is named
+  ok    a Linux result name round-trips through correction matching
+  ok    a Linux device basename round-trips through result naming and identity without a colon
+  ok    a folder name that says nothing is no reason to warn
+  ok    a grid-scan correction isn't checked
+  ok    the warning says how to make it again
+  ok    no file or a missing one says nothing here
+  ok    --base adds the scans to the burned correction (0.0081 deg off)
+  ok    and still names the geo run that correction belongs to
+  ok    a scan correction passes with its own geometry
+  ok    and names the run its grid was burned with when used with another
+  ok    the warning says the scans belong to another run
+  ok    one that records no geometry says it could not be checked
+  ok    a merge keeps a source run's moved check points
+DiscImageStudio preset install
+  ok    install creates the user preset file and adds the preset
+  ok    installing the same preset again changes nothing
+  ok    a same-id preset with different values is refused
+  ok    --replace overwrites the existing preset
+  ok    the file is backed up before it is rewritten
+  ok    a second install adds a backup instead of overwriting the first
+  ok    the first backup still holds the file as it was before any install
+  ok    a file that is not rewritten does not report lost comments
+  ok    an extra field the tool does not write does not make a preset differ
+  ok    --replace keeps a field this tool does not write
+  ok    a usableSectors the new total cannot hold is dropped, not written
+  ok    1984 usable sectors against 1008 total is dropped
+  ok    a usableSectors above the total is dropped
+  ok    a DVD usableSectors that is not a multiple of 16 is dropped
+  ok    a usableSectors that fits is kept
+  ok    comments are read, schema 3 is upgraded, and a disabled id is enabled
+  ok    the install reports the comments and trailing commas the rewrite did not keep
+  ok    an unterminated /* comment is refused and the file is left alone
+  ok    --output and --dis-presets on one file are refused
+  ok    two names for a file that does not exist yet are compared as paths
+  ok    a DVD preset goes into dvdPresets
+  ok    a pitch that goes negative is refused
+Refusing presets from results nobody should trust
+  ok    a simulated run is refused
+  ok    and the reason says it was simulated
+  ok    a run that stopped before the fit is refused
+  ok    a run with no geometry fit is refused
+  ok    a run with too few points is refused
+  ok    a run whose fit leaves a large chi2 is refused
+  ok    a run too noisy to rely on is refused
+  ok    a complete, quiet run of a real disc is installed
+  ok    a CD-DA result is allowed: it is what the audio path of DiscImageStudio is for
+  ok    a summary that records a simulated drive is refused even in a renamed folder
+  ok    a summary with both quality figures needs no warning
+  ok    a summary without quality figures installs, and says which check did not run
+  ok    a chi2 of None is not read as zero, so the run is not refused for it
+Blu-ray CLV geometry: periods against LBA
+  ok    with the linear speed given, r0 24.0200 mm and pitch 0.3185 um come back (truth 24.02 mm, 0.3185 um)
+  ok    with the pitch given, the speed 39.336 m/s comes back (truth 39.336)
+  ok    with neither anchor the two ratios are still measured, and the fit says what stayed unknown
+  ok    one zone timed 6% long is dropped and the rest still fit
+  ok    a flat performance ratio reads as CLV
+  ok    58/24 on a BD reads as CAV
+  ok    a ratio in between is neither, and is not fitted
+  ok    a drive that reports nothing is not guessed at
+  ok    7 of 11 recorded runs fit as a straight line in T^2 with r0 23.719-24.377 mm at 10.2-10.5 m/s
+  ok    the 4 runs whose inner zone turned at twice the outer rate are left out
+  ok    the first zone sits 2.28 mm outside r0, which the fit reports
+  ok    a clean CLV run shows no break in its periods
+  ok    the tolerance tracks the scatter it is meant to describe: 37 um claimed against 44 um seen over 120 simulations
+  ok    a disc read in zones is caught: the periods break between two lines instead of one
+Blu-ray preset: three numbers DiscImageStudio turns back into a spiral
+  ok    outer radius follows from inner, pitch and sectors
+  ok    no pitch coefficient: DiscImageStudio reads those as a shape, not as a pitch
+  ok    a preset leaves room for the lead-out, so a full project does not overburn
+  ok    the standard radii and pitch close their own identity (0.32000 um)
+  ok    a sector count that is not a multiple of 32 is refused
+  ok    a fit with no radius and no pitch is refused as a Blu-ray preset
+  ok    an angular u/v fit is converted from the radius and pitch it already carries
+  ok    the catalog entry is the flat record disc-presets.json keeps
+  ok    the written document is the shape the preset library's Import reads
+  ok    installing the same preset twice changes nothing
+  ok    an unchanged install does not rewrite the file
+  ok    a replacement keeps the file it replaced as a backup
+  ok    a different preset under the same id needs --replace
+  ok    a catalog of another schema is left untouched
+  ok    an angular Blu-ray result is installable: rungs and chi2/dof are its figures
+  ok    and nothing is left unchecked for it
+  ok    an angular result with too few rungs is refused
+tests/: the files nobody runs, run here
+  ok    no tests/ folder beside the package, so there is nothing to run
+EFMPlus modulation with DSV control
+  ok    all 32 sync codes are distinct (32)
+  ok    A5 / 92 code words have 5 / 2 transitions
+  ok    levels and DSV agree, run lengths 3T-14T
+  ok    DSV stays bounded on random data (max |DSV| 14 at frame ends)
+tile palette target
+  ok    all 129 tile IDs and palettes read back from the rasterised design
+  ok    shuffled swatches: each texture once per tile, every slot at least 14x per texture (Latin squares)
+  ok    repeated sequences keep their phase along a data-frame row
+  ok    random mixes draw only from their byte list
+  ok    an image started at a later LBA is that part of the whole image, byte for byte
+  ok    below lead_lba it is random data, from there the same picture
+  ok    a sector that is mostly one texture byte is not random, and 200 random sectors all are
+Starting 2 worker processes (DISCPROBE_WORKERS=2); preparing image chunks...
+  ok    two worker processes write the same image as one, byte for byte
+CD scrambler and forward/inverse CIRC
+  ok    Annex B 32-byte prefix and 32767-bit period
+  ok    all 2340 scramble bytes agree with redumper formulation
+  ok    scrambler resets after every sector sync
+  ok    clause 16 adjacent swap before CIRC
+  ok    all 24 DIS 46fa699 DelayFor values agree with figure C.4
+  ok    8000 random bytes round-trip value, sector, offset and channel position
+  ok    Mode 2 Form 1 layout: textures pre-scrambled at byte 24, user byte 0 sits where Mode 1 byte 8 does
+  ok    independent inverse enumeration agrees across sector boundaries
+  ok    parity slots are uncontrollable
+  ok    last raw pair spans frames 202/205; completion includes 108 tail frames
+  ok    the end of the last sector is past 2**31 and still exact
+  ok    a channel position past 2**31 is exact too
+  ok    the same holds for an array index
+  ok    last raw-pair B symbol is at frame 205 slot 27
+CD rings and physical-domain image ISO
+  ok    small CD rings: 923 sectors verified
+  ok    CD rings verifier detects a flipped byte
+  ok    every byte inverse-reconstructed: labels, physical sequences, MIX and correction
+  ok    independent CD image reconstruction detects corruption
+  ok    CD output overwrite refused
+  ok    invalid CD capacity 20 rejected
+  ok    invalid CD capacity 359850 rejected
+CD timing ladder: four +/-1% geometries, 35 ms reread overhead
+  ok    u -1%, v -1%: 36 rungs, 0-98% error 0.277 deg
+  ok    CD data READ(12)+FUA and media-tagged fit
+  ok    u -1%, v +1%: 36 rungs, 0-98% error 0.203 deg
+  ok    CD data READ(12)+FUA and media-tagged fit
+  ok    u +1%, v -1%: 36 rungs, 0-98% error 0.306 deg
+  ok    CD data READ(12)+FUA and media-tagged fit
+  ok    u +1%, v +1%: 36 rungs, 0-98% error 0.308 deg
+  ok    CD data READ(12)+FUA and media-tagged fit
+CD synthetic ringscan
+  ok    CD ring edges and reference-normalised levels: max error 0.009
+CD EFM reference modulation (not a hardware encoder prediction)
+  ok    588 bits/frame, NRZI sum = DSV, runs 3T-11T
+CD timing CAV/CLV, sector sizes and READ CD rejection
+  ok    CD cav: rotation recognised, 2048-byte READ(12)+FUA, one-sector units
+  ok    CD CAV phase matches completion-tail model: worst 0.414 deg
+  ok    CD clv: rotation recognised, 2048-byte READ(12)+FUA, one-sector units
+  ok    READ CD rejected for CD timing
+disc view prediction
+  ok    2.13 um at delta .30 is red
+  ok    one full turn returns the same prediction
+  ok    sheet has 12 square tiles and a footer without an original
+  ok    unsupported texture has a clear error
+synthetic scan: mirrored=False, inverted=False
+  ok    mirror detected as False
+  ok    rings used 640 of 781 (23.6-58.4 mm)
+  ok    bending over -3..220 deg: max error 0.234 deg, rms 0.037 deg, noise/ring 0.0264
+  ok    scanner y/x scale 1.003015
+  ok    6 markers, max radius error 0.0140 mm
+synthetic scan: mirrored=True, inverted=True
+  ok    mirror detected as True
+  ok    rings used 639 of 781 (23.6-58.4 mm)
+  ok    bending over -3..220 deg: max error 0.220 deg, rms 0.038 deg, noise/ring 0.0257
+  ok    scanner y/x scale 1.003015
+  ok    6 markers, max radius error 0.0160 mm
+DVD scrambler
+  ok    x^15 + x^4 + 1 register period 32767
+  ok    sequences start with the preset low byte
+  ok    16 distinct preset sequences
+  ok    preset follows PSN bits 7..4 (one per ECC block)
+  ok    payload descrambles to the chosen byte
+ring ISO round trip
+  ok    6336 sectors written and verified
+  ok    a flipped byte is reported
+  ok    default layout: 21 rings, 1962016 sectors
+synthetic ring scan
+  ok    ring edges used 22 of 22
+  ok    radial fit r0 23.9597 mm (true 23.96), pitch x length 1.00797 (true 1.008), edge rms 0.0009 mm
+  ok    levels within 0.010 of truth (66 -0.010, A5 -0.000, 64 0.330, E4 0.392, B9 0.550, RND 0.617, 92 1.000)
+  ok    palette 66 64 E4 B9 RND 92 (pooled std 0.01526)
+  ok    colour channels analysed
+calibration disc layout
+  ok    39 bands, 2200448 sectors
+  ok    small calibration ISO (108304 sectors) verified
+synthetic scan of the bracketing disc: mirrored=False, inverted=False
+  ok    mirror detected as False (score 0.871)
+  ok    guard edges 79/80, radius map error 1.3 um
+  ok    readable bands 9: +0.2%@30.9mm, +0.4%@31.7mm, +0.6%@32.5mm, +0.6%@38.2mm, +0.4%@39.0mm, +0.2%@39.8mm, +0.2%@52.0mm, +0.4%@52.8mm, +0.6%@53.7mm
+  ok    two-parameter fit produced
+  info  coarse fit angle error over 24-58 mm: 13.0 deg
+  ok    fine fit with 9 bands: angle error over 24-58 mm 1.261 deg (reported 1 sigma 2.349; nominal layout was off 63820 deg)
+synthetic scan of the bracketing disc: mirrored=True, inverted=True
+  ok    mirror detected as True (score -0.888)
+  ok    guard edges 79/80, radius map error 6.8 um
+  ok    readable bands 9: +0.2%@30.9mm, +0.4%@31.7mm, +0.6%@32.5mm, +0.6%@38.2mm, +0.4%@39.0mm, +0.2%@39.8mm, +0.2%@52.0mm, +0.4%@52.9mm, +0.6%@53.7mm
+  ok    two-parameter fit produced
+  info  coarse fit angle error over 24-58 mm: 11.9 deg
+  ok    fine fit with 9 bands: angle error over 24-58 mm 4.709 deg (reported 1 sigma 2.276; nominal layout was off 63815 deg)
+synthetic scan of the refinement disc: mirrored=True, inverted=False
+  ok    mirror detected as True (score -0.998)
+  ok    guard edges 41/42, radius map error 0.6 um
+  ok    readable bands 20: +0.0%@25.3mm, +0.0%@26.9mm, +0.0%@28.4mm, +0.0%@30.0mm, +0.0%@31.6mm, +0.0%@33.2mm, +0.0%@34.8mm, +0.0%@36.4mm, +0.0%@38.0mm, +0.0%@39.6mm, +0.0%@41.2mm, +0.0%@42.8mm, +0.0%@44.4mm, +0.0%@46.0mm, +0.0%@47.6mm, +0.0%@49.2mm, +0.0%@50.8mm, +0.0%@52.3mm, +0.0%@53.9mm, +0.0%@55.5mm
+  ok    two-parameter fit produced
+  info  coarse fit angle error over 24-58 mm: 0.9 deg
+  ok    fine fit with 20 bands: angle error over 24-58 mm 0.080 deg (reported 1 sigma 0.023; nominal layout was off 1 deg)
+Linux SG_IO header layout
+  ok    64-bit sg_io_hdr is 88 bytes with expected pointer and completion offsets
+Linux SG_IO completion and read-only commands (mock ioctl)
+  ok    full transfer returns all bytes and ioctl timestamps
+  ok    short transfer excludes stale buffer bytes
+  ok    residual beyond request clamps to zero bytes
+  ok    negative residual clamps to requested bytes
+  ok    CHECK CONDITION preserves not-ready sense
+  ok    driver sense with GOOD status becomes CHECK CONDITION
+  ok    sense bytes alone become CHECK CONDITION
+  ok    sense parsing uses only the reported length
+  ok    reported sense length is bounded to the buffer
+  ok    host failure raises EIO with transport statuses
+  ok    non-sense driver bits raise EIO
+  ok    ioctl error keeps errno
+  ok    CDB longer than 16 bytes is refused
+  ok    empty CDB is refused
+  ok    negative transfer length is refused
+  ok    oversized transfer is refused
+  ok    DATA_OUT is refused
+  ok    opcode allowlist is enforced
+  ok    invalid requests never reach ioctl
+Linux SG_IO open fallback (mock open)
+  ok    EBUSY on sr falls back to the mapped sg path
+  ok    fallback descriptor is closed
+  ok    EACCES names path and permission hint
+  ok    EACCES never attempts sg fallback
+  ok    failed fallback names both paths and keeps first errno
+  ok    sr0 resolves to a device path and filesystem-safe name
+  ok    sg7 resolves to a device path and filesystem-safe name
+  ok    /dev/sr0 resolves to a device path and filesystem-safe name
+  ok    /dev/sg7 resolves to a device path and filesystem-safe name
+terminal layer: capabilities, progress line, games, advice, opening screen, Chinese
+  ok    a CD with DVD settings offers --media cd
+  ok    declining keeps the command as typed
+  ok    a DVD with DVD settings passes
+  ok    an empty tray is reported
+  ok    the only drive is used when --drive is left out
+  ok    no drive at all is reported
+  ok    Linux auto-selects the only drive
+  ok    Linux accepts a drive basename or full path
+  ok    Linux accepts a drive basename or full path
+  ok    true colour, 120 columns: ASCII and fits
+  ok    true colour, 120 columns: escapes only with colour
+  ok    true colour, 60 columns: ASCII and fits
+  ok    true colour, 60 columns: escapes only with colour
+  ok    true colour, 20 columns: ASCII and fits
+  ok    true colour, 20 columns: escapes only with colour
+  ok    16 colours, 120 columns: ASCII and fits
+  ok    16 colours, 120 columns: escapes only with colour
+  ok    16 colours, 60 columns: ASCII and fits
+  ok    16 colours, 60 columns: escapes only with colour
+  ok    16 colours, 20 columns: ASCII and fits
+  ok    16 colours, 20 columns: escapes only with colour
+  ok    NO_COLOR, 120 columns: ASCII and fits
+  ok    NO_COLOR, 120 columns: escapes only with colour
+  ok    NO_COLOR, 60 columns: ASCII and fits
+  ok    NO_COLOR, 60 columns: escapes only with colour
+  ok    NO_COLOR, 20 columns: ASCII and fits
+  ok    NO_COLOR, 20 columns: escapes only with colour
+  ok    no ANSI, 120 columns: ASCII and fits
+  ok    no ANSI, 120 columns: escapes only with colour
+  ok    no ANSI, 60 columns: ASCII and fits
+  ok    no ANSI, 60 columns: escapes only with colour
+  ok    no ANSI, 20 columns: ASCII and fits
+  ok    no ANSI, 20 columns: escapes only with colour
+  ok    a CD's disc has its own colours
+  ok    the disc is coloured spaces with slashes on top
+  ok    16 colours: the disc uses background colours
+  ok    Chinese, 120 columns: the screen fits
+  ok    Chinese, 60 columns: the screen fits
+  ok    Chinese, 20 columns: the screen fits
+  ok    the animation runs and gives the cursor back
+  ok    a slow terminal skips frames and takes no longer
+  ok    NO_COLOR: the disc still turns, without colour
+  ok    no colour, no motion: one still frame, no escapes
+  ok    a low window gets the title alone
+  ok    a pipe gets no banner
+  ok    the word in blocks fits the title's room, in each disc's colours
+  ok    with half blocks and true colour the title is in blocks, and keeps its width
+  ok    light runs along it while the disc turns
+  ok    half blocks: the disc keeps its size
+  ok    half blocks: two colours a cell, and round
+  ok    half blocks: the hole shows through
+  ok    steps done dye the track
+  ok    and a small difference in steps is not a new disc
+  ok    only changed cells go out (7127, then 3922 bytes)
+  ok    sent from nothing, the changes add up to the whole frame
+  ok    each frame is sent whole, and the cursor comes back
+  ok    no motion: one still frame of the same disc
+  ok    a pipe gets nothing extra
+  ok    a terminal gets colour and animation
+  ok    NO_COLOR drops colour only
+  ok    TERM=dumb counts as a pipe
+  ok    DISCPROBE_PLAIN=1 counts as a pipe
+  ok    a console without ANSI falls back to plain text
+  ok    DISCPROBE_NO_ANIMATION=1 keeps colour, drops motion
+  ok    ASCII by default, even on UTF-8
+  ok    DISCPROBE_UNICODE=1 asks for finer glyphs
+  ok    finer glyphs need UTF-8
+  ok    Windows Terminal draws blocks itself, and takes taskbar progress and synchronized frames
+  ok    so does the desktop app's terminal panel
+  ok    no blocks without UTF-8
+  ok    a terminal that does not say who it is gets none of this
+  ok    ConEmu takes taskbar progress only
+  ok    OKLCH: white and black are themselves
+  ok    the taskbar shows the percentage
+  ok    and hears it only when it changes
+  ok    or now and then, for terminals that forget
+  ok    work of unknown length is indeterminate
+  ok    closing clears the taskbar
+  ok    other terminals are sent no taskbar sequence
+  ok    the bar at 0.0 moves in half cells
+  ok    and paint only adds colour at 0.0
+  ok    the bar at 0.025 moves in half cells
+  ok    and paint only adds colour at 0.025
+  ok    the bar at 0.05 moves in half cells
+  ok    and paint only adds colour at 0.05
+  ok    the bar at 0.5 moves in half cells
+  ok    and paint only adds colour at 0.5
+  ok    the bar at 0.999 moves in half cells
+  ok    and paint only adds colour at 0.999
+  ok    the bar at 1.0 moves in half cells
+  ok    and paint only adds colour at 1.0
+  ok    read times fill a fixed width, lowest to highest
+  ok    with read times, 200 columns: the line fits (107)
+  ok    with read times, 120 columns: the line fits (107)
+  ok    with read times, 100 columns: the line fits (93)
+  ok    with read times, 80 columns: the line fits (77)
+  ok    with read times, 60 columns: the line fits (49)
+  ok    with read times, 40 columns: the line fits (32)
+  ok    with read times, 24 columns: the line fits (23)
+  ok    with read times, 12 columns: the line fits (11)
+  ok    read times are the first thing a narrow line loses
+  ok    a full frame with bar and read times stays small, whatever the light is doing (464 bytes)
+  ok    no read yet, nothing to show
+  ok    a read is noted in the pause after it, not while it is timed
+  ok    the pause notes it
+  ok    a command to copy: the subcommand stands out, the text is untouched
+  ok    no colour: as written
+  ok    a DVD's commands are violet
+  ok    in true colour, its own violet
+  ok    a CD's stay cyan
+  ok    another command: all one colour
+  ok    guide only adds colour: Where you are, for DVD (
+  ok    guide only adds colour: 
+  ok    guide only adds colour: [x] Python packages     
+  ok    guide only adds colour: [ ] Geometry (geo)      
+  ok    guide only adds colour: Next:
+  ok    guide only adds colour: Make it:
+  ok    guide only adds colour: python -m discprobe geo 
+  ok    guide only adds colour: All commands: x
+  ok    done is green, the rest steps back
+  ok    guide is translated before it is painted
+  ok    help only adds colour
+  ok    no colour: help as argparse wrote it
+  ok    headings and names stand out
+  ok    it flashes long enough to notice, and no longer (4.0 s)
+  ok    no more than three flashes a second
+  ok    white on red, then red, in turn
+  ok    it ends as one red line, with the cursor back
+  ok    no motion: the red line alone, at once
+  ok    NO_COLOR: reverse video, then plain text
+  ok    a pipe sees nothing, and scripts keep their output
+  ok    Ctrl+C skips the flash, never the warning or the cursor
+  ok    a narrow window: the flash is cut to fit, and the full text follows
+  ok    it has Chinese
+  ok    and shows it
+  ok    a real picture ISO gets the warning
+  ok    one from a simulated run is already told not to burn
+  ok    the finished image's path gets a line of its own, to copy
+  ok    and the good news is green
+  ok    the burner to pick follows the first line, with the drive's real letter
+  ok    and picture ISOs get it too
+  ok    with several drives it does not guess
+  ok    Linux gets real-drive burn and timing steps
+  ok    Linux CD steps burn with cdrdao and the toc beside the ISO
+  ok    the measuring CD gets a Mode 2 Form 1 toc, whatever layout was last set
+  ok    a picture made with --cd-sector mode1 gets a Mode 1 toc
+  ok    a DVD gets no toc
+  ok    Linux guide follows the real-drive flow
+  ok    other platforms keep simulated guidance
+  ok    scripts get the six default steps
+  ok    a person sees the steps to the end
+  ok    the first step not done says so
+  ok    no talk of looking at a disc before one exists
+  ok    the same list can go before the next command
+  ok    timing, geo and random all pass on what the list needs
+  ok    the list goes between the verdict and what comes next
+  ok    a simulated run has no progress to show, and no advice means no list
+  ok    a pipe sees none of it
+  ok    no picture ISO yet
+  ok    a picture ISO is found by its preview, and held-out names stay unread
+  ok    a rewrite cut short leaves the old preview, but is not taken for a finished ISO
+  ok    the example name, copied as it is, is explained
+  ok    a full path says only that it is missing
+  ok    the tutorial has not been offered yet
+  ok    and is offered only once
+  ok    the first start asks, and yes walks through the steps
+  ok    the next start does not ask again
+  ok    no skips it, and is remembered too
+  ok    someone who has measured already is not asked
+  ok    English stays English
+  ok    the tutorial has six steps and the real drive
+  ok    all of it has Chinese []
+  ok    the burner hint too
+  ok    it has Chinese: Your progress:
+  ok    it has Chinese: Picture ISO (image)
+  ok    it has Chinese: Burn it on a blank
+  ok    it has Chinese: from the batch you measu
+  ok    it has Chinese: you are here
+  ok    it has Chinese: ISO ready! It is here:
+  ok    it has Chinese: First time here? Walk th
+  ok    it has Chinese: Put the picture in /home
+  ok    it has Chinese: my_picture.png is only a
+  ok    it has Chinese: It looked in /home/knapp
+  ok    the small disc has a fixed size
+  ok    without colour it is plain text
+  ok    it shows the design the way round the preview does
+  ok    a blank design is noticed
+  ok    and a black one
+  ok    with what falls off the edge
+  ok    a very small picture is noticed
+  ok    a sensible picture gets no notes at all
+  ok    and there are never many
+  ok    the file itself: its shape, size and greys
+  ok    and what it says about the shape is what the design does
+  ok    a file that can't be read adds nothing
+  ok    notes have Chinese: 300 x 100 is not square:
+  ok    notes have Chinese: The picture is only 300 
+  ok    notes have Chinese: Much of the picture is m
+  ok    notes have Chinese: Almost all of it came ou
+  ok    notes have Chinese: About 21% of its dark ar
+  ok    a line that still fits is left alone
+  ok    narrowed: the rows it folded onto are all cleared
+  ok    a terminal that may not fold it keeps every line, at the cost of a leftover
+  ok    drawing clears them
+  ok    aligned lines are the same length
+  ok    every number ends in the same column
+  ok    no value changes, only its padding
+  ok    no value changes, only its padding
+  ok    aligned lines are the same length
+  ok    every number ends in the same column
+  ok    no value changes, only its padding
+  ok    no value changes, only its padding
+  ok    left alone: Zone 0.05 (LBA 1): no pe
+  ok    left alone: Rotation: CAV
+  ok    left alone: Target x (LBA 1): phase 
+  ok    a terminal gets the aligned line
+  ok    aligned lines still have Chinese: 位置 0.05（扇区号  114752）：转一圈 6.599
+  ok    aligned lines still have Chinese: 位置 0.15（扇区号  344256）：盘面角度 263.
+  ok    colour: progress line and log line
+  ok    colour: colour on
+  ok    colour: the spinner turns
+  ok    colour: the cursor comes back
+  ok    NO_COLOR: progress line and log line
+  ok    NO_COLOR: colour off
+  ok    NO_COLOR: the spinner turns
+  ok    NO_COLOR: the cursor comes back
+  ok    no ANSI: plain ASCII with carriage returns only
+  ok    en, 200 columns: the line fits (106)
+  ok    en, 100 columns: the line fits (90)
+  ok    en, 80 columns: the line fits (75)
+  ok    en, 60 columns: the line fits (51)
+  ok    en, 40 columns: the line fits (34)
+  ok    en, 24 columns: the line fits (23)
+  ok    en, 12 columns: the line fits (11)
+  ok    en: a wide line offers stop and the games
+  ok    en: a narrow line drops the bar, keeps the percentage
+  ok    en, 200 columns: the line fits (106)
+  ok    en, 100 columns: the line fits (90)
+  ok    en, 80 columns: the line fits (75)
+  ok    en, 60 columns: the line fits (51)
+  ok    en, 40 columns: the line fits (34)
+  ok    en, 24 columns: the line fits (23)
+  ok    en, 12 columns: the line fits (11)
+  ok    en: a wide line offers stop and the games
+  ok    en: a narrow line drops the bar, keeps the percentage
+  ok    zh, 200 columns: the line fits (99)
+  ok    zh, 100 columns: the line fits (99)
+  ok    zh, 80 columns: the line fits (73)
+  ok    zh, 60 columns: the line fits (43)
+  ok    zh, 40 columns: the line fits (30)
+  ok    zh, 24 columns: the line fits (19)
+  ok    zh, 12 columns: the line fits (10)
+  ok    zh: a wide line offers stop and the games
+  ok    zh: a narrow line drops the bar, keeps the percentage
+  ok    zh, 200 columns: the line fits (99)
+  ok    zh, 100 columns: the line fits (99)
+  ok    zh, 80 columns: the line fits (73)
+  ok    zh, 60 columns: the line fits (43)
+  ok    zh, 40 columns: the line fits (30)
+  ok    zh, 24 columns: the line fits (19)
+  ok    zh, 12 columns: the line fits (10)
+  ok    zh: a wide line offers stop and the games
+  ok    zh: a narrow line drops the bar, keeps the percentage
+  ok    the spinner follows the clock, not the draws
+  ok    the light sweep only adds colour
+  ok    16 colours: the sweep is a bold band
+  ok    no colour: plain text
+  ok    no motion: still text
+  ok    no motion: no spinner, the numbers stay
+  ok    an unchanged frame is not written again
+  ok    colour: the first percentage does not flash
+  ok    colour: only the digit that changed flashes
+  ok    colour: it goes back to the terminal's colour
+  ok    colour: two digits that change both flash
+  ok    colour: 99.6% does not read as done
+  ok    colour: 100% is green where there is colour
+  ok    colour: and stays green
+  ok    NO_COLOR: the first percentage does not flash
+  ok    NO_COLOR: a new digit stays plain
+  ok    NO_COLOR: it goes back to the terminal's colour
+  ok    NO_COLOR: two digits that change both flash
+  ok    NO_COLOR: 99.6% does not read as done
+  ok    NO_COLOR: 100% is green where there is colour
+  ok    NO_COLOR: and stays green
+  ok    no motion: the first percentage does not flash
+  ok    no motion: a new digit stays plain
+  ok    no motion: it goes back to the terminal's colour
+  ok    no motion: two digits that change both flash
+  ok    no motion: 99.6% does not read as done
+  ok    no motion: 100% is green where there is colour
+  ok    no motion: and stays green
+  ok    green for {}: 32
+  ok    green for {'COLORFGBG': '15;0'}: 92
+  ok    green for {'COLORFGBG': '0;15'}: 32
+  ok    green for {'COLORFGBG': '0;default;7'}: 32
+  ok    green for {'COLORFGBG': 'bad'}: 32
+  ok    a true-colour frame stays small, whatever the light is doing (421 bytes)
+  ok    the snake moves
+  ok    the snake cannot reverse into itself
+  ok    eating grows it and places new food
+  ok    two quick turns are both kept
+  ok    a wall ends the game and keeps the best score
+  ok    a new game starts clean
+  ok    biting itself ends the game
+  ok    and shows on the head
+  ok    snake: drawing only the changed cells always gives the true board (3000 steps)
+  ok    a head moving onto the old tail's cell is still drawn
+  ok    a block moves left at each step
+  ok    up moves it, and the edge stops it
+  ok    right spins it
+  ok    a block spun at the edge is nudged back inside
+  ok    at the left it lands, and the next block comes in on the right
+  ok    a full column clears, scores, and what was right of it moves left, colours and all
+  ok    a stack that reaches the right edge ends the game
+  ok    a finished game does not move
+  ok    a finished game shows only what landed
+  ok    a new game starts clean and keeps the best score
+  ok    every block gets a colour, never the same as the last one
+  ok    every colour can be drawn, with and without colour
+  ok    drawing only the changed cells always gives the true board
+  ok    the first blocks are slow
+  ok    it speeds up with the score, to a limit
+  ok    the games leave the shared random generator alone
+  ok    arrow keys from a POSIX terminal
+  ok    no game until g is pressed
+  ok    g opens the game below the progress line
+  ok    the game steps during a pause
+  ok    a log line prints above the game, and the game is redrawn under it
+  ok    q closes the game
+  ok    g opens it again
+  ok    closing restores keys and cursor
+  ok    a resized window redraws the game to fit
+  ok    a window too small after resizing closes the game
+  ok    NO_COLOR: the game is drawn with glyphs
+  ok    a low window says so instead of drawing over text
+  ok    n changes to the other game
+  ok    a key moves the block at once, not at the next step
+  ok    n goes on to the next game
+  ok    n comes back round, and each game keeps its board
+  ok    and again
+  ok    both best scores are printed at the end, for the log
+  ok    NO_COLOR: Fill the Disc is drawn with glyphs
+  ok    a narrow window cuts the hint and never wraps it
+  ok    equal neighbours merge, and the kB gained is counted
+  ok    four make two
+  ok    a tile merges only once in a move
+  ok    gaps do not stop a merge
+  ok    tiles are sizes on a disc
+  ok    every size fits its tile
+  ok    a new board starts with two tiles
+  ok    sliding left merges towards that side
+  ok    sliding right merges towards that side
+  ok    sliding up merges towards that side
+  ok    sliding down merges towards that side
+  ok    a move that moves nothing adds no tile
+  ok    the move that fills the board with no merge left ends the game
+  ok    a full board with no equal neighbours is stuck
+  ok    drawing only the changed cells always gives the true board (112 moves)
+  ok    the score counts what was merged
+  ok    the next wait carries on with the same board
+  ok    a new board keeps the best score
+  ok    a board nobody played leaves no file
+  ok    a broken file starts afresh: not json
+  ok    a broken file starts afresh: {"sectors": {"boar
+  ok    a broken file starts afresh: {"sectors": {"boar
+  ok    a broken file starts afresh: []
+  ok    a broken file starts afresh: {"other": 1}
+  ok    a file that cannot be written does not stop anything
+  ok    n reaches it, and it plays under the progress line
+  ok    closing the progress line saves the board
+  ok    a narrow window opens what fits
+  ok    n goes on to the next game
+  ok    and passes over one too wide for it
+  ok    4x4: 30 puzzles, each valid with exactly one solution
+  ok    4x4: the slowest took 3 ms to make
+  info  4x4: slowest puzzle 2.5 ms, 6 givens
+  ok    6x6: 30 puzzles, each valid with exactly one solution
+  ok    6x6: the slowest took 7 ms to make
+  info  6x6: slowest puzzle 7.0 ms, 14 givens
+  ok    puzzles leave the shared random generator alone
+  ok    boxes split the board evenly
+  ok    a given digit cannot be changed
+  ok    a digit that clashes is marked
+  ok    0 clears it
+  ok    and so does space
+  ok    the cursor wraps round
+  ok    drawing only the changed cells always gives the true board
+  ok    filling it in correctly finishes the puzzle
+  ok    a finished puzzle does not move
+  ok    another puzzle keeps the count
+  ok    under 30 s there is no puzzle
+  ok    30 s to 2 minutes: 4x4
+  ok    2 minutes and up: 6x6
+  ok    the usual length chooses before there is an estimate
+  ok    and a longer one gets the bigger board
+  ok    the run's own estimate wins
+  ok    and a puzzle chosen stays chosen
+  ok    nearly done: no puzzle on offer
+  ok    n reaches the puzzle
+  ok    a digit key fills the cell
+  ok    an arrow key moves the cursor
+  ok    q closes it
+  ok    en: Sudoku 4x4  solved
+  ok    en: Merge Sectors 0  b
+  ok    zh: Sudoku 4x4  solved
+  ok    zh: Merge Sectors 0  b
+  ok    fine: Snake cells are all 2 by 1
+  ok    fine: Snake uses escapes only with colour
+  ok    fine: Fill the Disc cells are all 2 by 1
+  ok    fine: Fill the Disc uses escapes only with colour
+  ok    fine: Merge Sectors cells are all 7 by 2
+  ok    fine: Merge Sectors uses escapes only with colour
+  ok    fine: Sudoku 4x4 cells are all 6 by 2
+  ok    fine: Sudoku 4x4 uses escapes only with colour
+  ok    fine: Sudoku 6x6 cells are all 4 by 1
+  ok    fine: Sudoku 6x6 uses escapes only with colour
+  ok    true colour: Snake cells are all 2 by 1
+  ok    true colour: Snake uses escapes only with colour
+  ok    true colour: Fill the Disc cells are all 2 by 1
+  ok    true colour: Fill the Disc uses escapes only with colour
+  ok    true colour: Merge Sectors cells are all 7 by 2
+  ok    true colour: Merge Sectors uses escapes only with colour
+  ok    true colour: Sudoku 4x4 cells are all 6 by 2
+  ok    true colour: Sudoku 4x4 uses escapes only with colour
+  ok    true colour: Sudoku 6x6 cells are all 4 by 1
+  ok    true colour: Sudoku 6x6 uses escapes only with colour
+  ok    16 colours: Snake cells are all 2 by 1
+  ok    16 colours: Snake uses escapes only with colour
+  ok    16 colours: Fill the Disc cells are all 2 by 1
+  ok    16 colours: Fill the Disc uses escapes only with colour
+  ok    16 colours: Merge Sectors cells are all 7 by 2
+  ok    16 colours: Merge Sectors uses escapes only with colour
+  ok    16 colours: Sudoku 4x4 cells are all 6 by 2
+  ok    16 colours: Sudoku 4x4 uses escapes only with colour
+  ok    16 colours: Sudoku 6x6 cells are all 4 by 1
+  ok    16 colours: Sudoku 6x6 uses escapes only with colour
+  ok    NO_COLOR: Snake cells are all 2 by 1
+  ok    NO_COLOR: Snake uses escapes only with colour
+  ok    NO_COLOR: Fill the Disc cells are all 2 by 1
+  ok    NO_COLOR: Fill the Disc uses escapes only with colour
+  ok    NO_COLOR: Merge Sectors cells are all 7 by 2
+  ok    NO_COLOR: Merge Sectors uses escapes only with colour
+  ok    NO_COLOR: Sudoku 4x4 cells are all 6 by 2
+  ok    NO_COLOR: Sudoku 4x4 uses escapes only with colour
+  ok    NO_COLOR: Sudoku 6x6 cells are all 4 by 1
+  ok    NO_COLOR: Sudoku 6x6 uses escapes only with colour
+  ok    snake can be drawn in every tier
+  ok    tail can be drawn in every tier
+  ok    food can be drawn in every tier
+  ok    dead can be drawn in every tier
+  ok    field can be drawn in every tier
+  ok    head_up can be drawn in every tier
+  ok    head_down can be drawn in every tier
+  ok    head_left can be drawn in every tier
+  ok    head_right can be drawn in every tier
+  ok    tile 1 shows its size
+  ok    tile 2 shows its size
+  ok    tile 3 shows its size
+  ok    tile 4 shows its size
+  ok    tile 5 shows its size
+  ok    tile 6 shows its size
+  ok    tile 7 shows its size
+  ok    tile 8 shows its size
+  ok    tile 9 shows its size
+  ok    tile 10 shows its size
+  ok    tile 11 shows its size
+  ok    tile 12 shows its size
+  ok    tile 13 shows its size
+  ok    tile 14 shows its size
+  ok    tile 15 shows its size
+  ok    tile 16 shows its size
+  ok    tile 17 shows its size
+  ok    tile 18 shows its size
+  ok    tile 19 shows its size
+  ok    tile 20 shows its size
+  ok    the first twelve sizes each have their own colour
+  ok    a step of the snake writes little (176 bytes)
+  ok    a rotation test the progress line never saw is counted as done, not a crash
+  ok    the progress wrapper leaves summary and events identical (same seed)
+  ok    that run reached the game that saves
+  ok    playing all four games leaves summary and events identical (same seed)
+  ok    a real drive still waits out the pause
+  ok    timing progress rises to the end (0.993)
+  ok    timing progress names its stages
+  ok    latest skips stopped, simulated and other-media runs
+  ok    latest honours the media
+  ok    --geo latest
+  ok    --geo accepts a result folder
+  ok    --geo keeps a file path as it is
+  ok    --geo latest with no results is refused
+  ok    results --latest prints the newest complete real folder
+  ok    --sectors from a blank DVD's free space
+  ok    --sectors from a CD's ATIP
+  ok    the ATIP count says a blank disc gives a closer one
+  ok    --sectors from the last LBA
+  ok    --sectors unknown says nothing
+results: choosing a geo run
+  ok    --geo latest leaves out a newer run judged too noisy
+  ok    and counts what it left out, not the stopped one
+  ok    with nothing better, latest still gives the noisy run
+  ok    a run says what it is
+  ok    one group per disc, the most recently measured first
+  ok    a group's best leaves out stopped runs
+  ok    precision: best first, a stopped run last whatever its number
+  ok    precision the other way, the stopped run still last
+  ok    date: newest first
+  ok    date the other way
+  ok    it opens on the list of discs
+  ok    Enter goes into a disc
+  ok    and says how it is sorted
+  ok    s changes the sort
+  ok    r turns it round
+  ok    and changing the sort starts from its usual order
+  ok    left goes back to the discs
+  ok    Enter chooses the run under the cursor
+  ok    Esc leaves with nothing chosen
+  ok    one disc goes straight to its runs
+  ok    and going back from there leaves
+  ok    a short window still shows the cursor
+  ok    without a terminal it prints the same lists
+  ok    --geo pick in a pipe is refused
+  ok    scripted keys reach the same run on a terminal
+  ok    it uses its own screen and restores the cursor
+  ok    q leaves with nothing chosen
+  ok    a run over a small part of the disc says so, not good
+  ok    an old run takes the disc from the nearest info with the same length
+  ok    and says so when nothing matches
+  ok    identifying a disc reports drive, firmware and disc
+  ok    a simulated run records no drive or disc
+  ok    a real one does, before the measuring starts
+edit: placing a picture on the disc
+  ok    untouched, it is the same design as image --picture
+  ok    moving 10 mm right and 5 mm up moves the design by that many cells
+  ok    half the size is about half as wide
+  ok    turning keeps how much is dark
+  ok    swapping colours swaps the picture
+  ok    and what the picture doesn't cover stays light
+  ok    a picture off the edge is cut, not an error
+  ok    a clear part shows the picture below, a black part covers it
+  ok    a phone's sideways photo comes out the way up it was taken
+  ok    in edit and in image --picture alike
+  ok    a preview agrees with the full picture about which way up
+  ok    trimming hides those sides and leaves the rest where it was
+  ok    trimming everything away leaves nothing
+  ok    where a picture on top is trimmed, the one below shows
+  ok    trimming works on a turned picture
+  ok    the best line falls between a picture's two shades (0.082)
+  ok    a picture of one shade has none
+  ok    and it looks only at what isn't trimmed
+  ok    a project keeps its picture as a relative path
+  ok    and reads back the same
+  ok    a file that isn't JSON says so
+  ok    nor one with no layers
+  ok    a newer version says so
+  ok    a bad number names the field
+  ok    NaN is not a number here
+  ok    nor is a bad trim
+  ok    a lost picture says which
+  ok    keys move, size, turn, set the threshold and swap colours
+  ok    Tab gives finer steps
+  ok    u goes back one change at a time
+  ok    and back to the start, nothing left to save
+  ok    with nothing left, u does nothing
+  ok    0 starts again
+  ok    and that can be undone too
+  ok    the threshold stays in range
+  ok    c trims, and says which edge
+  ok    nothing in the panel needs cutting short
+  ok    the arrows move that edge, not the picture
+  ok    an arrow across the edge does nothing
+  ok    and it can't go past the picture
+  ok    c goes on to the right edge
+  ok    c goes on to the top edge
+  ok    c goes on to the bottom edge
+  ok    and back to moving the picture
+  ok    the arrows move it again
+  ok    two edges can't cross
+  ok    what is trimmed shows
+  ok    0 starts again from that too
+  ok    a finds the best line
+  ok    and that can be undone
+  ok    q with changes asks first
+  ok    and any other key carries on
+  ok    q twice leaves without saving
+  ok    with no changes q just leaves
+  ok    it fits a 80 x 24 window
+  ok    it fits a 120 x 50 window
+  ok    it fits a 200 x 60 window
+  ok    it fits a 60 x 40 window
+  ok    it fits a 40 x 12 window
+  ok    it fits a 20 x 5 window
+  ok    a change shows on the disc
+  ok    and nothing is drawn again until something changes
+  ok    growing past the edge says how much is cut off
+  ok    Enter saves
+  ok    it uses its own screen and restores the cursor
+  ok    opening the picture again carries on from its design
+  ok    so does opening the design
+  ok    another picture of the same name won't overwrite a design
+  ok    a new picture gets its own name
+  ok    a missing picture says so
+  ok    leaving saves nothing
+  ok    in a pipe it says what to do instead
+  ok    edit says how to make the image
+  ok    image refuses --design with --picture
+  ok    the panel has Chinese
+  ok    and so does the advice
+  ok    a good drive is sent on to geo
+  ok    a CLV drive is sent back with another speed
+  ok    very high jitter is called out
+  ok    next commands keep --media cd
+  ok    next commands leave out the default speed
+  ok    no gain from a varying pitch: geo says carry on, no correction
+  ok    a clear gain: geo writes the correction into the next commands
+  ok    no comparison possible: geo says how to run it
+  ok    a comparison that cannot run is not an error
+  ok    geo opens with a plain summary
+  ok    a clean geo gets a verdict in plain terms
+  ok    the verdict has Chinese
+  ok    a noisy geo: good once corrected
+  ok    a noisy geo: usable, but noisy
+  ok    a noisy geo: not settled
+  ok    the limit itself is still good
+  ok    wide error bars with a clean fit are not called good, and geo says what to try
+  ok    very wide error bars are called out
+  ok    the noisy verdicts have Chinese
+  ok    a correction that leaves wide error bars is not called good
+  ok    read noise this large does not say carry on
+  ok    --sectors from the measured disc says it may be less than a blank holds
+  ok    a miniDVD gets a random disc that fits, with room to close
+  ok    a 2295104-sector DVD keeps the usual size, which has burned many times
+  ok    a 2298496-sector DVD keeps the usual size
+  ok    a blank CD is told --media cd
+  ok    the --sectors advice goes by `info` on a blank disc, in both languages
+  ok    each --sectors help says what it is not
+  ok    timing with --sectors 16 carries it to the geo command
+  ok    a 74-minute CD gets a random disc that fits
+  ok    info on a blank CD offers the CD command
+  ok    on Blu-ray a non-CAV result offers an untried BD speed and the anchored CLV route
+  ok    a noisy Blu-ray keeps its BD speed and still offers the geometry pass
+  ok    the new advice has Chinese
+  ok    a CD preset without the constant says the route settles it
+  ok    after an install the restart line is printed by the command and only the CD note remains
+  ok    a CD geo offers the preset before a picture ISO
+  ok    the --sectors suggestion comes from an `info` of the same kind of disc
+  ok    a geo that never settled gets a next step
+  ok    already at the lowest speed: geo does not call the next one lower
+  ok    already at the lowest speed: geo still offers --ranges
+  ok    with a lower speed to try, geo says lower
+  ok    CD at its default speed: the next one is not called lower
+  ok    the retry advice is in both languages
+  ok    a mistyped command gets a suggestion
+  ok    a missing --geo offers latest
+  ok    guide text is ASCII
+  ok    a finished picture says: check the preview, then burn
+  ok    a picture from a simulated run must not be burned
+  ok    after a picture or a design it offers edit, after the grid not
+  ok    a DVD picture offers a simulated photo, or names the one just made; a CD and the grid don't
+  ok    a verdict on the simulated drive says so
+  ok    a real drive's verdict does not
+  ok    a self-test that skipped checks says so
+  ok    a complete self-test points to guide
+  ok    a script keeps the tick it always saw
+  ok    at a terminal a written file is not yet a disc
+  ok    at a terminal the next command says what it does; a pipe gets the same lines as before
+  ok    the note has Chinese []
+  ok    --speed 4x is 5540 kB/s on DVD
+  ok    a bad --speed is an argument error
+  ok    no command in a pipe is still an argument error
+  ok    --speed 8x is 1411 kB/s on CD
+  ok    with --media cd: --sp 4x gives 706 kB/s
+  ok    with --media cd: --speed=8x gives 1411 kB/s
+  ok    with --media cd: no --speed gives 1411 kB/s
+  ok    a backwards --ranges says how to write it
+  ok    a missing --geo file is a plain error
+  ok    disexport --media checks the fit
+  ok    a CD fit without --media cd is refused, not written as a DVD picture
+  ok    and a DVD fit is refused for a CD picture
+  ok    a CD preset without --sectors is refused
+  ok    a DVD preset without --sectors is refused too, with no file written
+  ok    a summary without a fit is a plain error
+  ok    --install accepts a finished run and says which preset it added
+  ok    --install adds the preset to a new DiscImageStudio file
+  ok    a conflicting --install says how to replace the preset
+  ok    --replace installs the new values
+  ok    --id and --name install a preset under a custom id, and the output names both
+  ok    the name given is what DiscImageStudio lists, with the spaces around it gone
+  ok    without --install the exported preset carries the same id and name
+  ok    the reserved id __manual__ is refused before anything is written
+  ok    a blank --name is refused, and no preset file is written
+  ok    --dis-presets without --install is refused
+  ok    --install refuses a result whose folder says SIM
+  ok    a summary without quality figures installs, and says which check did not run
+  ok    --install refuses a clean-looking fit whose check points moved
+  ok    a plain export refuses what --install refuses, and says how to write it anyway
+  ok    --force writes it with the reason printed
+  ok    results calls a run whose drive changed what it is, and latest leaves it out
+  ok    Ctrl+C says so and keeps the partial results
+  ok    and they say they are partial
+  ok    a missing package says what to install
+  ok    a script sees system errors as it always did
+  ok    at a terminal a missing file is said plainly
+  ok    other system errors keep their text
+  ok    no doubled full stop
+  ok    sense 3A/02 means the tray is open
+  ok    sense 3A/01 means the tray is closed and no disc was recognised
+  ok    other 3A answers say no disc, without guessing at the tray
+  ok    sense 04 means still loading
+  ok    other answers are not taken for an empty tray
+  ok    info says the tray is open, once
+  ok    info says a closed tray has no disc it can read
+  ok    info does not send an empty drive off to burn a disc
+  ok    no other advice on top of it
+  ok    all these messages have Chinese
+  ok    timing on an open tray says so
+  ok    timing --media cd on an open tray says so
+  ok    geo --media cd on an open tray says so
+  ok    geo --media dvd on an open tray says so
+  ok    timing on a disc the drive can't recognise says so
+  ok    timing while the disc is loading says to wait
+  ok    a read answering these means the disc has gone
+  ok    others do not, on their own
+  ok    timing, tray opened before the rotation test ends: stops and says why
+  ok    after one failed read, and the result says so (before the rotation test ends)
+  ok    no verdict on what is left (before the rotation test ends)
+  ok    timing, tray opened during the phase test: stops and says why
+  ok    after one failed read, and the result says so (during the phase test)
+  ok    no verdict on what is left (during the phase test)
+  ok    a changed disc stops it too
+  ok    a moment of not ready passes, as it always did
+  ok    not ready that lasts stops it, after a while
+  ok    a run that finishes says nothing about stopping
+  ok    guide does not tick a drive check that stopped part way
+  ok    and `results` says it stopped early
+  ok    geo, tray opened: stops, says why and exits 1
+  ok    its rungs are kept, with enough to fit
+  ok    but it is not taken for complete, and it says so
+  ok    so --geo latest will not burn from it
+  ok    and `results` says it stopped early
+  ok    guide does not tick it either
+  ok    Ctrl+C during geo is not complete either
+  ok    a drive that vanishes during geo is not complete either
+  ok    a geo that finishes is complete
+  ok    and --geo latest takes it
+  ok    the list of results calls a stopped run what it is
+  ok    and however precise it looks, it sorts after a finished one
+  ok    and is not its disc's best
+  ok    while an image is written, a marker says so
+  ok    a whole image stays, without the marker
+  ok    a check failing before the write leaves the old image alone
+  ok    an error part way removes what it left
+  ok    Ctrl+C part way removes what it left
+  ok    a full disk part way removes what it left
+  ok    the real random image, stopped part way, is gone
+  ok    and guide does not say to burn it
+  ok    a marker left by a killed run: guide asks for the blank-disc info first
+  ok    and the next write starts clean
+  ok    and ends whole
+  ok    guide then says to burn it
+  ok    a square picture comes out exactly as it did before
+  ok    a wide dark picture keeps its shape, centred, with its long side on the diameter
+  ok    and on CD it only loses the middle
+  ok    a tall one too
+  ok    a picture above Pillow's size limit loads, and the limit stays for everything else
+  ok    the notes after the ISO read that picture too, and leave the limit alone
+  ok    other code still gets Pillow's refusal
+  ok    a picture that fails to load leaves the limit alone too
+  ok    8x on a Blu-ray disc is 35960 kB/s
+  ok    8x on a DVD stays 11080 kB/s
+  ok    a speed in kB/s is left alone and asks the drive nothing
+  ok    the simulated drive is not asked
+  ok    the speed still saves as a plain number
+  ok    a line for every day and time of day
+  ok    no line is used twice
+  ok    every greeting has both languages and fits a narrow window
+  ok    no greeting reads like a measurement
+  ok    0:30 falls in the right part of the day
+  ok    4:30 falls in the right part of the day
+  ok    5:30 falls in the right part of the day
+  ok    8:30 falls in the right part of the day
+  ok    9:30 falls in the right part of the day
+  ok    11:30 falls in the right part of the day
+  ok    12:30 falls in the right part of the day
+  ok    17:30 falls in the right part of the day
+  ok    18:30 falls in the right part of the day
+  ok    21:30 falls in the right part of the day
+  ok    22:30 falls in the right part of the day
+  ok    23:30 falls in the right part of the day
+  ok    each day has its own lines
+  ok    a first run is welcomed
+  ok    the greeting follows the language
+  ok    a pipe gets no greeting
+  ok    --lang zh works in a pipe
+  ok    --lang en beats everything
+  ok    a pipe ignores DISCPROBE_LANG and the system
+  ok    DISCPROBE_LANG=zh at a terminal
+  ok    DISCPROBE_LANG=en at a terminal
+  ok    a Chinese system gets Chinese
+  ok    other systems get English
+  ok    a code page without Chinese gets English
+  ok    the Linux console has no Chinese font
+  ok    system language from {'LANG': 'zh_CN.UTF-8'}
+  ok    system language from {'LANG': 'zh_TW.UTF-8'}
+  ok    system language from {'LANG': 'en_US.UTF-8'}
+  ok    system language from {'LANG': 'C'}
+  ok    system language from {'LC_ALL': 'en_GB.UTF-8', 'LANG': 'zh_CN.UTF-8'}
+  ok    --lang can sit anywhere
+  ok    --lang=en, and none
+  ok    an unknown language is refused
+  ok    every Chinese placeholder exists in its English key []
+  ok    no key is so loose that it matches anything []
+  ok    English: lookups do nothing
+  ok    English: the output streams are untouched
+  ok    values are looked up again
+  ok    indents and padding survive
+  ok    a line with no entry stays English
+  ok    left alone: python -m discprobe geo --drive E:
+  ok    left alone: C:\results\geo-E-20260101-100000
+  ok    left alone: 12.5 %
+  ok    lines are translated whole, however they were written
+  ok    Chinese help wraps by columns
+  ok    width and cutting count columns
+  ok    an install line is Chinese too, with the id and the display name
+  ok    every option's help has Chinese (add it to zh.py): []
+  ok    every command's description has Chinese
+  ok    Chinese help paragraphs show the same commands as the English []
+  ok    timing runs in both languages
+  ok    the default in a pipe is English
+  ok    DISCPROBE_LANG does not reach a pipe
+  ok    --lang zh translates measuring output
+  ok    timing has no English sentence left in Chinese []
+  ok    the language never reaches summary.json
+  ok    Chinese: -h []
+  ok    Chinese: timing -h []
+  ok    Chinese: guide []
+  ok    Chinese: results --out /home/knappy/dp-linuxpack-test/run-1795050378869703300/tmp/tmpn81o8xlu/zh []
+  ok    Chinese: image []
+  ok    Chinese: timming []
+  ok    Chinese: info --sim cav --out /home/knappy/dp-linuxpack-test/run-1795050378869703300/tmp/tmpn81o8xlu/zh []
+  ok    --no-animation never reaches summary.json
+  ok    piped help stays as it was
+  ok    DISCPROBE_PLAIN=1 stays English
+  ok    completion knows every command
+  ok    completion knows every option []
+  ok    options say what their value is
+  ok    every script holds the options
+  ok    a script never starts Python
+  ok    the PowerShell script is ASCII whatever the language
+  ok    an unknown shell shows the usage
+  ok    bash script: LF line ends, --lang accepted
+  ok    bash: Tab completes as intended ['--speed', 'timing tiles tilescan', 'dvd cd bd', '--ref-lba', '', 'discprobe', '-m']
+  ok    install writes the script and one startup line
+  ok    install says this window needs a step, and how to try it
+  ok    installing twice adds nothing
+  ok    a UTF-16 startup file stays UTF-16
+  ok    a marker with its line gone is not called installed
+  ok    the line comes back without a second marker
+  ok    uninstall restores other people's bytes exactly
+  ok    uninstall deletes the script
+  ok    uninstalling twice is harmless
+  ok    a blocking policy is reported, never changed
+  ok    default shell for win32 {}: powershell
+  ok    default shell for win32 {'MSYSTEM': 'MINGW64', 'SHELL': '/usr/bin/bash'}: bash
+  ok    default shell for darwin {'SHELL': '/bin/zsh'}: zsh
+  ok    default shell for linux {'SHELL': '/usr/bin/fish'}: None
+  ok    a pipe gets the writers' lines as before
+  ok    a pipe sees nothing of the busy line
+  ok    percentage lines become the bar; other lines still print
+  ok    the cursor comes back
+  ok    an error mid-write still restores the cursor
+guided console: key decoding, command lines, screens, forms, menu and Chinese
+  ok    keys: arrows, mouse and paste decode
+  ok    keys: no bytes are left over
+  ok    keys: an incomplete CSI sequence stays buffered
+  ok    keys: UTF-8 text arrives as one character
+  ok    keys: control bytes become names
+  ok    keys: the wheel is a mouse event
+  ok    lines: a quoted Windows path is one argument
+  ok    lines: --option=value splits into two arguments
+  ok    lines: plain words split on spaces
+  ok    lines: an unclosed quote is reported
+  ok    lines: quotes and file:// are not part of a dropped path
+  ok    lines: a printed command quotes spaces
+  ok    lines: a prefix outranks a later match
+  ok    lines: missing letters do not match
+  ok    commands: menu is not offered inside the console
+  ok    commands: the palette follows the grouped order
+  ok    commands: the menu parser exists
+  ok    commands: the menu parser takes --media dvd/cd/bd
+  ok    console: the opening disc animation still plays
+  ok    console: the opening disc shows how far the steps got
+  ok    console: the greeting and tutorial prelude runs after the animation
+  ok    console: the full-screen view opens after the animation
+  ok    workflow: the eight steps, in order
+  ok    workflow: packages install in a shell
+  ok    workflow: the drive step lists drives
+  ok    workflow: the picture step opens the form
+  ok    workflow: the last step is a burn
+  ok    workflow: a CD plan passes --media cd
+  ok    workflow: a Blu-ray plan passes --media bd
+  ok    workflow: the Blu-ray geometry step asks for zones
+  ok    workflow: the current step is the first undone
+  ok    info: the blank-disc step reads the drive
+  ok    info: the report does not take a --media flag
+  ok    info: a new plan has not read a disc
+  ok    info: guide asks for it before random
+  ok    info: the blank's free sector count is shown
+  ok    info: the checklist keeps the count visible
+  ok    info: once the count is known, guide moves on to the random disc
+  ok    info: a Blu-ray report is recognised as a Blu-ray
+  ok    info: the Blu-ray checklist uses its own report
+  ok    info: an empty Blu-ray uses its capacity when track free blocks are missing
+  ok    info: a DVD report does not tick the Blu-ray blank-disc step
+  ok    info: a partly written disc is not a blank disc
+  ok    info: a later user still sees the blank-disc step marked undone
+  ok    info: a later user is not pulled back to read a blank
+  ok    info: a later user's checklist does not point at the blank disc
+  ok    info: a later user's next command is the picture ISO
+  ok    info: a count from a burned disc does not tick the blank-disc step
+  ok    console: starts on the current step
+  ok    console: a 100x30 home has a footer
+  ok    console: the header names the console
+  ok    console: 80x24 and 40x12 still fill the screen
+  ok    console: the first task row is clickable
+  ok    console: Enter opens a step
+  ok    console: Esc returns home
+  ok    console: : opens the command palette
+  ok    console: the palette filters by name
+  ok    console: Enter opens command help
+  ok    console: Esc leaves help for the palette
+  ok    console: Esc leaves the palette for where it opened
+  ok    console: a digit jumps to that step
+  ok    console: r runs the step command
+  ok    console: e edits the step command
+  ok    console: Enter in the editor runs the edited command
+  ok    console: c copies the command
+  ok    console: o opens the results folder
+  ok    console: Ctrl+C quits
+  ok    console: ? opens the key screen
+  ok    console: Esc leaves the key screen
+  ok    console: draw clears the screen and writes exactly the height
+  ok    console: the alternate screen is entered and keys resume
+  ok    console: the alternate screen, mouse and keys are restored
+  ok    console: long lines fit the width
+  ok    form: the picture step opens the form
+  ok    form: a missing picture is refused
+  ok    form: a real picture becomes an image command
+  ok    form: the command carries the picture, geometry and output
+  ok    form: running closes the form
+  ok    form: Tab completes a picture path
+  ok    form: a CD plan passes --media cd
+  ok    form: a Blu-ray plan passes --media bd
+  ok    console: the Blu-ray caution shows on the picture step
+  ok    console: the Blu-ray caution shows on the burn step
+  ok    console: the burn step follows the platform's burn instructions
+  ok    console: the burn step does not print the 'How to look at it' heading twice
+  ok    colour: the selected step is a background bar
+  ok    colour: the selected step keeps the plain marker
+  ok    links: the home screen offers a clickable folder
+  ok    links: the folder link targets the results folder
+  ok    colour: styling does not change the measured width
+  ok    colour: footer keys are background keycaps
+  ok    colour: keycap styling leaves the footer text alone
+  ok    colour: visible() removes styling and links
+  ok    links: the help screen links the manual
+  ok    colour: no background without colour
+  ok    colour: the selected step is still marked with >
+  ok    links: no ANSI means no escape sequence
+  ok    clicks: a runnable step shows a clickable Run button
+  ok    clicks: clicking Run starts the selected command
+  ok    clicks: the footer keycaps are clickable
+  ok    clicks: clicking : opens all commands
+  ok    clicks: the footer Run key is clickable on a step
+  ok    clicks: clicking footer Run starts the step
+  ok    clicks: clicking footer q quits
+  ok    clicks: a click on empty space does nothing
+  ok    language: l switches to Chinese
+  ok    language: the header is translated
+  ok    language: l switches back to English
+  ok    language: the menu description has a Chinese entry
+  ok    language: the menu option help has a Chinese entry
+  ok    language: translated messages encode
+  ok    language: the drive step's Chinese key is current
+  ok    language: the walkthrough pause is translated
+
+all checks passed
+$ ["/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "status", "--json"]
+$ ["bash", "/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/start-linux.sh", "--local-only", "--no-drives", "--port", "0"]
+GET /home/: 200 (143976 bytes)
+GET /api/version: 200 (338 bytes)
+$ ["/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "status", "--json"]
+WebUI status verified: {"running": true, "port": 37785, "pid": 1821496}
+$ ["/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "stop"]
+服务已停止。 / Service stopped.
+$ ["/home/knappy/dp-linuxpack-test/run-1795050378869703300/Extracted package/disc-probe-1.0.0.0-alpha-full/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "status", "--json"]
+WebUI listener closed.
+PASS

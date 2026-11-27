@@ -21,6 +21,10 @@
 
 ---
 
+The measurement comes from the drive's read timing alone. Since 1.0.0.0-alpha there is also a local web page that walks you through measuring, designing, making the image and checking the result with phone photos; see [Web page](#web-page).
+
+The lobby news fax goes online to [GitHub Raw](https://raw.githubusercontent.com/Ashley-QwQ/disc-probe/main/news/news.json) or [jsDelivr](https://cdn.jsdelivr.net/gh/Ashley-QwQ/disc-probe@main/news/news.json), downloading papers and assets only, with no uploads; the CLI also supports `python -m discprobe news`. See [news sources](docs/fax-news.md).
+
 ## Preview
 
 <img src="docs/showcase/qingming5um_overview.jpg" width="75%" alt="Where each close-up was taken, on a render of the burned ISO, next to a 550 ml bottle at the same scale">
@@ -71,20 +75,40 @@ disc-probe has the drive measure this instead. On a disc spinning at constant sp
 
 The measurement only sends read commands. Its result can go straight into a burnable ISO or be exported as a [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio) preset.
 
+## Web page
+
+Since 1.0.0.0-alpha most steps can be done in a local web page, with no commands to remember.
+
+- **Open it**: extract your portable package. On Windows, double-click `Start (Windows).bat`. On Linux, run `bash start-linux.sh` from the extracted folder. Both platforms use the bundled Python and dependencies. From a source checkout, run `python -m discprobe webui --open`. The service prints an address with a session token, which you can use on headless Linux. It prefers port 8765 and picks a free port if that one is occupied.
+- **Check or stop it**: run `python -m discprobe webui status` to see the service and drive lock holders. Add `--json` for JSON. To stop, use Quit in the lobby or run `python -m discprobe webui stop`. The command reports any active tasks. `stop --force` is allowed only when no optical disc is being written. Closing the console that started the service also stops it.
+- **Startup options**: use `--local-only` to keep the service on this computer. For offline design, use `--no-drives` or set `DISC_PROBE_NO_DRIVES=1`. If you start it again with different settings, the command prints the existing address and tells you to run `webui stop` first.
+- **Beginner's guide**: in the lobby, open the guide. It looks at the steps you have already done and tells you what to do next.
+- **Design**: import a picture, place it, use layers, adjust light and dark, and see roughly how it will look once burned. Works are kept in a library on your computer and survive closing the page.
+- **Checking with phone photos (DVD)**: burn a check disc, scan the code with a phone on the same local network, and the photos go straight to the computer. The program says which photos it cannot use and why, for example the whole disc is not in the frame or the lighting is wrong. Only when several photos agree is their reading used to correct the image.
+- **Works with DiscImageStudio**: import and export its presets and keep designing and burning there.
+
+This is an alpha. The check disc's pattern has only been chosen for RITEKF1 DVD-R so far; which phones, systems and steps were actually tested is in this release's notes. Colours and effects in the lamp view are a preview, not the colours you will get on the disc.
+
+The same release has two separate packages. **Disc Lab** is a practice bench with a virtual drive, so you can walk through the whole process without a drive. **Disc Neo** is preview data for textures and colour cards; unpack it and double-click `index.html` to browse offline. Its colours are model predictions, not photographs.
+
 ## Quick start
+
+The steps below use the command line.
 
 > If you exported a preset with `--correction` before 2026-11-06, the correction may not be in it. Update and export again; you don't need to measure again.
 
-You need blank discs from the same batch: at least 2 for DVD (measuring, picture) and at least 3 for CD (measuring, calibration, picture). The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux, Python 3.10 or later and a drive that can burn. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
+You need blank discs from the same batch. The minimum, when everything is right first time, is 2 for DVD (measuring, picture) and 3 for CD (measuring, calibration, picture). The web page plans for 3: the measuring disc, a check disc you photograph to see how far off it is, and the picture; if the error is large, disc 4 is the picture. 3 is a goal, not a promise. A bad photo is retaken, not re-burned. The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux and a drive that can burn. For source, core, or wheel installs, provide Python 3.11 or later. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
 
-You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases/latest):
+You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) (1.0.0.0-alpha is a pre-release, so it is not marked Latest):
 
-- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start.bat`, nothing to install. You can skip the install steps below.
+- **Portable downloads**. Choose `disc-probe-<version>-win64.zip` (<!-- size:win64 -->about 120 MB<!-- /size -->) for Windows x86_64, `disc-probe-<version>-linux-x86_64.zip` (<!-- size:linux-x86_64 -->about 165 MB<!-- /size -->) for Linux x86_64, or `disc-probe-<version>-full.zip` (<!-- size:full -->about 270 MB<!-- /size -->) if you use both platforms or are unsure. Each platform comes with its own Python 3.13 and dependencies. Linux requires glibc 2.28 or later.
 - `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
 
 On Windows, open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
 
 On Linux, commands go straight to `/dev/sr0` through `SG_IO`, with no extra packages; pass `--drive /dev/sr0` (or `sr0`). Your user needs read and write access to the device, usually by joining the `cdrom` group. A disc that was mounted automatically can stay mounted; if another program holds `/dev/sr0` exclusively, the tool falls back to the matching `/dev/sgN`. `timing` and `geo` try real-time scheduling (`SCHED_FIFO`), which needs root or `CAP_SYS_NICE`, and otherwise run at normal priority. `--transport` only applies on Windows.
+
+The Linux test machines have no optical drives. Disc reading, burning, and burning from the web UI await hardware testing. If the program falls back to `/dev/sgN`, your user also needs read and write access to that device.
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -95,7 +119,7 @@ cd disc-probe
 ```
 
 ```bash
-python -m pip install numpy pillow scipy
+python -m pip install numpy pillow scipy opencv-python-headless
 ```
 
 ```bash
@@ -142,7 +166,11 @@ The measuring disc must hold plain data, since discs with burned patterns often 
 python -m discprobe random --output iso/random.iso
 ```
 
-**A burn can't be undone.** DVD+R, DVD-R and CD-R can't be erased; only RW discs can. The tool doesn't do the burning and can't stop one on the wrong disc, so it flashes a red warning once the image is ready.
+**A burn can't be undone.** DVD+R, DVD-R and CD-R can't be erased; only RW discs can. Check the image and the inserted disc before starting.
+
+The optional built-in command is `python -m discprobe burn --drive E: --iso iso/random.iso --yes-write` (Linux: `--drive /dev/sr0`). DVD defaults to the supported write speed closest to 8x; equal-distance ties choose the lower speed. CD keeps its previous lowest-speed default. Use `--speed 4` or another supported multiple to override. Slower is not always more reliable: on the reported GH70N/RITEKF1 picture-disc comparison, 4x had unreadable samples while 8x read cleanly. This is a practical default, not a guarantee for every drive or disc.
+
+The command and the web burn page print/report the requested and drive/utility-reported speeds, append them to `<image>.iso.burn.jsonl`, and automatically compare up to 96 evenly spaced, 16-sector-aligned blocks against the ISO after writing. Results count matching, differing and unreadable blocks and identify failed LBAs with approximate nominal radii. This checks a sample, not the entire disc. Reading can fail even when the picture looks fine; the write remains completed. Try another blank disc at another speed. Add `--no-verify` to skip the read-back sample. Windows CD burning remains unsupported by this command; Linux CD uses cdrdao.
 
 ### Step 3: check the drive
 
@@ -159,6 +187,8 @@ This takes about 5 minutes. A DVD gets 22 steps, and the progress line at a term
 ```bash
 python -m discprobe geo --drive H:
 ```
+
+Read speed affects read delays, and at a single speed the fit can absorb delays that vary with radius without leaving a trace in the residuals. DVD geo requests 4x (5540 kB/s) by default because a grid disc burned using that geometry from a GH70N (NYA2) showed 0.106° peak-to-peak deviation along its radial lines. To check another drive or speed before burning a picture, measure with those settings, burn a grid disc, and scan it to check that the radial lines are straight.
 
 The pitch on some discs drifts slowly. RITEKF1 is fine with a constant pitch, while `CMC MAG. AM3` and one RITEK DVD+RW needed a quadratic correction (residuals fell from 0.38° and 0.61° to about 0.08°).
 
@@ -258,27 +288,13 @@ How fine can it go? LTVA1 burned a test pattern at 23,200 × 23,200 px, 5 µm pe
 
 ### Colour (experimental)
 
-Write the same data over and over and that patch of disc acts as a grating, splitting white light. The repeat length decides which colour goes in a given direction, and the colour changes with the angle. This is still an experiment, followed in [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
+Put your own photograph or illustration on the data side of a DVD. Repeating the same data makes a diffraction grating. For each cell the software picks a texture for the chosen camera and flash position. Move the phone or disc and the colours change. Physical colour has only been verified on RITEKF1 DVD-R with a GH70N.
 
-<img src="docs/showcase/roses_source.jpg" width="42%" alt="The rose picture made with GPT Image"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="Photo of the burned rose DVD-R, with some petals showing purple">
+<img src="docs/showcase/colour4_photo_dark.jpg" width="62%" alt="Real colour test disc showing red and green patches and a bright blue streak">
 
-On the left is the original, made with GPT Image. On the right is a photo of the burned DVD-R, with the background masked. This disc was designed for purple, and from the right angle some petals come close to the original purple, only darker. It only looks right from one angle, the petals change colour when the phone moves, and you can't choose just any colour: purple is the only target so far. Details are in [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168). The same disc also holds 1.38 GB of data and read back with no errors, see [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170). These are early results from one disc, and the tool for the rose disc isn't published yet.
+This is a photograph of an earlier colour test disc. To use your own picture, see [Make a colour DVD](docs/colour.md) for the web screenshots, the command-line workflow, phone setup and troubleshooting.
 
-<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="Petals of one flower showing several colours under a flash">
-
-The one you can burn yourself is this flower disc, with 3 to 4 colours on one flower. We've only burned it on RITEKF1 DVD-R. Measure your disc as in [Quick start](#quick-start), then build the design. This step doesn't touch the drive:
-
-```bash
-python tools/compose_rosettes.py
-```
-
-It prints the next command, which builds the ISO:
-
-```bash
-python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
-```
-
-The preview's colours only tell the textures apart, so it won't match the disc. To photograph it, turn off the room lights, use only the phone flash and hold the phone a little to one side. [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108) has the steps.
+Start with a PNG or JPEG with clear shapes and large colour areas. Leave the ICC profile embedded when exporting Display P3, Adobe RGB or Rec.2020 artwork. The colour-picture import names the source profile it used to convert to sRGB and warns when it has to assume sRGB for an unreadable profile. Untagged images are treated as sRGB.
 
 ### Other drives and discs
 
@@ -298,6 +314,7 @@ Most of these are user reports judged from the finished disc, usually with no me
 |---|---|---|---|
 | HL-DT-ST GH70N (NYA2) | Ritek F1 DVD-R | Measuring and burning both verified, about 0.1° on the first burn | this repo |
 | HL-DT-ST GH70N (NYA2) | CMC CD-R | Use `--speed 1411`. Along-track constant checked on two grid discs | this repo |
+| HL-DT-ST DVDRAM GH24NSD1 | Verbatim DVD+R AZO | The measurement disc hung at the default write speed and burned fine at 4x. Calibrated with disc-probe, and the picture came out almost perfectly aligned (user report, no measured image error) | SLJ, DIS Discord |
 | HL-DT-ST GU70N (LS20) | Relabelled Ritek DVD+R (`RITEK/F16/1`, inner code `VR5F16-01294`) | Calibrated on one disc, entered the numbers in DIS, and the second disc came out with its picture (reported by the user, 4x, no measured image error) | LTVA1, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19461627) |
 | MATSHITA BD-MLT UJ260AF (macOS) | RITEKF1 DVD-R | `geo` and `disexport` work, and someone has burned a picture with them | NaiveTomcat, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | MATSHITA BD-MLT UJ272 | RITEKF1 DVD-R | Preset went straight into DIS. Cross lines straight and perpendicular by eye, and a finished picture burned | domerawind, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
@@ -453,6 +470,8 @@ The manual, notes and CD model are in Chinese for now.
 | [`evidence/`](evidence/README.md) | Raw measurements and figures, reproducible |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor's C# probe, fitting scripts and raw data (in their fork) |
 
+See [Make a colour DVD](docs/colour.md) for the workflow. The guide ends with a short checklist for agents.
+
 ## Prior work and thanks
 
 Measuring sector angles from read timing didn't start here:
@@ -464,6 +483,8 @@ Measuring sector angles from read timing didn't start here:
 This repository adds an open source implementation that can be reproduced on ordinary consumer drives and handles the problems real drives have. It uses covariance-driven stepwise measurement with uncertainty estimates, checks results on burned grid discs, carries corrections across discs, and exports DiscImageStudio presets.
 
 Parts of the experimental BD/CD geometry algorithms and implementation, and the `--install` setup, were made by domerawind and DeepSeek-v41F in the corresponding pull requests, so the code's origin stays traceable.
+
+Thanks to WindowsNoEditor for contributing median clipping and the offline replay tool for `geo` in PR #29.
 
 The data-side encoding follows [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio), and `discprobe/efmplus.py` is ported from it. Thanks to NaiveTomcat and bczhc for the ports, and to anyezhixie, bczhc, Disappear9, domerawind, FanJZSS, kasumikira, Lakida0, li-yifei, MasterMT9, moodyos, NaiveTomcat, NO-ob, pugod124, ShiroiTree, Sliicy, WindowsNoEditor and zhajial for their reports.
 

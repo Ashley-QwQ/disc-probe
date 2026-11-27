@@ -1,0 +1,119 @@
+{
+  "version": "wave-v3-real-row-phase-ecc-random-context-20261112b",
+  "T_um": 0.13333,
+  "W_um": 0.35,
+  "edge_sigma_um": 0.03,
+  "dl_um": 0.0,
+  "samples": 8,
+  "df": 0.0005,
+  "starts": [
+    [
+      1,
+      0,
+      true
+    ],
+    [
+      2,
+      60,
+      false
+    ],
+    [
+      3,
+      -60,
+      true
+    ],
+    [
+      4,
+      30,
+      false
+    ]
+  ],
+  "source_hashes": {
+    "discprobe/efmplus.py": "56e97bf385f509c8ef18b96afb3a471a9136dd57c0d78efe6a19b903a76a7c56",
+    "discprobe/efmplus_tables.py": "f38c43b29a7461e749751bd7fc937ee8879fd2b1a493c8e41dec0808c4534828",
+    "discprobe/dvd.py": "5d0cbe5c924368f5beb2912d10dd5569ac89090a09e170b85287e6893540fea3",
+    "tools/dsv_block.py": "b59b370fddeac190e3f976b0f78e60ce88921353d658a5a08b21d1bd670a74d9",
+    "discprobe/imagedisc.py": "a22d6be0cc0d17efa40bf2eeee5bdc585d9901a7ccdaa4f23bd147bc18f4a228",
+    "docs/texture-cards/research/spectra.py": "4727c8b6eac3cad67a3733599e924860f8387cc2ae58ab2c468956bf7511f5f2",
+    "docs/texture-cards/research/check_2d.py": "776919b1804178862379967fb2893229ff936b002c1d2d29d10f0b11a8e8031a",
+    "docs/texture-cards/scripts/colour_tables.py": "5ac33cc2b40590d07f32e34df77a1ef99e3c7cae272f7952b27944ce3daf0bf6",
+    "docs/texture-cards/scripts/wave_model.py": "ea3e65f6b6e8884e833cfa0f1f9fa86909e65aafbe45c9d7a291529cfefb43c0"
+  },
+  "signature": "9ed29f33fc8edf9967e51e1cecd4f63cb8f39690befa8209abc568d6f3946d14",
+  "context": "8 contiguous texture sectors + 8 random-fill sectors; all real ECC parity",
+  "power": "coherent across the selected full 8-sector interval; independent blocks/tracks averaged in power",
+  "mark_model": "uniform rectangular W=.35 um, length LT+dl, dl=0; Gaussian edge sigma=.03 um",
+  "amplitude_correction": "T*sinc(fT)*W*exp(-2*pi^2*sigma_e^2*f^2)",
+  "unknowns": [
+    "actual mark dimensions and write strategy",
+    "complex dye/land contrast versus wavelength",
+    "polarization and multilayer vector diffraction",
+    "actual lamp SPD",
+    "actual neighbouring image content"
+  ],
+  "no_camera_or_purity_scaling": true,
+  "spectral_range_nm": [
+    380,
+    780
+  ],
+  "operator": {
+    "signature": "9ed29f33fc8edf9967e51e1cecd4f63cb8f39690befa8209abc568d6f3946d14",
+    "quadrature_nodes": 64,
+    "seconds": 63.49762189993635,
+    "shape": [
+      5601,
+      1025,
+      6
+    ],
+    "illuminant_whites": {
+      "LED": {
+        "XYZ": [
+          0.9194592042490963,
+          0.9999999999999999,
+          0.9918780665947975
+        ],
+        "xy": [
+          0.31582022923183256,
+          0.3434847655799547
+        ]
+      },
+      "D65": {
+        "XYZ": [
+          0.9504191825473549,
+          0.9999999999999998,
+          1.0884300333142094
+        ],
+        "xy": [
+          0.3127562820776204,
+          0.32907193775209514
+        ]
+      }
+    },
+    "lamp_radius_rad": 0.025,
+    "pupil_radius_rad": 0.006666666666666667,
+    "angular_sigma_normal": 0.012936812246883355,
+    "geometry": "symmetric theta_i=theta_o=asin(delta/2), central delta_r=0",
+    "observer_table": "offline 5 nm CIE 1931 2-degree transcription, linear interpolation",
+    "exposure": "not part of operator; one scalar per complete sheet and illuminant",
+    "chromatic_adaptation": "none; direct XYZ to D65 sRGB, no per-channel white balance"
+  },
+  "texture_bytes_adapter": "unchanged _COL, _hash, texture_bytes AST from signature source; upstream omits _hash",
+  "legacy": "wave_xyz.npz unchanged: A5/B9/RND pixel compatibility",
+  "mark_density_anchors": {
+    "A5": 0.5000036348480149,
+    "B9": 0.4999971728959884
+  },
+  "textures": [
+    "A37062",
+    "DD5AA565C8A4A565",
+    "66C47EC0E4B6D9A37595759971AD66A67EC0E27BF894EE75B4CAEB66AD",
+    "CC67",
+    "F9",
+    "957CD4D880B2D5F2BDD2CB98FBD1D2DBD49569ECD8C5DBD2",
+    "8DCDE6FBC0CDCBD5A3",
+    "E683D7787D15C08ED5912A978345D8858D8F2A2AFB8B",
+    "8D91858EC8859195D18B92",
+    "RND"
+  ],
+  "export_commit": "1e5786afd832f1df0cd9abe819d14b838518f4a6"
+}

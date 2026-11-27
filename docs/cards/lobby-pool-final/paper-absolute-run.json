@@ -1,0 +1,17 @@
+{
+  "command": [
+    "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-X",
+    "utf8",
+    "-B",
+    "tools/night_b_export.py",
+    "F:\\dp-archive\\tmp\\lobbypool\\final",
+    "--only",
+    "lobby",
+    "--paper-gate",
+    "night-b",
+    "--check-report",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\paper-absolute.json"
+  ],
+  "exit": 2
+}

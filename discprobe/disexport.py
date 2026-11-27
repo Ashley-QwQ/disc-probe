@@ -19,7 +19,7 @@ import json
 import math
 
 import numpy as np
-from scipy.optimize import least_squares
+from .numerics import least_squares
 
 from . import cd
 from .calib import SECTOR_BITS, theta
@@ -118,9 +118,32 @@ def preset_json(fit, total_sectors, bit_nm, preset_id, name, description, media=
 
 
 def export(geo_summary: str, total_sectors: int, correction_path: str | None, out_path: str,
-           r_lo: float, r_hi: float, preset_id: str, name: str, along_track_frames: float = 0) -> dict:
-    with open(geo_summary, encoding="utf-8") as f:
-        geo = json.load(f)["fit"]
+           r_lo: float, r_hi: float, preset_id: str, name: str, along_track_frames: float | None = None,
+           *, photo_path: str | None = None, device_id: str | None = None,
+           completion_sectors: int | None = None) -> dict:
+    from .photo import photo_shift, shifted_u
+    from .starter import is_record
+    geo_summary = str(geo_summary)
+    if is_record(geo_summary):
+        raise ValueError('Use image with the starter preset and its verified check-disc photos.')
+    decision = photo_shift(geo_summary, photo_path, device_id=device_id, dvd_manual=True)
+    # The older disexport parser passes 0 even when no flag was supplied. It is
+    # not a measured zero. An accepted photo may, of course, measure exactly 0.
+    if photo_path is not None or along_track_frames in (None, 0):
+        along_track_frames = decision.get("frames")
+    else:
+        if not math.isfinite(along_track_frames):
+            raise ValueError("--along-track-frames must be finite")
+        decision = dict(written=True, frames=along_track_frames, origin="manual")
+    from .read_completion import load_fit
+    geo, completion_method = load_fit(geo_summary, completion_sectors)
+    from .coverage import range_warning
+    warning = range_warning(geo, (r_lo, r_hi))
+    if warning:
+        print(f'Warning: {warning}')
+    if not correction_path and geo.get('correction_file'):
+        import os
+        correction_path = os.path.join(os.path.dirname(geo_summary), geo['correction_file'])
     if geo.get("model") == "clv" or geo.get("media") == "bd":
         raise ValueError("this geo result measured a disc the drive reads at a constant linear speed, so it "
                          "holds r0_mm, pitch_um and v_m_s rather than the angular u/v fit this module "
@@ -130,18 +153,20 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
     media = "cd" if geo.get("media") == "cd" else "dvd"
     u, v, bit = geo["u"], geo["v"], geo["bit_nm_assumed"]
     audio = geo.get("track") == "audio"
-    if audio and along_track_frames:
-        raise ValueError("this geo result measured an audio track, which has no along-track constant; "
-                         "if lines come out rotated, check --read-offset-bytes and run geo again")
+    # Photo L is a measured property of the entire burn/read path. It can be
+    # nonzero on a DIS audio path too; read-offset calibration does not prove L=0.
     if media == "cd":
         cd.check_capacity(total_sectors)
         if abs(bit - cd.BIT_NM) > 1e-6:
             raise ValueError(f"DiscImageStudio fixes the CD speed at 1200 mm/s ({cd.BIT_NM:.4f} nm per bit), "
                              f"this geo run assumed {bit} nm")
         # Same convention as image --along-track-frames: theta(n - d) is the spiral with u^2 - v d / pi.
-        u = math.sqrt(u * u - v * along_track_frames * cd.FRAME_BITS / math.pi)
+        if along_track_frames is not None:
+            u = math.sqrt(u * u - v * along_track_frames * cd.FRAME_BITS / math.pi)
     elif along_track_frames:
         raise ValueError("--along-track-frames is for CD")
+    elif decision.get("written") and decision.get("origin") in ("manual-slider", "manual-cli"):
+        u = shifted_u(geo, decision)
     corr = None
     if correction_path:
         from .imagedisc import correction_from_timing, load_correction
@@ -170,13 +195,35 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
             f"{fit['full_angle_diff_deg']:.3f} deg")
     if audio:
         desc += f"; measured on the CD-DA track, read offset {geo.get('read_offset_bytes', 0.0):g} bytes"
-    elif media == "cd":
+    if media == "cd" and along_track_frames is not None:
         desc += f"; along-track constant {along_track_frames:g} frames"
+    elif media == "cd":
+        desc += "; along-track constant unknown"
+    elif decision.get("written"):
+        desc += f"; along-track constant {decision['L_mm']:g} mm"
     out = {"preset": preset_json(fit, total_sectors, bit, preset_id, name, desc, media), "fit": fit,
            "source": {"geo": geo_summary.replace("\\", "/").split("/")[-1],
                       "correction": correction_path.replace("\\", "/").split("/")[-1] if correction_path else None}}
-    if media == "cd":
+    out['source']['capacity_words'] = dict(mapping_total_sectors=total_sectors,
+                                           blank_writable_sectors=None, random_mirror_sectors=None,
+                                           uses='disexport --sectors maps this total in DiscImageStudio; verify the blank writable capacity separately')
+    if geo.get('completion_sectors') or geo.get('completion_adjustment'):
+        out['source']['completion_sectors'] = geo.get('completion_sectors', 0)
+        out['source']['completion_method'] = completion_method
+        if geo.get('completion_adjustment'):
+            out['source']['completion_adjustment'] = geo['completion_adjustment']
+        if geo.get('completion_source'):
+            out['source']['completion_source'] = geo['completion_source']
+    if media == "cd" and along_track_frames is not None:
         out["source"]["along_track_frames"] = along_track_frames
+    if media == "cd" or photo_path is not None or decision.get("written"):
+        out["source"]["photo_shift"] = decision
+        if decision.get("provenance"):
+            out["source"]["photo_provenance"] = decision["provenance"]
+            # DIS has no separate L field. Put provenance in its supported text
+            # field too, so installing only `preset` retains the registration.
+            out["preset"]["description"] += "; photo provenance: " + json.dumps(
+                decision["provenance"], ensure_ascii=False, sort_keys=True)
     if audio:
         out["source"]["track"] = "audio"
         out["source"]["read_offset_bytes"] = geo.get("read_offset_bytes", 0.0)

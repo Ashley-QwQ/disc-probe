@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Generated from docs/why-calibrate.md by tools/render_learning_guide.py. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why calibrate before burning a picture? · disc-probe</title>
+<link rel="icon" type="image/x-icon" href="../../brand/probe/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../brand/probe/apple-touch-icon.png">
+<link rel="stylesheet" href="../guide.css">
+<link rel="stylesheet" href="./page.css">
+<link rel="stylesheet" href="../../fonts/titles.css">
+<script type="module" src="./page.mjs"></script>
+</head>
+<body><main>
+<h1 id="why-calibrate-before-burning-a-picture">Why calibrate before burning a picture?</h1>
+<p><a href="why-calibrate.zh.html" data-doc>简体中文</a></p>
+<p>An optical drive writes along one long spiral, so disc-probe measures your drive and batch of discs to find the radius (distance from the centre) and angle (direction around the disc) where each piece of data will land.</p>
+<h2 id="what-happens-if-you-skip-it">What happens if you skip it?</h2>
+<p>Imagine drawing a spoke from the middle of the disc out to the rim. Each turn of the spiral needs a mark in the same direction. If the software estimates the spacing between turns a little wrong, each mark moves a little farther from the last. Across tens of thousands of turns, a straight line can wind around the disc and the picture can smear into rings. That’s one explanation for “Circles it is,” a report from the DiscImageStudio community. README on the spiral · Troubleshooting notes</p>
+<p><img src="media/grid_lines_zoom.jpg" alt="Scan of a calibrated DVD test grid with straight lines on the disc" loading="lazy"></p>
+<p>The lines in this scan stayed straight on the DVD. The grid was made using the drive’s timing measurements. README on the test grid</p>
+<h2 id="how-to-measure-your-discs">How to measure your discs</h2>
+<ul><li>Make a measurement disc. Start with a blank from the batch you’ll use for the picture. Write the <code>random</code> command’s ISO, a file that holds the data to burn to the disc, as a disc image. This fills the spiral with ordinary readable data, so the software can time reads from the inner and outer parts. A blank has nothing to read, and the data patterns used to make light and dark areas in pictures often cause read errors. The random data has no design arranged across the disc, so it looks like an ordinary data disc. If you already have a disc from the same batch with readable random data over the area you need, you can use it. Manual on preparation</li><li>Check the rotation with <code>timing</code>. The drive rereads data to find how long the disc takes to turn and whether it spins steadily enough to measure.</li><li>Measure the layout with <code>geo</code>. With steady rotation, the gap between read times tells the software how far around the disc the data sits. It starts with nearby pieces of data and works outward, keeping count of whole turns. A good measurement is usually enough to make a DVD picture.</li><li>For a data CD, also measure the along-track constant. That’s the shift between the positions inferred from read times and where the written pattern sits along the spiral. Burn a known pattern to photograph, or use a grid disc and measure how much its straight lines twist. The measured shift belongs to that drive and way of writing the disc. CD route · CD details in the manual</li></ul>
+<p>For a first picture, the README gives a minimum of 2 discs for DVD (measurement and picture) or 3 for CD (measurement, calibration and picture). The web guide plans for 3, with a check disc before the finished picture. A large error can mean a second check and a 4th disc. A bad photo can be retaken on the same disc. README disc budget</p>
+<p>The web guide budgets about 14 minutes to burn the DVD measurement disc. The README’s CD example took about 11 minutes on a GH70N at 8×. Once the measurement disc is ready, <code>timing</code> takes about 1 to 3 minutes and <code>geo</code> about 5. The web guide uses about an hour as a planning target for the first picture. Your drive, the picture and any extra checks will affect that. Web guide estimates · DVD timings · CD example</p>
+<details><summary>What if the first measurement is poor?</summary>
+<p>If <code>timing</code> finds that the drive changes speed, try the suggested read speed. Use that same speed for <code>geo</code>. A measurement only covers the part of the spiral you were able to read. Before designing over an unmeasured area, follow the measurement screen’s advice about changing the read speed, measuring again or using a smaller area. Manual on the geometry measurement</p>
+</details>
+<h2 id="when-to-measure-again">When to measure again</h2>
+<p>Keep your measurement and reuse it for the same batch and drive. Measure again when you change batches or drives. The MID is the media identification code the drive reads from the disc. A different MID is an easy mismatch to spot, so the burn page stops for confirmation when it detects one. Batches can share an MID, so keep the blanks from the measured batch together. README on limitations · Post-burn checklist</p>
+<h2 id="the-whole-job-on-one-page">The whole job on one page</h2>
+<p>Calibrate → Design → Burn → Look or photograph</p>
+<p>The command column shows DVD examples. Start each command with <code>python -m discprobe</code>. README command-line walkthrough</p>
+<div class="learn-table"><table><thead><tr><th scope="col">Step</th><th scope="col">Web app</th><th scope="col">Command line</th></tr></thead><tbody><tr><td>Calibrate</td><td>From <strong>New work</strong>, identify the batch and choose <strong>Calibrate this batch</strong>. Keep the measurement for that batch.</td><td>Read the blank with <code>info --drive E:</code>. Make the file with <code>random --output iso/random.iso</code> and write it with <code>burn --drive E: --iso iso/random.iso --yes-write</code>. Measure the recorded disc with <code>timing --drive E:</code> and <code>geo --drive E:</code>.</td></tr><tr><td>Design</td><td>In <strong>Design</strong>, import and place the picture. Use <strong>Preview</strong> to inspect it and make the image file.</td><td><code>edit my_picture.png</code> to place it, then <code>image --geo results/YOUR-RUN/summary.json --design my_picture.design.json --output iso/picture.iso</code>. Use the saved design and measurement paths from your own run.</td></tr><tr><td>Burn</td><td>On <strong>Burn</strong>, check the blank and write the image.</td><td><code>burn --drive E: --iso iso/picture.iso --yes-write</code> for DVD. Confirm the drive and blank before running it.</td></tr><tr><td>Look or photograph</td><td>On the post-burn page, record how it looks or open <strong>Can’t see the picture?</strong> to review the checks. When checking with photos, follow the prompts for a check disc or photos from the burn result.</td><td>Look at the data side under a small light near your eye or camera. If the picture is missing, run <code>checkburn --drive E: --iso iso/picture.iso</code>.</td></tr></tbody></table></div>
+<details><summary>Command-line routes for CD and photo checks</summary>
+<p>For a data CD, add <code>--media cd</code> to <code>random</code>, <code>timing</code> and <code>geo</code>. Use <code>disexport</code> to take the measured geometry into DiscImageStudio and run its fine calibration, or follow the manual’s grid-disc route before making the picture. On Windows, the built-in <code>burn</code> command doesn’t write CDs. See the README’s CD route for writing instructions. For a supported check target, <code>photo</code> reads the shift from photos, while <code>gridscan</code> measures crooked lines in a flatbed scan of a grid disc. CD and photo checks in the manual</p>
+</details>
+<h2 id="common-questions">Common questions</h2>
+<h3 id="can-i-use-a-nominal-discimagestudio-preset">Can I use a nominal DiscImageStudio preset?</h3>
+<p>A preset is a saved set of disc dimensions and other settings. A nominal preset uses standard values as a starting point. For a finished picture, use settings measured for your own batch and drive. If you already burned with a nominal preset and see rings, try another lighting angle and check the read-back report, which says whether samples of the disc matched the image file. Post-burn checklist</p>
+<h3 id="why-does-the-measurement-disc-look-ordinary">Why does the measurement disc look ordinary?</h3>
+<p>Its job is to give the drive data to read. The picture only goes on a later blank, after the software knows where to put the light and dark areas.</p>
+<h3 id="is-calibration-the-same-as-taking-a-photo">Is calibration the same as taking a photo?</h3>
+<p>Calibration measures where the pattern lands. Read timing supplies most of that information. A photo of a known target can supply a missing shift or check how far the result moved. A photo of your finished picture can simply be for sharing. For colour, the phone and light positions also decide which colours you see. <a href="how-disc-images-work.html" data-doc>How a disc becomes a picture</a></p>
+</main></body>
+</html>

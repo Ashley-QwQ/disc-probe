@@ -11,6 +11,8 @@ import re
 import subprocess
 import sys
 import tempfile
+import shutil
+from unittest.mock import patch
 
 from . import cd, filldisc, gameart, guide, i18n, sectors, snake, sudoku, timing, ui
 from .sim import SimDrive
@@ -421,9 +423,17 @@ def _first_steps(c) -> None:
             ui._term = ui.Term(Utf8Tty(), env=env, platform="linux")
             os.makedirs("iso")
             c.check(guide.picture_iso() is None, "no picture ISO yet")
-            for name in ("picture.iso", "picture.preview.png", "blind_x.iso", "blind_x.preview.png", "orphan.preview.png"):
+            for name in ("picture.iso", "picture.preview.png", "orphan.preview.png"):
                 open(os.path.join("iso", name), "w").close()
-            c.check(guide.picture_iso() == os.path.join("iso", "picture.iso"), "a picture ISO is found by its preview, and held-out names stay unread")
+            listing = os.listdir("iso") + ["blind_x.iso", "blind_x.preview.png"]
+            real_exists = os.path.exists
+            def checked_exists(path):
+                if 'blind' in path.casefold():
+                    raise AssertionError('held-out path was accessed')
+                return real_exists(path)
+            with patch.object(os, 'listdir', return_value=listing), patch.object(os.path, 'exists', checked_exists):
+                c.check(guide.picture_iso() == os.path.join("iso", "picture.iso"),
+                        "a picture ISO is found by its preview, and held-out names stay unread")
             cut_short = os.path.join("iso", "picture.iso" + iso9660.UNFINISHED)
             open(cut_short, "w").close()
             c.check(guide.picture_iso() is None, "a rewrite cut short leaves the old preview, but is not taken for a finished ISO")
@@ -731,6 +741,7 @@ def _snake(c) -> None:
         c.check(not p.playing, "no game until g is pressed")
         p.play()
         c.check(p.playing and "best 0" in s.getvalue(), "g opens the game below the progress line")
+        p.game.food = (0, 0)        # out of reach of the next steps: food placed at random was eaten now and then (score 1, no "best 0")
         p.last_step = 0.0
         p.play()
         c.check(p.game.heading == (1, 0) and p.game.body[0][0] == 4, "the game steps during a pause")
@@ -1252,8 +1263,9 @@ def _writing(c) -> None:
     real_term = ui._term
     try:
         ui._term = ui.Term(io.StringIO(), env={})
-        with ui.writing("x", 10) as log:
-            c.check(log is print, "a pipe gets the writers' lines as before")
+        with tempfile.TemporaryDirectory() as d:
+            with ui.writing(os.path.join(d, 'x.iso'), 10) as log:
+                c.check(log is print, "a pipe gets the writers' lines as before")
         with ui.busy("x"):
             pass
         c.check(ui._term.stream.getvalue() == "", "a pipe sees nothing of the busy line")
@@ -1278,11 +1290,12 @@ def _writing(c) -> None:
             text = ANSI.sub("", s.getvalue())
             c.check("100%" in text and "a note\n" in text and "20.0 %" not in text and "Finished in" in printed.getvalue(), "percentage lines become the bar; other lines still print")
             c.check("\x1b[?25h" in s.getvalue(), "the cursor comes back")
-        try:
-            with ui.writing("no such file", 10):
-                raise ValueError("stop")
-        except ValueError:
-            c.check(s.getvalue().count("\x1b[?25l") == s.getvalue().count("\x1b[?25h"), "an error mid-write still restores the cursor")
+        with tempfile.TemporaryDirectory() as d:
+            try:
+                with ui.writing(os.path.join(d, 'error.iso'), 10):
+                    raise ValueError("stop")
+            except ValueError:
+                c.check(s.getvalue().count("\x1b[?25l") == s.getvalue().count("\x1b[?25h"), "an error mid-write still restores the cursor")
     finally:
         ui._term = real_term
 
@@ -1516,7 +1529,9 @@ def _advice(c) -> None:
     c.check("--media cd" in "".join(guide.after_info(Namespace(**vars(args)), blank(0x09, 359847))), "info on a blank CD offers the CD command")
     bd = {"setup": {"family": "bd"}, **timed("mixed", [0.4])}
     bd_lines = guide.after_timing(args, bd)
-    c.check("constant linear speed" in bd_lines[1] and "8990" in bd_lines[2] and "3324" not in "".join(bd_lines), "on Blu-ray a non-CAV result does not promise another speed helps, and offers a BD speed")
+    c.check("8990" in "".join(bd_lines) and "3324" not in "".join(bd_lines)
+            and any("--bd-zones 25" in x for x in bd_lines),
+            "on Blu-ray a non-CAV result offers an untried BD speed and the anchored CLV route")
     bd_good = guide.after_timing(args, {"setup": {"family": "bd"}, **timed("CAV", [9.0])})
     c.check(any("8990" in x for x in bd_good) and not any("--sectors 16" in x for x in bd_good)
             and any(" geo " in x and "--media bd --bd-zones" in x for x in bd_good),
@@ -1546,8 +1561,10 @@ def _advice(c) -> None:
     stop = "\n".join(guide.after_geo_stop(args, "the spindle speed never settled; is the read speed fixed (--speed)?"))
     c.check("timing" in stop and "--speed" in stop, "a geo that never settled gets a next step")
 
+    empty_results = tempfile.mkdtemp(prefix="selftest-results-")  # the speed advice reads tried speeds from --out
+
     def retry_at(speed, media="dvd"):
-        at = Namespace(**{**vars(args), "speed": speed, "media": media})
+        at = Namespace(**{**vars(args), "speed": speed, "media": media, "out": empty_results})
         lines = guide.after_geo_stop(at, "a whole-turn count went wrong") + guide.after_geo_stop(at, "the spindle speed never settled")
         return lines + guide.after_geo(at, {**fit, "chi2_per_dof": 1.0}, os.path.join("results", "geo-H-20260101-100000"))
     lowest, usual, cd = (retry_at(3324), retry_at(5540), retry_at(1411, "cd"))
@@ -1556,6 +1573,7 @@ def _advice(c) -> None:
     c.check(any("--ranges" in x for x in lowest), "already at the lowest speed: geo still offers --ranges")
     c.check(sum("a lower speed" in x for x in usual) == 3 and any("--speed 3324" in x for x in usual), "with a lower speed to try, geo says lower")
     c.check(not any("lower speed" in x for x in cd) and any("--speed 2822" in x for x in cd), "CD at its default speed: the next one is not called lower")
+    shutil.rmtree(empty_results, ignore_errors=True)
     i18n.use("zh")
     try:
         said = [i18n.tr(x) for x in lowest + usual]
@@ -1589,8 +1607,8 @@ def _advice(c) -> None:
     c.check(not any("simulated" in x for x in guide.after_timing(args, timed("CAV", [0.4]))), "a real drive's verdict does not")
     real_missing = guide.missing_packages
     try:
-        guide.missing_packages = lambda: ["numpy", "scipy"]
-        c.check("numpy, scipy" in guide.after_selftest()[0] and guide.INSTALL in guide.after_selftest()[1], "a self-test that skipped checks says so")
+        guide.missing_packages = lambda: ["numpy", "pillow"]
+        c.check("numpy, pillow" in guide.after_selftest()[0] and guide.INSTALL in guide.after_selftest()[1], "a self-test that skipped checks says so")
         guide.missing_packages = lambda: []
         c.check("guide" in guide.after_selftest()[0], "a complete self-test points to guide")
     finally:
@@ -1664,8 +1682,8 @@ def _command_line(c) -> None:
         c.check(code == 2 and "not a speed" in text, "a bad --speed is an argument error")
         code, _ = code_and_stderr()
         c.check(code == 2, "no command in a pipe is still an argument error")
-        if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
-            print("--geo and --ranges error checks skipped (need numpy and scipy)")
+        if importlib.util.find_spec("numpy") is None:
+            print("--geo and --ranges error checks skipped (need numpy)")
         else:
             code, _ = code_and_stderr("timing", "--sim", "cav", "--media", "cd", "--speed", "8x", "--reps", "4", "--period-reads", "20", "--out", out)
             speeds = sorted(r.summary["args"]["speed"] for r in guide.scan(out))
@@ -1961,8 +1979,8 @@ def _no_disc(c) -> None:
             cli._open = lambda args: Empty(0x3A)
             code, text = run("timing", "--sim", "cav", "--out", d)
             c.check(code == 1 and mmc.TRAY_OPEN in text and "burn a test disc" not in text, "timing on an open tray says so")
-            if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
-                print("CD and geo open-tray checks skipped (need numpy and scipy)")
+            if importlib.util.find_spec("numpy") is None:
+                print("CD and geo open-tray checks skipped (need numpy)")
             else:
                 code, text = run("timing", "--sim", "cav", "--media", "cd", "--out", d)
                 c.check(code == 1 and mmc.TRAY_OPEN in text and "Mode 1" not in text, "timing --media cd on an open tray says so")
@@ -2072,8 +2090,8 @@ def _stopped_part_way(c) -> None:
             result = next(r for r in guide.scan(stopped_folder) if r.path == path)
             c.check("stopped early" in result.describe(), "and `results` says it stopped early")
 
-            if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
-                print("geo part-way checks skipped (need numpy and scipy)")
+            if importlib.util.find_spec("numpy") is None:
+                print("geo part-way checks skipped (need numpy)")
                 return
             out = os.path.join(d, "geo")
             cli._open = lambda args: Goes(tray, 1300)   # rung 10 or so, after the check points read at the start
@@ -2092,7 +2110,9 @@ def _stopped_part_way(c) -> None:
                 cli._open = lambda args: Goes(tray, 1100, 1, thrown)   # rung 5 or so
                 code, text = run("geo", "--sim", "cav", "--out", out)
                 result = guide.scan(out)[0]
-                c.check(code != 0 and result.stopped == "interrupted" and not result.geo_complete(), f"{name} during geo is not complete either")
+                reason_kept = (result.stopped == 'interrupted' if isinstance(thrown, KeyboardInterrupt) else
+                               bool(result.stopped and 'gone' in result.stopped and 'READ' in result.stopped))
+                c.check(code != 0 and reason_kept and not result.geo_complete(), f"{name} during geo is not complete either")
             out = os.path.join(d, "geo-whole")
             cli._open = real_open
             code, text = run("geo", "--sim", "cav", "--out", out)
@@ -2156,8 +2176,7 @@ def _image_cut_short(c) -> None:
                     raise KeyboardInterrupt
                 random_path = os.path.join("iso", "random.iso")
                 try:
-                    with ui.writing(random_path, 100000):
-                        randomdisc.write_iso(random_path, 100000, log=stop)
+                    randomdisc.write_iso(random_path, 100000, log=stop)
                 except KeyboardInterrupt:
                     pass
                 c.check(not os.path.exists(random_path), "the real random image, stopped part way, is gone")
@@ -2169,10 +2188,17 @@ def _image_cut_short(c) -> None:
                 lines = guide.guide_lines("dvd", notes=True)
                 c.check(not any("written; burn it" in x for x in lines) and any("info --drive" in x for x in lines),
                         "a marker left by a killed run: guide asks for the blank-disc info first")
-                with ui.writing(random_path, 10):
-                    c.check(not os.path.exists(random_path), "and the next write starts clean")
-                    with open(random_path, "wb") as f:
-                        f.write(b"all of it")
+                marker = random_path + iso9660.UNFINISHED
+                try:
+                    with ui.writing(random_path, 10):
+                        c.check(False, "the next write must refuse another task's marker")
+                except ValueError:
+                    with open(random_path, 'rb') as f:
+                        c.check(f.read() == b'part' and os.path.exists(marker), "a refused write preserves the prior task's files")
+                # Here the test owns the two fixture files and can clear them.
+                os.remove(marker)
+                with ui.writing(random_path, 10), open(random_path, "wb") as f:
+                    f.write(b"all of it")
                 c.check(os.path.exists(random_path) and not os.path.exists(random_path + iso9660.UNFINISHED), "and ends whole")
                 lines = guide.guide_lines("dvd", notes=True)
                 c.check(any("written; burn it" in x for x in lines), "guide then says to burn it")
@@ -2250,7 +2276,7 @@ def _plain_errors(c) -> None:
 def _missing_package(c) -> None:
     import subprocess
     import sys
-    code = ("import sys; sys.modules['scipy'] = None; from discprobe.__main__ import main; "
+    code = ("import sys; sys.modules['numpy'] = None; from discprobe.__main__ import main; "
             "main(['disexport', '--geo', sys.argv[1]])")
     with tempfile.TemporaryDirectory() as d:
         geo = os.path.join(d, "s.json")

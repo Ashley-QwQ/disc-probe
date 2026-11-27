@@ -1,0 +1,2 @@
+COMMAND: node tests/test_presetio.mjs
+presetio pure logic passed

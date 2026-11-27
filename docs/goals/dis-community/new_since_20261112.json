@@ -1,0 +1,292 @@
+[
+ {
+  "thread": "D231",
+  "title": "No visible contrast on HP (CMC) CD-R and DVD-R with HL-DT-ST GUE0N, even with a 50/50 0x0D / 0xAA test. Which discs/drives are known to work?",
+  "where": "c4",
+  "login": "jsammarco",
+  "date": "2026-11-12T19:48:11Z",
+  "edited": false,
+  "body": "@exotic-namruth\r\nThanks for the help. After a couple tries I was able to calibrate with the random data disc. But it is still off by about 1 turn. I can make out my face in the disc now but it is still warped about 1-2 turns.\r\nShould I do a step 2 or 3 calibration from here to dial it in? Or was it a bad calibration?\r\nThank you for the great communication!\n![20261112_140146.jpg](https://github.com/user-attachments/assets/b9f04171-3ec6-457b-9a57-d0274d398446)\n\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/231#discussioncomment-19573372"
+ },
+ {
+  "thread": "D231",
+  "title": "No visible contrast on HP (CMC) CD-R and DVD-R with HL-DT-ST GUE0N, even with a 50/50 0x0D / 0xAA test. Which discs/drives are known to work?",
+  "where": "c4.r1",
+  "login": "jsammarco",
+  "date": "2026-11-12T22:45:51Z",
+  "edited": false,
+  "body": "Got it soo close now. I think one more step 3 calibration and it'll be perfect 👌 \nPlanning to make a video on this and the calibration process as it took me a bit to figure out the application flows.\n![20261112_164147.jpg](https://github.com/user-attachments/assets/fc842e0f-9a0e-4c16-8b01-f85e81a1241b)\n\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/231#discussioncomment-19576494"
+ },
+ {
+  "thread": "D316",
+  "title": "求教各位前辈",
+  "where": "c2",
+  "login": "SODIUMWATER",
+  "date": "2026-11-12T16:26:48Z",
+  "edited": false,
+  "body": "外半径减小0.01到0.02试试？(肉眼估算，仅供参考)",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/316#discussioncomment-19569371"
+ },
+ {
+  "thread": "D270",
+  "title": "有没有已知刻录图案对比度较高的 DVD或CD 光盘型号？",
+  "where": "c3",
+  "login": "SweetSourFox",
+  "date": "2026-11-12T15:05:42Z",
+  "edited": false,
+  "body": "铼德 Excellent DVD+RW 4X效果是非常不错的，刻录机 威宝66768",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/270#discussioncomment-19567446"
+ },
+ {
+  "thread": "D270",
+  "title": "有没有已知刻录图案对比度较高的 DVD或CD 光盘型号？",
+  "where": "c4",
+  "login": "SODIUMWATER",
+  "date": "2026-11-12T16:23:45Z",
+  "edited": false,
+  "body": "个人观测结果:我发过的纽曼和飞利浦的对比度差，MID是RITEKF1的索尼的比较好，讨论区别人发的MID带RITEK的thinkplus dvd+r也比较好，似乎刻录前颜色较深的效果更好",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/270#discussioncomment-19569280"
+ },
+ {
+  "thread": "D307",
+  "title": "【Maimai】XaleidscopiX曲绘（略微修改）",
+  "where": "c1.r1",
+  "login": "zengyuxiang0921",
+  "date": "2026-11-12T14:43:13Z",
+  "edited": false,
+  "body": "按照我的光盘上放就行，我略微调了一下色，另外，awmc\r\n<img width=\"1124\" height=\"1399\" alt=\"xx\" src=\"https://github.com/user-attachments/assets/38acc112-e19f-41ff-a299-f7a0ec5b0826\" />\r\n<img width=\"1700\" height=\"925\" alt=\"xx2\" src=\"https://github.com/user-attachments/assets/a4c9d393-ea9e-49c7-bfa7-552fd6529bf5\" />",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/307#discussioncomment-19566894"
+ },
+ {
+  "thread": "D107",
+  "title": "不用拍照的读取计时标定，你的光驱能用吗？征集实测 / Calibrating without photos using read timing: does it work on your drive? Reports wanted",
+  "where": "c62",
+  "login": "winxp0621",
+  "date": "2026-11-12T13:23:00Z",
+  "edited": false,
+  "body": "[result.zip](https://github.com/user-attachments/files/34749646/result.zip)\r\n实际是IO-DATA的BRP-U6XE 外置光驱，没有接电源\r\n盘是Victor 的DVD-R VHR12JP50SJ1\r\n能自动识别，给出参数后再diskimagestudio设置好后，可以正常刻录\r\n\r\nE:\\ai\\disc-probe-0.1.2.1-full-win64>python -m discprobe info --drive G:\r\n光驱：Optiarc BD RW BD-5750H，固件 1.00 \r\n光驱报告托盘开着（部分刻录机刻完后会自动把盘弹出）。把盘放好，关上托盘，等几秒再运行一次\r\n读取速度：扇区 0..418349  1764 -> 4234 kB/s（比值 2.4002）\r\n写入速度：扇区 0..26849  1411 -> 1411 kB/s（比值 1.0）\r\n写入速度：扇区 26850..98849  2117 -> 2117 kB/s（比值 1.0）\r\n写入速度：扇区 98850..197849  2822 -> 2822 kB/s（比值 1.0）\r\n写入速度：扇区 197850..314849  3528 -> 3528 kB/s（比值 1.0）\r\n写入速度：扇区 314850..418349  4234 -> 4234 kB/s（比值 1.0）\r\n写入速度档：读 4234 / 写 4234 kB/s，到扇区 418349\r\nPage 2A：缓存 3072 kB，写入时转速方式 恒定线速度 (CLV)，写入速度 [(4234, 'CLV')]\r\n\r\n完整信息保存在：E:\\ai\\disc-probe-0.1.2.1-full-win64\\results\\info-G-20261112-215202\r\n\r\nE:\\ai\\disc-probe-0.1.2.1-full-win64>python -m discprobe timing --drive G:\r\n正在用 G: 测量。按 Ctrl+C 可停止，已测的数据会保留。超过 15 分钟会自动放弃。\r\n光盘：DVD-ROM，最后扇区号 2295103，读取命令 read12\r\n缓存测试耗时：plain p50 1138.3 us, fua p50 41653.1 us，采用的读取方式 fua\r\n转速已稳定：转一圈 12.888 ms（4655.4 转/分）\r\n位置 0.05（扇区号  114752）：转一圈 12.88870 ms（4655.24 转/分），抖动  10.76 µs =  0.301°，周期清晰度 0.9999\r\n位置 0.50（扇区号 1147536）：转一圈 12.88873 ms（4655.23 转/分），抖动  28.69 µs =  0.801°，周期清晰度 0.9998\r\n位置 0.95（扇区号 2180336）：转一圈 12.88879 ms（4655.21 转/分），抖动  25.92 µs =  0.724°，周期清晰度 0.9998\r\n转速方式：恒定转速 (CAV)\r\n位置 0.15（扇区号  344256）：盘面角度 165.384° ± 0.125（单次标准差  0.794，40 次），基准抖动  0.400°\r\n位置 0.35（扇区号  803280）：盘面角度  19.632° ± 0.142（单次标准差  0.900，40 次），基准抖动  0.490°\r\n位置 0.55（扇区号 1262304）：盘面角度 173.363° ± 0.084（单次标准差  0.531，40 次），基准抖动  0.521°\r\n位置 0.75（扇区号 1721312）：盘面角度  67.038° ± 0.152（单次标准差  0.962，40 次），基准抖动  0.453°\r\n位置 0.95（扇区号 2180336）：盘面角度 234.807° ± 0.158（单次标准差  1.000，40 次），基准抖动  0.439°\r\n\r\n原始事件和汇总保存在：E:\\ai\\disc-probe-0.1.2.1-full-win64\\results\\timing-G-20261112-221428\r\n用时 2:03\r\n\r\n结论：转速恒定，抖动 0.30-0.80°。这台光驱看起来可以用。",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19565119"
+ },
+ {
+  "thread": "D209",
+  "title": "HP 惠普 DVD+R 4.7GB 16x (MID: CMC MAG-M01-00 / 内圈码 5001) + 惠普 HP GP70N 光驱标定参数",
+  "where": "c3",
+  "login": "XiangSi233",
+  "date": "2026-11-12T13:05:09Z",
+  "edited": false,
+  "body": "请问可以给一张您展示图第二张图片的底图吗？感谢",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/209#discussioncomment-19564852"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r115",
+  "login": "LTVA1",
+  "date": "2026-11-12T08:39:30Z",
+  "edited": false,
+  "body": "@Ashley-QwQ around 3 minutes. I also ran out of Verbatim DVD-Rs and I had an error when trying to export DiscImageStudio preset, will share the error later. Later this week I will run scan calibration for Ritek ones to do more usual images in DiscImageStudio ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19559976"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r116",
+  "login": "LTVA1",
+  "date": "2026-11-12T09:59:10Z",
+  "edited": false,
+  "body": "@Ashley-QwQ here's the export error\r\n```\r\n$ python -m discprobe disexport --geo latest --sectors 2295104 --r-min 24.005 --r-max 57.936 --output dis_preset.json\r\nUsing the latest geo result: results/geo-E-20261111-221849/summary.json (30 rungs, rms 0.49 deg, chi2/dof 4.7, 24.005-57.936 mm)\r\nthe preset misses the measured map by 47.4 deg over 24.005-57.936 mm (outer radius came out 57.936 mm); check --sectors and the fit range. No preset written.\r\n```\r\n[geo-E-20261111-221849.zip](https://github.com/user-attachments/files/34740335/geo-E-20261111-221849.zip)\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19561593"
+ },
+ {
+  "thread": "D323",
+  "title": "惠普（HP）DVD-R 16x 4.7GB 标定参数",
+  "where": "post",
+  "login": "SirTamago",
+  "date": "2026-11-12T09:16:55Z",
+  "edited": false,
+  "body": "### 盘片\r\n- 型号：惠普（HP）DVD-R 16x 4.7GB\r\n- MID：`TYG03`（Taiyo Yuden）\r\n- 内圈刻码：`CMDR47G-TYMSM01-133 0617`（末位 `01` 也可能是 `O1`，以 MID 为准）\r\n- 其他刻录信息：`GHOO8133`\r\n\r\n### 刻录环境\r\n- 刻录机：PIONEER DVD-RW DVR-220L（固件 1.00，经 SATA→USB 转接盒连接）\r\n- 写入速度：4x\r\n- 软件：DiscImageStudio v1.5.0\r\n\r\n### 参数\r\n```text\r\n内半径 r0   23.934090363794045\r\n外半径 r1   57.987156121353003\r\n几何总扇区  2297888\r\n可用扇区    2297888\r\n相对一次项  -3.003650783380961E-06\r\n相对二次项  1.3626652538376547E-05\r\n相对三次项  -1.0989865066606084E-05\r\n```\r\n\r\n### 标定说明\r\n- 初值取自 #278 的 r0 / r1 / 扇区数，三项轨距系数为本盘重新拟合。\r\n- r0 / r1 未经本盘独立精标确认，沿用 #278 初值，目测内圈可能有2mm左右冗余\r\n\r\n### 参考数据\r\n- #278 TY DVD-R parameters (CMDR47G-TYMSM01, MID TYG03)\r\n  https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/278\r\n\r\n| 项目 | #278 参考 | 本盘 |\r\n|---|---|---|\r\n| r0 | 23.934090 | 23.934090（沿用） |\r\n| r1 | 57.987156 | 57.987156（沿用） |\r\n| 扇区数 | 2297888 | 2297888 |\r\n| 相对一次项 | 1.698964E-05 | -3.003651E-06 |\r\n| 相对二次项 | -5.434863E-05 | 1.362665E-05 |\r\n| 相对三次项 | 4.474472E-05 | -1.098987E-05 |\r\n\r\n### 实拍图\r\n<img width=\"3072\" height=\"4096\" alt=\"标签面（label side）\" src=\"https://github.com/user-attachments/assets/06fa7c2d-cdd2-45c3-8440-a7efd28747cc\" />\r\n<img width=\"3072\" height=\"4096\" alt=\"数据面（data side）\" src=\"https://github.com/user-attachments/assets/38a9a674-a52e-46ad-af81-f5666c0570a6\" />",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/323"
+ },
+ {
+  "thread": "D267",
+  "title": "大家烧录的图案都容易看出来吗",
+  "where": "c1.r2",
+  "login": "fishyy119",
+  "date": "2026-11-12T08:33:36Z",
+  "edited": false,
+  "body": "https://www.bilibili.com/video/BV1ZvbZ6vEPj/\r\n\r\n从CD与DVD的结构来看也可以一定程度解释这个现象：CD的数据层在靠近印刷面的一侧，而DVD的数据层夹在基板中间。因此DVD刻录进去的数据距离光盘的光面相比于CD是更近的。",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/267#discussioncomment-19559843"
+ },
+ {
+  "thread": "D322",
+  "title": "纽曼DVD+R（MID为MCC-004-00）标定参数（用完了最后一张盘，基本完美）",
+  "where": "post",
+  "login": "SODIUMWATER",
+  "date": "2026-11-12T07:44:49Z",
+  "edited": false,
+  "body": "光盘正面图片见 #81 \r\n[纽曼标定2.zip](https://github.com/user-attachments/files/34735143/2.zip)\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/322"
+ },
+ {
+  "thread": "D322",
+  "title": "纽曼DVD+R（MID为MCC-004-00）标定参数（用完了最后一张盘，基本完美）",
+  "where": "c1",
+  "login": "SODIUMWATER",
+  "date": "2026-11-12T07:49:21Z",
+  "edited": false,
+  "body": "<img width=\"4624\" height=\"3468\" alt=\"IMG20261112154835\" src=\"https://github.com/user-attachments/assets/690107f7-61de-4fad-9bdb-17bfd11fbce5\" />\r\n径向线效果",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/322#discussioncomment-19559072"
+ },
+ {
+  "thread": "I81",
+  "title": "纽曼DVD+R和飞利浦DVD-R标定参数，以及一些经验和建议",
+  "where": "c7",
+  "login": "SODIUMWATER",
+  "date": "2026-11-12T07:36:11Z",
+  "edited": false,
+  "body": "目前对纽曼的重新标定了，之后发discussion区",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/81#issuecomment-6817666815"
+ },
+ {
+  "thread": "I86",
+  "title": "分享JVC CD-R标定参数，以及我标定的过程",
+  "where": "c3",
+  "login": "Li-O-Li",
+  "date": "2026-11-12T11:41:50Z",
+  "edited": false,
+  "body": "补充最新版本，带三次项参数的标定结果。\n内半径：24.92157313130725 mm\n外半径：57.83895664859282 mm\n总扇区数：359845\n有效扇区数：359843\n线密度：1200\n一次项系数：-3.527656817649574E-05\n二次项系数：1.7942866698010085E-05\n三次项系数：-4.764356646282355E-06\n\n<img width=\"3072\" height=\"4096\" alt=\"1\" src=\"https://github.com/user-attachments/assets/62bd0d2a-020d-42ef-889c-18c4248fc3c7\" />\n\n<img width=\"3072\" height=\"4096\" alt=\"2\" src=\"https://github.com/user-attachments/assets/2fa9b88a-5403-49e8-88de-638b2e33f316\" />",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/86#issuecomment-6822624773"
+ },
+ {
+  "thread": "I232",
+  "title": "Verbatim CD-R RFD-80M （标定分享）",
+  "where": "c8",
+  "login": "awillis1999",
+  "date": "2026-11-13T00:02:38Z",
+  "edited": false,
+  "body": "Can confirm this also works with Verbatim CD-R LH3177 DC2123848 D5. I used a slim external blu-ray drive, I think it's a MATSHITA",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/232#issuecomment-6839596392"
+ },
+ {
+  "thread": "I242",
+  "title": "Calibration rings show clearly, but cross arms and images are invisible (Slimtype DS8A5SH, CD-R 80)",
+  "where": "c1",
+  "login": "SoulMinf",
+  "date": "2026-11-12T12:55:50Z",
+  "edited": false,
+  "body": "Helo! I'm experiencing exactly the same issue described here\n\nMy hardware and setup:\n- DiscImageStudio: 1.5.0, Windows 11 Pro 25H2 (build 26200.9974)\n- Optical drive: LG HL-DT-ST DVDRAM GSA-H66N\n- Media: Mirex CD-RW, 700 MB, 4x-12x\n\nWhat happens:\n\n- Coarse Calibration works and produces clearly visible, high-contrast concentric bands.\n- Boundary Calibration also produces a uniform pattern without the expected half-disc boundary.\n- Fine Calibration produces clearly visible concentric rings, but all radial lines (the reference cross) are completely missing.\n- The result looks almost identical to the image posted in this issue.\n\nI also tried exporting the WAV/CUE files and burning them separately using ImgBurn at 4x speed, but the result was exactly the same.\nThe concentric rings are very clear and have good contrast, so this does not appear to be a general lack of contrast or a photography issue.\nCould this be related to the LG GSA-H66N drive, CD-RW media, or the way the angular pattern is encoded in the audio sectors?\n\nIs there anything else I could test to help identify the cause?\n\n<img width=\"1920\" height=\"1032\" alt=\"image\" src=\"https://github.com/user-attachments/assets/8e076e9c-3162-42a7-9067-89c42126306d\" />\n\nFine calibration:\n<img width=\"1454\" height=\"1425\" alt=\"IMG_20261112_154646\" src=\"https://github.com/user-attachments/assets/0588c3c0-2072-4d3e-846e-10eda43f559a\" />\n\nCoarse calibration:\n<img width=\"2381\" height=\"1788\" alt=\"IMG_20261112_121745\" src=\"https://github.com/user-attachments/assets/5aa401b6-fcad-4d17-a889-98e9651b0e58\" />\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/242#issuecomment-6824199314"
+ },
+ {
+  "thread": "I251",
+  "title": "Getting empty burned disc when calibrating boundary with CD-R",
+  "where": "c8",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-12T07:03:56Z",
+  "edited": false,
+  "body": "@YukaiP Sorry for the slow reply, and thanks for trying disc-probe and posting the output.\n\nYour screenshot shows a bug on our side. For CDs, disc-probe only ever suggests 1411 or 2822, so it kept sending you back to speeds you had already tried. At those speeds your drive keeps a constant linear speed (CLV), and in that mode disc-probe can't work out where each sector sits on the disc.\n\nMany drives only switch to a constant spin (CAV) at their higher CD speeds. Could you try these in order, and stop at the first one that says CAV?\n\n```\npython -m discprobe timing --drive E: --media cd --speed 4234\npython -m discprobe timing --drive E: --media cd --speed 5645\npython -m discprobe timing --drive E: --media cd --speed 7056\n```\n\nIf all three still say CLV, your SH-216DB probably never spins a CD at a constant rate, and disc-probe can't measure CD geometry with it yet. I'm fixing the speed suggestions so they stop repeating, and looking into whether a CLV drive can still be used. I'll post an update here.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/251#issuecomment-6817119300"
+ },
+ {
+  "thread": "I311",
+  "title": "RiTEK Excellent DVD+RW 4X Calibration Data",
+  "where": "c1",
+  "login": "SweetSourFox",
+  "date": "2026-11-12T15:02:57Z",
+  "edited": false,
+  "body": "Tested and perfectly fitted my disc.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/311#issuecomment-6827225180"
+ },
+ {
+  "thread": "I319",
+  "title": "Calibration Problem and Appeal for A Ready Template of 43547 (Single slim case)",
+  "where": "c2",
+  "login": "ati180arm-beep",
+  "date": "2026-11-12T13:16:58Z",
+  "edited": false,
+  "body": "> Hi, can you share a photo of the failed boundary calibration print?\n\n<img width=\"4000\" height=\"3000\" alt=\"1794153718524\" src=\"https://github.com/user-attachments/assets/f5192781-b41a-4318-9b89-b34d15c177be\" />\n\nhere it is. it's the closest i could get. pardon for image quality\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/319#issuecomment-6824671158"
+ },
+ {
+  "thread": "I319",
+  "title": "Calibration Problem and Appeal for A Ready Template of 43547 (Single slim case)",
+  "where": "c3",
+  "login": "mmnjrzdgn",
+  "date": "2026-11-12T14:02:55Z",
+  "edited": false,
+  "body": "> > Hi, can you share a photo of the failed boundary calibration print?\n> \n> <img alt=\"1794153718524\" width=\"2000\" height=\"1500\" src=\"https://private-user-images.githubusercontent.com/354105877/703636915-f5192781-b41a-4318-9b89-b34d15c177be.jpg?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3OTQ0OTIyODEsIm5iZiI6MTc5NDQ5MTk4MSwicGF0aCI6Ii8zNTQxMDU4NzcvNzAzNjM2OTE1LWY1MTkyNzgxLWI0MWEtNDMxOC05Yjg5LWIzNGQxNWMxNzdiZS5qcGc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYxMTEyJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MTExMlQxMzU5NDFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT0zYzk3YWEwODEyMDliZTkyMWMwYmFmYTQxOTdlMmQzZTg4ODY3YzYzM2QwN2NiY2M5NjA4ZjIxMDE4YzY4ZGU2JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9aW1hZ2UlMkZqcGVnIn0.XuL730du1TWhYp0yK_8eHILPaA7Ks23OKw8PX4VLf-U\">\n> here it is. it's the closest i could get. pardon for image quality\n\nThanks for sharing the photo. I think this might be a v1.5.0 issue, because me and a few more people are experiencing the same problem. I hope this gets attention and a fix. You can find other issue pages in the bottom of the page [here](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/297).",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/319#issuecomment-6825728558"
+ },
+ {
+  "thread": "I324",
+  "title": "Boundary Calibration fails validation despite hundreds of carefully placed points",
+  "where": "post",
+  "login": "gelinkpink",
+  "date": "2026-11-12T16:11:06Z",
+  "edited": false,
+  "body": "I'm having trouble getting a valid result from Boundary Calibration.\n\nI carefully place points along the visible physical boundary on the calibration image. The number of points does not seem to solve the problem: I've tried both ~200 and over 450 points.\n\n<img width=\"1658\" height=\"1006\" alt=\"2026-11-12_18-59-01\" src=\"https://github.com/user-attachments/assets/80d3e68b-9e0e-4594-b9ae-658ebda7d201\" />\n\nThe predicted boundary matches the manually marked points quite well near the inner radius, but progressively deviates toward the outer radius. If I place points starting from the outer edge and work toward the center, the opposite happens: the prediction matches the outer region but deviates toward the center.\n\nIn other words, the prediction seems unable to match the entire boundary simultaneously.\n\n## Steps to reproduce\n\n1. Burn a Boundary Calibration target to a DVD+RW.\n2. Take a photograph of the disc and load it into Boundary Calibration.\n3. Carefully mark the visible boundary across the entire radial range.\n4. Run the calibration.\n5. Observe that the predicted boundary deviates progressively from the marked points in one part of the disc.\n6. Try changing the distribution of marked points. The region where the prediction matches changes accordingly, but the full boundary still cannot be fitted.\n\n## Error message\n\nWith 423 manually placed points, the application reports:\n\n```\n[18:58:04] Calibration: Calculating parameters using all 423 curve points…\n[18:58:15] Calibration: Automatic validation did not pass. All 423 points and parameter candidates are preserved. Candidates can be applied after confirming the photographed match.\nThe boundary segments do not match a single disc model. Check for misplaced points, photo rectification errors, or segments crossing another boundary.\nCandidates with different winding counts still fit these segments. Trace a longer, clear boundary at another radius and calculate again.\n```\n\n## Expected behavior\n\nI would expect the calibration algorithm to use all marked points to find the best-fitting disc model, or clearly indicate which points or boundary segments are inconsistent with the model.\n\n## Hardware and media\n\n- Drive: Pioneer DVR-218L\n- Firmware: 1.02\n- Media: DVD+RW\n- Write speed: 4x\n- Application: DiscImageStudio v1.5.0+29b8cc1177c67a16b1ee5d2eb1a8c122f01cad17",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/324"
+ },
+ {
+  "thread": "I325",
+  "title": "Fine Calibration Issue",
+  "where": "post",
+  "login": "gelinkpink",
+  "date": "2026-11-12T21:10:14Z",
+  "edited": false,
+  "body": "# Fine Calibration: predicted curve deviates significantly from manually traced boundary and marks valid points as outliers\n\n## Description\n\nDuring Fine Calibration, the predicted curve can significantly deviate from the manually traced boundary, even when the boundary is clearly visible and has been carefully traced with a large number of points.\n\n<img width=\"1656\" height=\"1002\" alt=\"2026-11-12_23-59-29\" src=\"https://github.com/user-attachments/assets/72c02158-f905-49b0-8f09-ef1caf2ac44f\" />\n\nIn my test, I traced a highly irregular but clearly visible boundary using approximately 158 points. The points closely follow the actual photographed boundary, including its local bends and irregularities.\n\nHowever, the predicted curve does not follow the traced points. Instead, it appears excessively smoothed and deviates significantly from the actual trace, particularly near the inner and outer parts of the recording area.\n\nAs a result, correctly placed points are highlighted as outliers, and the calibration reports very large errors.\n\n## Observed results\n\nIn the attached screenshot:\n\n- 158 points are retained.\n- `Fit cubic track pitch` is enabled.\n- Mean error: 1.399 mm.\n- Maximum error: 4.869 mm.\n- The predicted curve visibly diverges from the manually traced boundary.\n- Several correctly placed points are classified as large deviations.\n\nThe actual boundary is clearly visible in the photograph and can be traced accurately. The discrepancy is between the traced points and the mathematical prediction, not necessarily the point placement.\n\n## Expected behavior\n\nThe fitting process should make effective use of all available traced points.\n\nIn particular:\n\n1. The predicted curve should represent the traced boundary as accurately as the selected mathematical model allows.\n2. A large number of manually placed points should meaningfully constrain the fit.\n3. The fitting process should not excessively smooth away local variations in the traced boundary.\n4. Points should not be classified as outliers merely because the fitted model cannot reproduce local variations.\n5. The application should make it possible to distinguish genuine tracing mistakes from limitations of the fitting model.\n\nIt would also be useful to have an option to display the raw traced path without smoothing, alongside the fitted mathematical curve.\n\n## Possible cause\n\nThe fitting model may be too restrictive to represent the actual radial variation of the recorded track.\n\nThe enabled cubic track pitch model uses a limited number of coefficients. It may be unable to reproduce local variations in the photographed boundary, causing the fitted curve to compromise between different radial regions.\n\nIt is also worth investigating whether the fitting or visualization pipeline applies excessive smoothing or downsampling to the original points.\n\n## Environment\n\n- DiscImageStudio v1.5.0\n- Windows 10 x64\n- Drive: Pioneer DVR-218L\n- Media: DVD+RW\n- Calibration stage: Fine Calibration\n- Traced points: approximately 158\n- Cubic track pitch fitting: enabled",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/325"
+ },
+ {
+  "thread": "I326",
+  "title": "Two-level pattern invisible on a desktop drive (LG GH22NS40): recorded area uniform, only the recorded/unrecorded boundary visible — CD-R and DVD-R",
+  "where": "post",
+  "login": "ghpo",
+  "date": "2026-11-12T23:03:24Z",
+  "edited": false,
+  "body": "**摘要（中文）**：在台式 5.25 英寸刻录机 `HL-DT-ST DVDRAM GH22NS40` 上，CD-R 与 DVD-R 的双层图案均不可见。已排除速度（4×/16×）、介质批次与工具链：回读数据正确，**刻录区与未刻录区的边界清晰可见**，但刻录区内部没有任何图案。径向特征（同心环、刻录边界）可见，角向特征（半黑半白、文字、十字线）完全均匀。症状与 #292 / #242 / #295 一致，但本机是**台式机光驱**，不是薄型 USB 光驱。\n\n---\n\n## Environment\n\n- **App**: DiscImageStudio CLI `v1.3.6` (`DiscImageStudio-CLI-v1.3.6-linux-x64.tar.gz`, SHA256 verified against the release `SHA256SUMS.txt`), self-contained, run on Arch Linux (kernel 7.2.8).\n- **Drive**: `HL-DT-ST DVDRAM GH22NS40`, firmware `NL02`, SATA, **5.25\" desktop drive** (serial `K5XA4J82909`). Reports MMC-2/3, DVD-R/-RW/-RAM, DVD+R/+RW, CD-R/RW, SAO/DAO, test write.\n- **Burn tools**: `growisofs` (dvd+rw-tools) for DVD, `cdrecord 3.02a09` (cdrtools) `-dao` for CD. The app's Windows in-app burner is not used — this is the documented \"export image + external burner\" path.\n- **Media**:\n  - DVD-R 16× (generic, no MID read out), capacity 2 297 888 sectors.\n  - CD-R 52× 700 MB (Multilaser). `cdrecord -atip` reports lead-in 97:27:18, lead-out 79:59:74 (359 849 sectors), \"Medium Type B, low Beta category (B-)\", short strategy type / phthalocyanine.\n\n## What was produced\n\nAll images via the Linux CLI, then burned externally at the stated speed.\n\n1. **CD-DA art, full disc** (concentric rings + large text), `cd-generate --sectors 359849`, burned `cdrecord dev=/dev/sr0 -dao speed=8 -audio` (and 4×, and 32× with a half-black/half-white image).\n2. **DVD calibration card** (10 tone rings, solid black wedge, radial spokes, outer dashed band), `solve --total-sectors 2296437 --fill-sectors 2296416 --inner-radius-mm 24 --outer-radius-mm 58.04 --tone-dither 0.99`, burned `growisofs -Z ... -speed=4 -dvd-compat`.\n3. **DVD text art** (`DISC` 175 pt, `2026` 100 pt, two smaller lines, thin ring), `--tone-dither 0`, burned at 4× and again at 16×.\n4. **DVD radial half-fill** (only the inner half of the sectors written), `--fill-sectors 1148208`, burned at 4×.\n5. **DVD angular half-black / half-white** (left half white, right half black), `--tone-dither 0`, burned at 16×.\n\nEvery burn completed with exit code 0 and no errors; every disc was closed and is readable.\n\n## Observed\n\n- **CD-R (all three speeds)**: data reads back correctly (`cdda2wav` returns the exact track length; the app reconstructs the art from the read-back WAV). On the disc, nothing but a ~1 mm ring near the hub; the rest of the data area is visually unchanged. Read-back shows ~12–14 % of samples muted to `0x00`, i.e. a marginal but readable burn.\n- **DVD calibration card (4×)**: the ten tone rings look visible to a casual look, **but photo analysis of the data annulus gives a smooth monotonic radial profile** (116 → 200 → 160 across r = 100…340 px) with no ~20 px periodicity, and the solid black wedge region measures 158 — the *brightest* area of the disc. So the rings were most likely the generic diffraction of the data spiral, not the card.\n- **DVD text art (4× and 16×)**: only a thin ring near the outer edge is visible; no letters at either speed.\n- **DVD radial half-fill (4×)**: a **clear circular boundary** is visible at ~44 mm, exactly where the written region ends. This proves the drive and media do produce a visible mark/land-density difference at that scale.\n- **DVD angular half-black/half-white (16×)**: the disc looks **uniformly burned** — no straight boundary, no spiral, no half-disc step.\n\n## What this rules out\n\n- **Speed**: 4× and 16× on DVD, 4×/8×/32× on CD — identical result.\n- **Media batch**: two different media types (CD-R and DVD-R), different dyes, different wavelengths.\n- **Toolchain / data correctness**: the app's own `simulate` reconstructs every image from the generated ISO, and the burned discs read back correctly.\n- **Missing mark**: the recorded/unrecorded boundary is clearly visible, so the laser does modify the dye.\n- **Rendering side / viewing angle**: verified under a point light at several angles; the uniform area stays uniform.\n- **Wrong polarity**: the innermost calibration ring reads dark, i.e. the black level does render darker where it renders at all.\n\n## Question\n\nIssue #295 asks whether this is an expected limitation of **slim notebook-class drives** (write-strategy equalisation of mark/land density). This report is the same symptom on a **full-size 5.25\" desktop drive**, which I believe has not been reported before, so it may narrow the cause:\n\n1. Is this a known write-strategy equalisation behaviour that can affect desktop drives too, or is there a parameter we are missing?\n2. Is there any media/drive combination known to work with this drive family (LG GH22NS40 / Renesas chipset)?\n3. Would a different drive model be expected to change the result, before buying one?\n\nHappy to run further tests on this exact hardware — the drive is available and the discs are sacrificial.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/326"
+ },
+ {
+  "thread": "I326",
+  "title": "Two-level pattern invisible on a desktop drive (LG GH22NS40): recorded area uniform, only the recorded/unrecorded boundary visible — CD-R and DVD-R",
+  "where": "c1",
+  "login": "ghpo",
+  "date": "2026-11-12T23:32:08Z",
+  "edited": false,
+  "body": "## Second drive tested — same result\n\nI swapped the drive and repeated the exact same experiment.\n\n- **Drive B**: `HL-DT-ST DVD-RAM GH22NS30`, firmware `2.00`, SATA, also a **5.25\" desktop drive** (same HLDS family, one generation older than the GH22NS40).\n- **Image**: identical `angular.iso` (left half pure white, right half pure black, `--tone-dither 0`, 2 296 416 sectors, r0 24 / r1 58.04 mm).\n- **Burn**: `growisofs -Z /dev/sr0=angular.iso -speed=16 -dvd-compat` → exit 0, 16.0×, no errors, disc closed.\n\n**Result: identical.** The disc looks uniformly burned — no straight boundary, no spiral, no half-disc step. Same as the GH22NS40 at 16×.\n\nSo this is not one specific drive model: two different HLDS drives (2008 and 2009 generations, different firmware) behave the same, on two different DVD-R batches.\n\n## A pattern in the existing reports\n\nEvery report of this symptom I could find involves a **Hitachi-LG Data Storage** drive:\n\n| Issue | Drive |\n| --- | --- |\n| this one | `HL-DT-ST DVDRAM GH22NS40` (desktop) |\n| this one | `HL-DT-ST DVD-RAM GH22NS30` (desktop) |\n| #295 | `HL-DT-ST DVDRAM GSA-T50L` (slim USB) |\n| #242 | `LG HL-DT-ST DVDRAM GSA-H66N` (desktop) |\n| #185 | `Transcend TS8XDVDS-K` (slim USB — these are usually HLDS OEM) |\n\nThat suggests the limiting factor may be the **HLDS write strategy**, which appears to equalise mark/land density inside the recorded area: the recorded/unrecorded boundary and the lead-out remain clearly visible, while the two-level pattern does not.\n\n## Test that would settle it\n\nA burn of the same ISO on a **non-HLDS drive** (Pioneer, ASUS, Lite-On, Plextor, or an older NEC/Optiarc). If the pattern appears there, the cause is confirmed as HLDS write strategy and the project could document a \"known incompatible drive family\" note. If it also fails on non-HLDS hardware, then the cause is broader than the drive family.\n\nI still have both drives and sacrificial media and can run any further test you suggest.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/326#issuecomment-6839059904"
+ },
+ {
+  "thread": "I326",
+  "title": "Two-level pattern invisible on a desktop drive (LG GH22NS40): recorded area uniform, only the recorded/unrecorded boundary visible — CD-R and DVD-R",
+  "where": "c2",
+  "login": "ghpo",
+  "date": "2026-11-12T23:35:07Z",
+  "edited": false,
+  "body": "## Following the HLDS hypothesis — next test planned\n\nBoth drives I tested report `HL-DT-ST` in INQUIRY, i.e. they are **Hitachi-LG Data Storage** units. Since every other report of this symptom also comes from HLDS hardware (#295 `GSA-T50L`, #242 `GSA-H66N`, #185 Transcend slim — very likely HLDS OEM), I am going to test the same ISO on a **non-HLDS** drive.\n\nFor anyone else following this, the INQUIRY vendor string tells you the real manufacturer, independent of the retail brand:\n\n| INQUIRY vendor | Manufacturer | Expected to work? |\n| --- | --- | --- |\n| `HL-DT-ST` | HLDS (Hitachi-LG) | ❌ what failed in all reports so far |\n| `TSSTcorp` | Toshiba-Samsung | untested |\n| `PLDS` / `ATAPI` / `LITE-ON` | Lite-On | untested |\n| `PIONEER` | Pioneer | untested |\n| `Optiarc` / `SONY` | Sony-NEC | untested |\n| `ASUS`, `LG`, `Verbatim`, `Teac`, `BenQ` | rebadged — may be any of the above | check the model |\n\nCheck with:\n\n```bash\ncdrecord -checkdrive dev=/dev/sr0 | grep -E 'Vendor_info|Identifikation'\n```\n\n## Test plan\n\n1. Install a non-HLDS desktop drive (**Samsung SH-224DB**, `TSSTcorp`, is the cheapest and most common option here).\n2. Verify the INQUIRY vendor string is not `HL-DT-ST`.\n3. Burn the **same** `angular.iso` (left half white / right half black, `--tone-dither 0`, 2 296 416 sectors, r0 24 / r1 58.04 mm) with the same command: `growisofs -Z /dev/sr0=angular.iso -speed=16 -dvd-compat`.\n4. Report whether the boundary is a straight diameter, a spiral, or absent.\n\nI will post the result here, including photos, so the HLDS hypothesis is either confirmed or refuted with hardware evidence.\n\nIf the maintainer has a specific drive family or firmware known to produce visible two-level art, that would save a purchase — otherwise I will report back with the TSST result.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/326#issuecomment-6839115581"
+ },
+ {
+  "thread": "I326",
+  "title": "Two-level pattern invisible on a desktop drive (LG GH22NS40): recorded area uniform, only the recorded/unrecorded boundary visible — CD-R and DVD-R",
+  "where": "c3",
+  "login": "ghpo",
+  "date": "2026-11-13T00:36:19Z",
+  "edited": false,
+  "body": "## The pattern *is* written — it is rotated. Geometry sweep results\n\nFollowing the earlier comments, I found a way to separate \"no contrast\" from \"wrong geometry\": the half-black/half-white image does show structure if you look closely — but the dividing line arrives as a **spiral**, not as a straight diameter. So the two-level pattern is being recorded; it is rotated by an angular error that accumulates with radius.\n\nThat makes the drift measurable: the distance between consecutive turns of that spiral is the drift per revolution.\n\n### Method\n\nSame image (`angular.png`, left half pure white / right half pure black), same command, same drive (`GH22NS30`), same media, `--tone-dither 0`, burned at 16×. Only `--outer-radius-mm` changes, always with `--total-sectors 2297888` (the disc's own `Track Size`) and `--fill-sectors 2297824`.\n\nRing count is measured over the **first 10 mm** from the inner data edge, with a steel rule laid on the disc.\n\n| `--outer-radius-mm` | rings per 10 mm | implied spacing |\n| --- | --- | --- |\n| 58.040 | 18 | 0.56 mm |\n| 58.008 | 16 | 0.63 mm |\n| **57.800** | **6** | **1.67 mm** |\n\nPhotos of the first two measurements (rule in frame, same disc surface):\n\n![r1 = 58.040 — 18 rings per 10 mm](https://raw.githubusercontent.com/ghpo/discimagestudio-evidence/main/midia-1medicao.jpg)\n\n![r1 = 58.008 — 16 rings per 10 mm](https://raw.githubusercontent.com/ghpo/discimagestudio-evidence/main/midia-2medicao.jpg)\n\n### The part that does not fit\n\nAt `r1 = 57.800` the first centimetre improves a lot (18 → 6 rings), **but the spacing keeps shrinking with radius**: after that first centimetre the rings become progressively finer until there are more than 70 of them and a phone camera can no longer resolve them.\n\nFor a constant pitch error the spacing would be **constant** across the radius. For a linear pitch coefficient (`--pitch-linear a1`) it would vary smoothly. Fitting the observed 5–10× change in spacing to `pitch(r) = p0 (1 + a1 x)` requires `a1 ≈ -5`, i.e. a negative track pitch — physically impossible.\n\nSo the residual is **not** a radius or pitch error that the documented parameters can express. What remains is the mapping between sector number and physical angle: the model assumes the ideal CLV relationship, and this drive appears to deviate from it in a way that varies with radius.\n\n### Questions\n\n1. Is there any CLI parameter (or a value the GUI's fine calibration produces) that compensates for a sector→angle mapping deviation rather than a radius/pitch deviation?\n2. Does the GUI's spoke calibration measure exactly this — and would its result be usable from the CLI via `--pitch-*`? If so, which coefficient carries the angular term?\n3. If this is a known drive limitation, is there a list of drives known to work? Both drives here are HLDS (`GH22NS40`, `GH22NS30`), consistent with the pattern noted earlier.\n\nFor completeness: with the unmodified preset geometry (`--total-sectors 2296437`, `r1 = 58.04`) the same image produced a disc that looked completely uniform, and the drift only became visible as a measurable spiral after switching to the disc's real sector count. That step alone may be worth documenting.\n\nHappy to run more experiments — both drives and sacrificial media are still available. A flatbed scan of the disc is also possible if that would help quantify the spacing profile.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/326#issuecomment-6840182558"
+ },
+ {
+  "thread": "I327",
+  "title": "Parameter contribution: Verbatim DVD+RW 4x 4.7 GB (94839)",
+  "where": "post",
+  "login": "tonyp2121",
+  "date": "2026-11-13T00:35:11Z",
+  "edited": false,
+  "body": "## Disc and setup\r\n\r\nI would like to share my current calibration settings for **Verbatim DVD+RW 4.7 GB / 4x, product 94839**, for others using the same product and for consideration as a disc preset.\r\n\r\n- Product: [Verbatim DVD+RW, Amazon ASIN B0001LRPE2](https://www.amazon.com/dp/B0001LRPE2)\r\n- Recorder: HL-DT-ST DVDRAM GUE0N, firmware T.02, USB\r\n- Write speed: 4x\r\n- Burning method: exported ISO written through Windows IMAPI2 with DVD+RW overwrite enabled\r\n- Device-reported capacity: 2,295,104 sectors\r\n- Media ID (MID): not confirmed\r\n\r\n## Parameters\r\n\r\nThe radii and three pitch coefficients below preserve the full values from my current settings.\r\n\r\n```json\r\n{\r\n  \"id\": \"verbatim-dvd-plus-rw-4x-94839\",\r\n  \"displayName\": \"Verbatim DVD+RW 4x (94839)\",\r\n  \"description\": \"User-contributed settings for Verbatim DVD+RW 4.7 GB 4x, product 94839; verify against the exact media and batch.\",\r\n  \"totalSectors\": 2295104,\r\n  \"usableSectors\": 2295104,\r\n  \"innerRadiusMm\": 23.98021495351053,\r\n  \"outerRadiusMm\": 57.99222803078272,\r\n  \"channelBitLengthNm\": 133.3,\r\n  \"pitchLinear\": -3.9256854319227684E-05,\r\n  \"pitchQuadratic\": 6.964795915429256E-05,\r\n  \"pitchCubic\": -4.670918950137523E-05\r\n}\r\n```\r\n\r\n## Validation scope\r\n\r\nThe three pitch coefficients are unchanged from the starting preset used during this calibration; they are not being presented as an independently measured pitch profile for product 94839.\r\n\r\nOther batches and recorder combinations have not been verified. Successful burn completion should not be interpreted as full readback verification or proof of final image alignment.\r\n\r\nPlease let me know whether this is suitable for the preset catalog or whether additional measurements are needed.\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/327"
+ }
+]

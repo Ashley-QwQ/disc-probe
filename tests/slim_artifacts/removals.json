@@ -1,0 +1,5084 @@
+[
+  {
+    "path": "python/Lib/site-packages/bin/f2py.exe",
+    "bytes": 108373,
+    "compressed_bytes": 52606,
+    "reason": "NumPy development CLI; no application/tool invokes Fortran compilation or build-configuration CLI"
+  },
+  {
+    "path": "python/Lib/site-packages/bin/numpy-config.exe",
+    "bytes": 108373,
+    "compressed_bytes": 52613,
+    "reason": "NumPy development CLI; no application/tool invokes Fortran compilation or build-configuration CLI"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1-cp313-cp313-win_amd64.whl",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1.dist-info/DELVEWHEEL",
+    "bytes": 577,
+    "compressed_bytes": 266,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1.dist-info/INSTALLER",
+    "bytes": 4,
+    "compressed_bytes": 6,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1.dist-info/LICENSE.txt",
+    "bytes": 45881,
+    "compressed_bytes": 15088,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1.dist-info/METADATA",
+    "bytes": 61161,
+    "compressed_bytes": 18006,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1.dist-info/RECORD",
+    "bytes": 148689,
+    "compressed_bytes": 67836,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1.dist-info/REQUESTED",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy-1.18.1.dist-info/WHEEL",
+    "bytes": 85,
+    "compressed_bytes": 82,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy.libs/libscipy_openblas-197ee2fc9b4d071f7e048078cac74115.dll",
+    "bytes": 20262912,
+    "compressed_bytes": 6637413,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/__config__.py",
+    "bytes": 6283,
+    "compressed_bytes": 1707,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/__init__.py",
+    "bytes": 4659,
+    "compressed_bytes": 1754,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_cyutility.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_cyutility.cp313-win_amd64.pyd",
+    "bytes": 192000,
+    "compressed_bytes": 94780,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_distributor_init.py",
+    "bytes": 629,
+    "compressed_bytes": 350,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/_array_api_compat_vendor.py",
+    "bytes": 421,
+    "compressed_bytes": 223,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/__init__.py",
+    "bytes": 1014,
+    "compressed_bytes": 550,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/_internal.py",
+    "bytes": 2149,
+    "compressed_bytes": 978,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/common/__init__.py",
+    "bytes": 39,
+    "compressed_bytes": 41,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/common/_aliases.py",
+    "bytes": 19690,
+    "compressed_bytes": 4843,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/common/_fft.py",
+    "bytes": 4882,
+    "compressed_bytes": 744,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/common/_helpers.py",
+    "bytes": 33647,
+    "compressed_bytes": 8017,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/common/_linalg.py",
+    "bytes": 7116,
+    "compressed_bytes": 2243,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/common/_typing.py",
+    "bytes": 4687,
+    "compressed_bytes": 1292,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/cupy/__init__.py",
+    "bytes": 760,
+    "compressed_bytes": 378,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/cupy/_aliases.py",
+    "bytes": 6608,
+    "compressed_bytes": 2059,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/cupy/_info.py",
+    "bytes": 10466,
+    "compressed_bytes": 2038,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/cupy/_typing.py",
+    "bytes": 637,
+    "compressed_bytes": 274,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/cupy/fft.py",
+    "bytes": 908,
+    "compressed_bytes": 350,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/cupy/linalg.py",
+    "bytes": 1913,
+    "compressed_bytes": 779,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/dask/__init__.py",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/dask/array/__init__.py",
+    "bytes": 703,
+    "compressed_bytes": 359,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/dask/array/_aliases.py",
+    "bytes": 10801,
+    "compressed_bytes": 3126,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/dask/array/_info.py",
+    "bytes": 12649,
+    "compressed_bytes": 2428,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/dask/array/fft.py",
+    "bytes": 349,
+    "compressed_bytes": 186,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/dask/array/linalg.py",
+    "bytes": 2204,
+    "compressed_bytes": 905,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/numpy/__init__.py",
+    "bytes": 1102,
+    "compressed_bytes": 540,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/numpy/_aliases.py",
+    "bytes": 5857,
+    "compressed_bytes": 1937,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/numpy/_info.py",
+    "bytes": 11162,
+    "compressed_bytes": 2098,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/numpy/_typing.py",
+    "bytes": 634,
+    "compressed_bytes": 316,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/numpy/fft.py",
+    "bytes": 744,
+    "compressed_bytes": 250,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/numpy/linalg.py",
+    "bytes": 6725,
+    "compressed_bytes": 1773,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/torch/__init__.py",
+    "bytes": 658,
+    "compressed_bytes": 335,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/torch/_aliases.py",
+    "bytes": 33861,
+    "compressed_bytes": 7883,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/torch/_info.py",
+    "bytes": 12265,
+    "compressed_bytes": 2860,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/torch/_typing.py",
+    "bytes": 111,
+    "compressed_bytes": 91,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/torch/fft.py",
+    "bytes": 1915,
+    "compressed_bytes": 420,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_compat/torch/linalg.py",
+    "bytes": 4674,
+    "compressed_bytes": 1767,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/__init__.py",
+    "bytes": 991,
+    "compressed_bytes": 395,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_delegation.py",
+    "bytes": 38410,
+    "compressed_bytes": 9462,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/__init__.py",
+    "bytes": 37,
+    "compressed_bytes": 39,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_at.py",
+    "bytes": 15779,
+    "compressed_bytes": 4639,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_backends.py",
+    "bytes": 2194,
+    "compressed_bytes": 969,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_funcs.py",
+    "bytes": 26536,
+    "compressed_bytes": 7620,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_lazy.py",
+    "bytes": 14168,
+    "compressed_bytes": 4512,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_testing.py",
+    "bytes": 10594,
+    "compressed_bytes": 2717,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_utils/__init__.py",
+    "bytes": 50,
+    "compressed_bytes": 52,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_utils/_compat.py",
+    "bytes": 1886,
+    "compressed_bytes": 395,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_utils/_helpers.py",
+    "bytes": 20402,
+    "compressed_bytes": 6620,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/_lib/_utils/_typing.py",
+    "bytes": 238,
+    "compressed_bytes": 154,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/array_api_extra/testing.py",
+    "bytes": 19980,
+    "compressed_bytes": 6231,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/__init__.py",
+    "bytes": 598,
+    "compressed_bytes": 332,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/framework.py",
+    "bytes": 40140,
+    "compressed_bytes": 6666,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/main.py",
+    "bytes": 59033,
+    "compressed_bytes": 10975,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/models.py",
+    "bytes": 52225,
+    "compressed_bytes": 7595,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/problem.py",
+    "bytes": 41499,
+    "compressed_bytes": 7020,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/settings.py",
+    "bytes": 3958,
+    "compressed_bytes": 1216,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/subsolvers/__init__.py",
+    "bytes": 355,
+    "compressed_bytes": 145,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/subsolvers/geometry.py",
+    "bytes": 14560,
+    "compressed_bytes": 3290,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/subsolvers/optim.py",
+    "bytes": 46715,
+    "compressed_bytes": 6363,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/utils/__init__.py",
+    "bytes": 377,
+    "compressed_bytes": 172,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/utils/exceptions.py",
+    "bytes": 505,
+    "compressed_bytes": 195,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/utils/math.py",
+    "bytes": 1688,
+    "compressed_bytes": 533,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/cobyqa/utils/versions.py",
+    "bytes": 1532,
+    "compressed_bytes": 530,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/packaging_version/_structures.py",
+    "bytes": 1492,
+    "compressed_bytes": 359,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/packaging_version/version.py",
+    "bytes": 17258,
+    "compressed_bytes": 4493,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/__init__.py",
+    "bytes": 8673,
+    "compressed_bytes": 2381,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/cobyla/__init__.py",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/cobyla/cobyla.py",
+    "bytes": 22705,
+    "compressed_bytes": 6811,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/cobyla/cobylb.py",
+    "bytes": 41478,
+    "compressed_bytes": 11793,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/cobyla/geometry.py",
+    "bytes": 10871,
+    "compressed_bytes": 3657,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/cobyla/initialize.py",
+    "bytes": 9624,
+    "compressed_bytes": 2776,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/cobyla/trustregion.py",
+    "bytes": 25692,
+    "compressed_bytes": 7968,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/cobyla/update.py",
+    "bytes": 14171,
+    "compressed_bytes": 3577,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/__init__.py",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/_bounds.py",
+    "bytes": 1670,
+    "compressed_bytes": 613,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/_linear_constraints.py",
+    "bytes": 2208,
+    "compressed_bytes": 710,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/_nonlinear_constraints.py",
+    "bytes": 2204,
+    "compressed_bytes": 756,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/_project.py",
+    "bytes": 8036,
+    "compressed_bytes": 2175,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/checkbreak.py",
+    "bytes": 3544,
+    "compressed_bytes": 905,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/consts.py",
+    "bytes": 1357,
+    "compressed_bytes": 767,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/evaluate.py",
+    "bytes": 3249,
+    "compressed_bytes": 1276,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/history.py",
+    "bytes": 1399,
+    "compressed_bytes": 660,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/infos.py",
+    "bytes": 734,
+    "compressed_bytes": 490,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/linalg.py",
+    "bytes": 14715,
+    "compressed_bytes": 4927,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/message.py",
+    "bytes": 9953,
+    "compressed_bytes": 1995,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/powalg.py",
+    "bytes": 6916,
+    "compressed_bytes": 2953,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/preproc.py",
+    "bytes": 14097,
+    "compressed_bytes": 3929,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/present.py",
+    "bytes": 150,
+    "compressed_bytes": 115,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/ratio.py",
+    "bytes": 1877,
+    "compressed_bytes": 794,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/redrho.py",
+    "bytes": 1305,
+    "compressed_bytes": 608,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_external/pyprima/common/selectx.py",
+    "bytes": 14416,
+    "compressed_bytes": 4137,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/__init__.py",
+    "bytes": 367,
+    "compressed_bytes": 205,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_array_api.py",
+    "bytes": 45921,
+    "compressed_bytes": 12408,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_array_api_docs_tables.py",
+    "bytes": 11106,
+    "compressed_bytes": 3395,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_array_api_no_0d.py",
+    "bytes": 4528,
+    "compressed_bytes": 1513,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_array_api_override.py",
+    "bytes": 5794,
+    "compressed_bytes": 1976,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_bunch.py",
+    "bytes": 8534,
+    "compressed_bytes": 2761,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_ccallback.py",
+    "bytes": 7338,
+    "compressed_bytes": 2155,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_ccallback_c.cp313-win_amd64.dll.a",
+    "bytes": 1800,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_ccallback_c.cp313-win_amd64.pyd",
+    "bytes": 105984,
+    "compressed_bytes": 48211,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_disjoint_set.py",
+    "bytes": 6652,
+    "compressed_bytes": 1751,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_docscrape.py",
+    "bytes": 24601,
+    "compressed_bytes": 6364,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_elementwise_iterative_method.py",
+    "bytes": 15843,
+    "compressed_bytes": 4781,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_fpumode.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_fpumode.cp313-win_amd64.pyd",
+    "bytes": 12288,
+    "compressed_bytes": 4943,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_gcutils.py",
+    "bytes": 2545,
+    "compressed_bytes": 916,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_public_api.py",
+    "bytes": 1892,
+    "compressed_bytes": 844,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_sparse.py",
+    "bytes": 988,
+    "compressed_bytes": 422,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_test_ccallback.cp313-win_amd64.dll.a",
+    "bytes": 1842,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_test_ccallback.cp313-win_amd64.pyd",
+    "bytes": 48128,
+    "compressed_bytes": 22197,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_test_deprecation_call.cp313-win_amd64.dll.a",
+    "bytes": 1946,
+    "compressed_bytes": 483,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_test_deprecation_call.cp313-win_amd64.pyd",
+    "bytes": 36352,
+    "compressed_bytes": 15756,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_test_deprecation_def.cp313-win_amd64.dll.a",
+    "bytes": 1932,
+    "compressed_bytes": 476,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_test_deprecation_def.cp313-win_amd64.pyd",
+    "bytes": 21504,
+    "compressed_bytes": 9439,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_testutils.py",
+    "bytes": 12848,
+    "compressed_bytes": 4387,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_uarray/LICENSE",
+    "bytes": 1543,
+    "compressed_bytes": 808,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_uarray/__init__.py",
+    "bytes": 4609,
+    "compressed_bytes": 1868,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_uarray/_backend.py",
+    "bytes": 21238,
+    "compressed_bytes": 5127,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_uarray/_uarray.cp313-win_amd64.dll.a",
+    "bytes": 1722,
+    "compressed_bytes": 465,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_uarray/_uarray.cp313-win_amd64.pyd",
+    "bytes": 247296,
+    "compressed_bytes": 105069,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/_util.py",
+    "bytes": 48318,
+    "compressed_bytes": 14612,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/deprecation.py",
+    "bytes": 10128,
+    "compressed_bytes": 3026,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/doccer.py",
+    "bytes": 11087,
+    "compressed_bytes": 2616,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/messagestream.cp313-win_amd64.dll.a",
+    "bytes": 1812,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/messagestream.cp313-win_amd64.pyd",
+    "bytes": 60928,
+    "compressed_bytes": 27859,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/_lib/uarray.py",
+    "bytes": 869,
+    "compressed_bytes": 405,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/__init__.py",
+    "bytes": 911,
+    "compressed_bytes": 453,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/hierarchy/__init__.py",
+    "bytes": 2878,
+    "compressed_bytes": 920,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/hierarchy/_hierarchy.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 466,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/hierarchy/_hierarchy.cp313-win_amd64.pyd",
+    "bytes": 221184,
+    "compressed_bytes": 101869,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/hierarchy/_hierarchy_impl.py",
+    "bytes": 158999,
+    "compressed_bytes": 33031,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/hierarchy/_optimal_leaf_ordering.cp313-win_amd64.dll.a",
+    "bytes": 1946,
+    "compressed_bytes": 484,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/hierarchy/_optimal_leaf_ordering.cp313-win_amd64.pyd",
+    "bytes": 168448,
+    "compressed_bytes": 73204,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/vq/__init__.py",
+    "bytes": 3635,
+    "compressed_bytes": 1532,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/vq/_vq.cp313-win_amd64.dll.a",
+    "bytes": 1662,
+    "compressed_bytes": 460,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/vq/_vq.cp313-win_amd64.pyd",
+    "bytes": 103424,
+    "compressed_bytes": 46140,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/cluster/vq/_vq_impl.py",
+    "bytes": 28912,
+    "compressed_bytes": 7931,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/conftest.py",
+    "bytes": 31571,
+    "compressed_bytes": 9223,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/constants/__init__.py",
+    "bytes": 15161,
+    "compressed_bytes": 3417,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/constants/_codata.py",
+    "bytes": 204777,
+    "compressed_bytes": 40229,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/constants/_constants.py",
+    "bytes": 10941,
+    "compressed_bytes": 3760,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/constants/codata.py",
+    "bytes": 635,
+    "compressed_bytes": 335,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/constants/constants.py",
+    "bytes": 2303,
+    "compressed_bytes": 969,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/datasets/__init__.py",
+    "bytes": 2892,
+    "compressed_bytes": 1302,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/datasets/_download_all.py",
+    "bytes": 2256,
+    "compressed_bytes": 911,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/datasets/_fetchers.py",
+    "bytes": 7331,
+    "compressed_bytes": 2901,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/datasets/_registry.py",
+    "bytes": 1098,
+    "compressed_bytes": 492,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/datasets/_utils.py",
+    "bytes": 3011,
+    "compressed_bytes": 1016,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/differentiate/__init__.py",
+    "bytes": 648,
+    "compressed_bytes": 289,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/differentiate/_differentiate.py",
+    "bytes": 52780,
+    "compressed_bytes": 14005,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/__init__.py",
+    "bytes": 3744,
+    "compressed_bytes": 1120,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_backend.py",
+    "bytes": 7175,
+    "compressed_bytes": 1971,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_basic.py",
+    "bytes": 66026,
+    "compressed_bytes": 9443,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_basic_backend.py",
+    "bytes": 7598,
+    "compressed_bytes": 1185,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_debug_backends.py",
+    "bytes": 620,
+    "compressed_bytes": 271,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_duccfft/LICENSE.md",
+    "bytes": 1523,
+    "compressed_bytes": 798,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_duccfft/__init__.py",
+    "bytes": 214,
+    "compressed_bytes": 133,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_duccfft/basic.py",
+    "bytes": 8905,
+    "compressed_bytes": 1489,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_duccfft/helper.py",
+    "bytes": 7321,
+    "compressed_bytes": 2522,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_duccfft/pyduccfft.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_duccfft/pyduccfft.cp313-win_amd64.pyd",
+    "bytes": 2786816,
+    "compressed_bytes": 1009467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_duccfft/realtransforms.py",
+    "bytes": 3739,
+    "compressed_bytes": 909,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_fftlog.py",
+    "bytes": 8226,
+    "compressed_bytes": 2607,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_fftlog_backend.py",
+    "bytes": 5558,
+    "compressed_bytes": 1853,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_helper.py",
+    "bytes": 11867,
+    "compressed_bytes": 2921,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_realtransforms.py",
+    "bytes": 29232,
+    "compressed_bytes": 4507,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fft/_realtransforms_backend.py",
+    "bytes": 2430,
+    "compressed_bytes": 378,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/__init__.py",
+    "bytes": 3258,
+    "compressed_bytes": 1009,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/_basic.py",
+    "bytes": 13584,
+    "compressed_bytes": 3166,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/_helper.py",
+    "bytes": 3461,
+    "compressed_bytes": 1449,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/_pseudo_diffs.py",
+    "bytes": 16635,
+    "compressed_bytes": 2550,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/_realtransforms.py",
+    "bytes": 19802,
+    "compressed_bytes": 3094,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/basic.py",
+    "bytes": 597,
+    "compressed_bytes": 308,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/convolve.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/convolve.cp313-win_amd64.pyd",
+    "bytes": 116736,
+    "compressed_bytes": 56086,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/helper.py",
+    "bytes": 599,
+    "compressed_bytes": 317,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/pseudo_diffs.py",
+    "bytes": 680,
+    "compressed_bytes": 338,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/fftpack/realtransforms.py",
+    "bytes": 614,
+    "compressed_bytes": 316,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/LICENSE_DOP",
+    "bytes": 3648,
+    "compressed_bytes": 1344,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/__init__.py",
+    "bytes": 4495,
+    "compressed_bytes": 1592,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_bvp.py",
+    "bytes": 42721,
+    "compressed_bytes": 11418,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_cubature.py",
+    "bytes": 26497,
+    "compressed_bytes": 7976,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_dop.cp313-win_amd64.dll.a",
+    "bytes": 1680,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_dop.cp313-win_amd64.pyd",
+    "bytes": 87040,
+    "compressed_bytes": 37817,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/__init__.py",
+    "bytes": 264,
+    "compressed_bytes": 160,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/base.py",
+    "bytes": 10844,
+    "compressed_bytes": 3412,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/bdf.py",
+    "bytes": 18392,
+    "compressed_bytes": 5644,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/common.py",
+    "bytes": 16368,
+    "compressed_bytes": 4980,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/dop853_coefficients.py",
+    "bytes": 7430,
+    "compressed_bytes": 3293,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/ivp.py",
+    "bytes": 32775,
+    "compressed_bytes": 10561,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/lsoda.py",
+    "bytes": 10463,
+    "compressed_bytes": 3638,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/radau.py",
+    "bytes": 20721,
+    "compressed_bytes": 6295,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ivp/rk.py",
+    "bytes": 29289,
+    "compressed_bytes": 6656,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_lebedev.py",
+    "bytes": 267559,
+    "compressed_bytes": 42678,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_ode.py",
+    "bytes": 52239,
+    "compressed_bytes": 11364,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_odepack.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_odepack.cp313-win_amd64.pyd",
+    "bytes": 98816,
+    "compressed_bytes": 46490,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_odepack_py.py",
+    "bytes": 11507,
+    "compressed_bytes": 3992,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_quad_vec.py",
+    "bytes": 22280,
+    "compressed_bytes": 6751,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_quadpack.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_quadpack.cp313-win_amd64.pyd",
+    "bytes": 142336,
+    "compressed_bytes": 62275,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_quadpack_py.py",
+    "bytes": 55925,
+    "compressed_bytes": 14539,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_quadrature.py",
+    "bytes": 50877,
+    "compressed_bytes": 14603,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_rules/__init__.py",
+    "bytes": 340,
+    "compressed_bytes": 201,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_rules/_base.py",
+    "bytes": 18445,
+    "compressed_bytes": 4322,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_rules/_gauss_kronrod.py",
+    "bytes": 8675,
+    "compressed_bytes": 2430,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_rules/_gauss_legendre.py",
+    "bytes": 1795,
+    "compressed_bytes": 752,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_rules/_genz_malik.py",
+    "bytes": 7509,
+    "compressed_bytes": 2122,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_tanhsinh.py",
+    "bytes": 63348,
+    "compressed_bytes": 19694,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_test_multivariate.cp313-win_amd64.dll.a",
+    "bytes": 1886,
+    "compressed_bytes": 478,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_test_multivariate.cp313-win_amd64.pyd",
+    "bytes": 13824,
+    "compressed_bytes": 5313,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_vode.cp313-win_amd64.dll.a",
+    "bytes": 1692,
+    "compressed_bytes": 456,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/_vode.cp313-win_amd64.pyd",
+    "bytes": 139264,
+    "compressed_bytes": 63664,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/dop.py",
+    "bytes": 437,
+    "compressed_bytes": 234,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/lsoda.py",
+    "bytes": 453,
+    "compressed_bytes": 249,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/odepack.py",
+    "bytes": 562,
+    "compressed_bytes": 309,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/quadpack.py",
+    "bytes": 627,
+    "compressed_bytes": 318,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/integrate/vode.py",
+    "bytes": 439,
+    "compressed_bytes": 235,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/__init__.py",
+    "bytes": 4301,
+    "compressed_bytes": 1335,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_bary_rational.py",
+    "bytes": 30334,
+    "compressed_bytes": 9149,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_bsplines.py",
+    "bytes": 101277,
+    "compressed_bytes": 26911,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_cubic.py",
+    "bytes": 41976,
+    "compressed_bytes": 11035,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_dierckx.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_dierckx.cp313-win_amd64.pyd",
+    "bytes": 292864,
+    "compressed_bytes": 127734,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_fitpack.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_fitpack.cp313-win_amd64.pyd",
+    "bytes": 346112,
+    "compressed_bytes": 160968,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_fitpack2.py",
+    "bytes": 104191,
+    "compressed_bytes": 21383,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_fitpack_impl.py",
+    "bytes": 29854,
+    "compressed_bytes": 7880,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_fitpack_py.py",
+    "bytes": 33438,
+    "compressed_bytes": 8614,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_fitpack_repro.py",
+    "bytes": 53502,
+    "compressed_bytes": 15160,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_interpnd.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_interpnd.cp313-win_amd64.pyd",
+    "bytes": 233472,
+    "compressed_bytes": 108253,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_interpolate.py",
+    "bytes": 100877,
+    "compressed_bytes": 21726,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_ndbspline.py",
+    "bytes": 18362,
+    "compressed_bytes": 5538,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_ndgriddata.py",
+    "bytes": 13175,
+    "compressed_bytes": 3833,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_pade.py",
+    "bytes": 2391,
+    "compressed_bytes": 996,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_polyint.py",
+    "bytes": 40961,
+    "compressed_bytes": 10946,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_ppoly.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_ppoly.cp313-win_amd64.pyd",
+    "bytes": 204800,
+    "compressed_bytes": 92234,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rbf.py",
+    "bytes": 12059,
+    "compressed_bytes": 4285,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rbfinterp.py",
+    "bytes": 19978,
+    "compressed_bytes": 6116,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rbfinterp_common.py",
+    "bytes": 1005,
+    "compressed_bytes": 454,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rbfinterp_np.py",
+    "bytes": 3151,
+    "compressed_bytes": 1047,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rbfinterp_pythran.cp313-win_amd64.dll.a",
+    "bytes": 1886,
+    "compressed_bytes": 479,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rbfinterp_pythran.cp313-win_amd64.pyd",
+    "bytes": 1144832,
+    "compressed_bytes": 403932,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rbfinterp_xp.py",
+    "bytes": 7920,
+    "compressed_bytes": 2373,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_regrid.py",
+    "bytes": 43336,
+    "compressed_bytes": 13150,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rgi.py",
+    "bytes": 34776,
+    "compressed_bytes": 9350,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rgi_cython.cp313-win_amd64.dll.a",
+    "bytes": 1782,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/_rgi_cython.cp313-win_amd64.pyd",
+    "bytes": 120320,
+    "compressed_bytes": 56706,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/dfitpack.py",
+    "bytes": 617,
+    "compressed_bytes": 311,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/fitpack.py",
+    "bytes": 733,
+    "compressed_bytes": 348,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/fitpack2.py",
+    "bytes": 846,
+    "compressed_bytes": 353,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/interpnd.py",
+    "bytes": 630,
+    "compressed_bytes": 334,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/interpolate.py",
+    "bytes": 784,
+    "compressed_bytes": 372,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/ndgriddata.py",
+    "bytes": 659,
+    "compressed_bytes": 333,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/polyint.py",
+    "bytes": 696,
+    "compressed_bytes": 348,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/interpolate/rbf.py",
+    "bytes": 537,
+    "compressed_bytes": 289,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/__init__.py",
+    "bytes": 2896,
+    "compressed_bytes": 1015,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_fast_matrix_market/__init__.py",
+    "bytes": 18997,
+    "compressed_bytes": 5459,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_fast_matrix_market/_fmm_core.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_fast_matrix_market/_fmm_core.cp313-win_amd64.pyd",
+    "bytes": 2880000,
+    "compressed_bytes": 789125,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_fortran.py",
+    "bytes": 11213,
+    "compressed_bytes": 3602,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_harwell_boeing/__init__.py",
+    "bytes": 171,
+    "compressed_bytes": 119,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_harwell_boeing/_fortran_format_parser.py",
+    "bytes": 9319,
+    "compressed_bytes": 2408,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_harwell_boeing/hb.py",
+    "bytes": 21217,
+    "compressed_bytes": 5357,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_idl.py",
+    "bytes": 27936,
+    "compressed_bytes": 7048,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_mmio.py",
+    "bytes": 34653,
+    "compressed_bytes": 7432,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/_netcdf.py",
+    "bytes": 40605,
+    "compressed_bytes": 10687,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/arff/__init__.py",
+    "bytes": 833,
+    "compressed_bytes": 457,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/arff/_arffread.py",
+    "bytes": 27181,
+    "compressed_bytes": 7244,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/arff/arffread.py",
+    "bytes": 594,
+    "compressed_bytes": 320,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/harwell_boeing.py",
+    "bytes": 555,
+    "compressed_bytes": 298,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/idl.py",
+    "bytes": 521,
+    "compressed_bytes": 282,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/__init__.py",
+    "bytes": 2313,
+    "compressed_bytes": 922,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_byteordercodes.py",
+    "bytes": 2058,
+    "compressed_bytes": 737,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio.py",
+    "bytes": 15802,
+    "compressed_bytes": 5267,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio4.py",
+    "bytes": 21625,
+    "compressed_bytes": 6066,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio5.py",
+    "bytes": 35632,
+    "compressed_bytes": 9941,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio5_params.py",
+    "bytes": 8936,
+    "compressed_bytes": 2935,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio5_utils.cp313-win_amd64.dll.a",
+    "bytes": 1782,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio5_utils.cp313-win_amd64.pyd",
+    "bytes": 184320,
+    "compressed_bytes": 82648,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio_utils.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_mio_utils.cp313-win_amd64.pyd",
+    "bytes": 52736,
+    "compressed_bytes": 24534,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_miobase.py",
+    "bytes": 13538,
+    "compressed_bytes": 4434,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_streams.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/_streams.cp313-win_amd64.pyd",
+    "bytes": 111104,
+    "compressed_bytes": 47736,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/byteordercodes.py",
+    "bytes": 545,
+    "compressed_bytes": 285,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/mio.py",
+    "bytes": 555,
+    "compressed_bytes": 300,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/mio4.py",
+    "bytes": 525,
+    "compressed_bytes": 281,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/mio5.py",
+    "bytes": 657,
+    "compressed_bytes": 351,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/mio5_params.py",
+    "bytes": 611,
+    "compressed_bytes": 325,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/mio5_utils.py",
+    "bytes": 537,
+    "compressed_bytes": 285,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/mio_utils.py",
+    "bytes": 535,
+    "compressed_bytes": 283,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/miobase.py",
+    "bytes": 581,
+    "compressed_bytes": 314,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/matlab/streams.py",
+    "bytes": 529,
+    "compressed_bytes": 282,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/mmio.py",
+    "bytes": 543,
+    "compressed_bytes": 292,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/netcdf.py",
+    "bytes": 550,
+    "compressed_bytes": 293,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/io/wavfile.py",
+    "bytes": 31629,
+    "compressed_bytes": 9721,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/__init__.pxd",
+    "bytes": 54,
+    "compressed_bytes": 49,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/__init__.py",
+    "bytes": 7660,
+    "compressed_bytes": 2341,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_basic.py",
+    "bytes": 78191,
+    "compressed_bytes": 21317,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_batched_linalg.cp313-win_amd64.dll.a",
+    "bytes": 1842,
+    "compressed_bytes": 472,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_batched_linalg.cp313-win_amd64.pyd",
+    "bytes": 1165824,
+    "compressed_bytes": 425284,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_cythonized_array_utils.cp313-win_amd64.dll.a",
+    "bytes": 1962,
+    "compressed_bytes": 483,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_cythonized_array_utils.cp313-win_amd64.pyd",
+    "bytes": 199168,
+    "compressed_bytes": 78436,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_cythonized_array_utils.pxd",
+    "bytes": 853,
+    "compressed_bytes": 274,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp.py",
+    "bytes": 67002,
+    "compressed_bytes": 14521,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_cholesky.py",
+    "bytes": 17218,
+    "compressed_bytes": 4082,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_cossin.py",
+    "bytes": 9839,
+    "compressed_bytes": 3221,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_interpolative.cp313-win_amd64.dll.a",
+    "bytes": 1932,
+    "compressed_bytes": 478,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_interpolative.cp313-win_amd64.pyd",
+    "bytes": 740864,
+    "compressed_bytes": 301515,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_ldl.py",
+    "bytes": 13027,
+    "compressed_bytes": 4482,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_lu.py",
+    "bytes": 12871,
+    "compressed_bytes": 3881,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_polar.py",
+    "bytes": 3767,
+    "compressed_bytes": 1402,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_qr.py",
+    "bytes": 17063,
+    "compressed_bytes": 4764,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_qz.py",
+    "bytes": 17112,
+    "compressed_bytes": 4974,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_schur.py",
+    "bytes": 12567,
+    "compressed_bytes": 3930,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_svd.py",
+    "bytes": 19827,
+    "compressed_bytes": 5574,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_update.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_decomp_update.cp313-win_amd64.pyd",
+    "bytes": 304128,
+    "compressed_bytes": 126541,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_expm_frechet.py",
+    "bytes": 12832,
+    "compressed_bytes": 3565,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_fblas.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 463,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_fblas.cp313-win_amd64.pyd",
+    "bytes": 739840,
+    "compressed_bytes": 160281,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_flapack.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_flapack.cp313-win_amd64.pyd",
+    "bytes": 2301952,
+    "compressed_bytes": 429399,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_internal_matfuncs.cp313-win_amd64.dll.a",
+    "bytes": 1886,
+    "compressed_bytes": 477,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_internal_matfuncs.cp313-win_amd64.pyd",
+    "bytes": 172032,
+    "compressed_bytes": 77171,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_linalg_pythran.cp313-win_amd64.dll.a",
+    "bytes": 1842,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_linalg_pythran.cp313-win_amd64.pyd",
+    "bytes": 1038336,
+    "compressed_bytes": 372396,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_matfuncs.py",
+    "bytes": 27449,
+    "compressed_bytes": 7570,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_matfuncs_inv_ssq.py",
+    "bytes": 28971,
+    "compressed_bytes": 7506,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_matfuncs_sqrtm.py",
+    "bytes": 3490,
+    "compressed_bytes": 1450,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_matfuncs_sqrtm_triu.cp313-win_amd64.dll.a",
+    "bytes": 1920,
+    "compressed_bytes": 484,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_matfuncs_sqrtm_triu.cp313-win_amd64.pyd",
+    "bytes": 107520,
+    "compressed_bytes": 52182,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_misc.py",
+    "bytes": 9701,
+    "compressed_bytes": 3469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_procrustes.py",
+    "bytes": 3978,
+    "compressed_bytes": 1676,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_sketches.py",
+    "bytes": 7398,
+    "compressed_bytes": 2632,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_solve_toeplitz.cp313-win_amd64.dll.a",
+    "bytes": 1842,
+    "compressed_bytes": 472,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_solve_toeplitz.cp313-win_amd64.pyd",
+    "bytes": 123392,
+    "compressed_bytes": 58852,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_solvers.py",
+    "bytes": 31002,
+    "compressed_bytes": 7743,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_special_matrices.py",
+    "bytes": 42603,
+    "compressed_bytes": 10866,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/_testutils.py",
+    "bytes": 2016,
+    "compressed_bytes": 722,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/basic.py",
+    "bytes": 776,
+    "compressed_bytes": 396,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/blas.py",
+    "bytes": 13465,
+    "compressed_bytes": 4357,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/cython_blas.cp313-win_amd64.dll.a",
+    "bytes": 1782,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/cython_blas.cp313-win_amd64.pyd",
+    "bytes": 127488,
+    "compressed_bytes": 51914,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/cython_blas.pxd",
+    "bytes": 15811,
+    "compressed_bytes": 1586,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/cython_lapack.cp313-win_amd64.dll.a",
+    "bytes": 1812,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/cython_lapack.cp313-win_amd64.pyd",
+    "bytes": 203264,
+    "compressed_bytes": 66148,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/cython_lapack.pxd",
+    "bytes": 206126,
+    "compressed_bytes": 21150,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/decomp.py",
+    "bytes": 731,
+    "compressed_bytes": 367,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/decomp_cholesky.py",
+    "bytes": 670,
+    "compressed_bytes": 349,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/decomp_lu.py",
+    "bytes": 614,
+    "compressed_bytes": 330,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/decomp_qr.py",
+    "bytes": 587,
+    "compressed_bytes": 315,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/decomp_schur.py",
+    "bytes": 623,
+    "compressed_bytes": 337,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/decomp_svd.py",
+    "bytes": 652,
+    "compressed_bytes": 347,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/interpolative.py",
+    "bytes": 32110,
+    "compressed_bytes": 7574,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/lapack.py",
+    "bytes": 20840,
+    "compressed_bytes": 6456,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/matfuncs.py",
+    "bytes": 767,
+    "compressed_bytes": 393,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/misc.py",
+    "bytes": 613,
+    "compressed_bytes": 330,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/linalg/special_matrices.py",
+    "bytes": 771,
+    "compressed_bytes": 392,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/misc/__init__.py",
+    "bytes": 141,
+    "compressed_bytes": 110,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/misc/common.py",
+    "bytes": 148,
+    "compressed_bytes": 115,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/misc/doccer.py",
+    "bytes": 148,
+    "compressed_bytes": 115,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/__init__.py",
+    "bytes": 5381,
+    "compressed_bytes": 2061,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_ctest.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 462,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_ctest.cp313-win_amd64.pyd",
+    "bytes": 13824,
+    "compressed_bytes": 5678,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_cytest.cp313-win_amd64.dll.a",
+    "bytes": 1722,
+    "compressed_bytes": 466,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_cytest.cp313-win_amd64.pyd",
+    "bytes": 73216,
+    "compressed_bytes": 33077,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_delegators.py",
+    "bytes": 9713,
+    "compressed_bytes": 1716,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_filters.py",
+    "bytes": 95819,
+    "compressed_bytes": 19388,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_fourier.py",
+    "bytes": 11572,
+    "compressed_bytes": 2389,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_interpolation.py",
+    "bytes": 38730,
+    "compressed_bytes": 8881,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_measurements.py",
+    "bytes": 57963,
+    "compressed_bytes": 13213,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_morphology.py",
+    "bytes": 103595,
+    "compressed_bytes": 15203,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_nd_image.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_nd_image.cp313-win_amd64.pyd",
+    "bytes": 196608,
+    "compressed_bytes": 84214,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_ndimage_api.py",
+    "bytes": 602,
+    "compressed_bytes": 334,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_ni_docstrings.py",
+    "bytes": 9266,
+    "compressed_bytes": 2330,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_ni_label.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_ni_label.cp313-win_amd64.pyd",
+    "bytes": 209920,
+    "compressed_bytes": 78653,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_ni_support.py",
+    "bytes": 5355,
+    "compressed_bytes": 2017,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_rank_filter_1d.cp313-win_amd64.dll.a",
+    "bytes": 1842,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_rank_filter_1d.cp313-win_amd64.pyd",
+    "bytes": 128000,
+    "compressed_bytes": 55517,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/_support_alternative_backends.py",
+    "bytes": 4363,
+    "compressed_bytes": 1393,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/filters.py",
+    "bytes": 1003,
+    "compressed_bytes": 424,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/fourier.py",
+    "bytes": 620,
+    "compressed_bytes": 318,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/interpolation.py",
+    "bytes": 686,
+    "compressed_bytes": 351,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/measurements.py",
+    "bytes": 812,
+    "compressed_bytes": 412,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/ndimage/morphology.py",
+    "bytes": 992,
+    "compressed_bytes": 444,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/__init__.py",
+    "bytes": 6391,
+    "compressed_bytes": 2759,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/__odrpack.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 466,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/__odrpack.cp313-win_amd64.pyd",
+    "bytes": 715776,
+    "compressed_bytes": 302753,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/_add_newdocs.py",
+    "bytes": 1367,
+    "compressed_bytes": 656,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/_models.py",
+    "bytes": 9114,
+    "compressed_bytes": 2222,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/_odrpack.py",
+    "bytes": 45507,
+    "compressed_bytes": 11586,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/models.py",
+    "bytes": 812,
+    "compressed_bytes": 465,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/odr/odrpack.py",
+    "bytes": 856,
+    "compressed_bytes": 474,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/__init__.pxd",
+    "bytes": 40,
+    "compressed_bytes": 36,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/__init__.py",
+    "bytes": 13739,
+    "compressed_bytes": 3819,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_basinhopping.py",
+    "bytes": 30719,
+    "compressed_bytes": 8872,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_bglu_dense.cp313-win_amd64.dll.a",
+    "bytes": 1782,
+    "compressed_bytes": 466,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_bglu_dense.cp313-win_amd64.pyd",
+    "bytes": 173568,
+    "compressed_bytes": 79099,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_bracket.py",
+    "bytes": 32051,
+    "compressed_bytes": 8174,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_chandrupatla.py",
+    "bytes": 25298,
+    "compressed_bytes": 6899,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_cobyla_py.py",
+    "bytes": 11304,
+    "compressed_bytes": 3806,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_cobyqa_py.py",
+    "bytes": 2999,
+    "compressed_bytes": 1151,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_constraints.py",
+    "bytes": 25902,
+    "compressed_bytes": 6350,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_dcsrch.py",
+    "bytes": 25962,
+    "compressed_bytes": 5738,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_differentiable_functions.py",
+    "bytes": 30809,
+    "compressed_bytes": 5874,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_differentialevolution.py",
+    "bytes": 92056,
+    "compressed_bytes": 20357,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_direct.cp313-win_amd64.dll.a",
+    "bytes": 1722,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_direct.cp313-win_amd64.pyd",
+    "bytes": 70656,
+    "compressed_bytes": 34868,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_direct_py.py",
+    "bytes": 12128,
+    "compressed_bytes": 4196,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_dual_annealing.py",
+    "bytes": 31967,
+    "compressed_bytes": 8636,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_elementwise.py",
+    "bytes": 35567,
+    "compressed_bytes": 6611,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_group_columns.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_group_columns.cp313-win_amd64.pyd",
+    "bytes": 1007616,
+    "compressed_bytes": 359458,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_hessian_update_strategy.py",
+    "bytes": 18902,
+    "compressed_bytes": 4475,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_highspy/__init__.py",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_highspy/_core.cp313-win_amd64.dll.a",
+    "bytes": 1692,
+    "compressed_bytes": 458,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_highspy/_core.cp313-win_amd64.pyd",
+    "bytes": 6709760,
+    "compressed_bytes": 2695547,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_highspy/_highs_options.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_highspy/_highs_options.cp313-win_amd64.pyd",
+    "bytes": 543232,
+    "compressed_bytes": 240304,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_highspy/_highs_wrapper.py",
+    "bytes": 11632,
+    "compressed_bytes": 3191,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_isotonic.py",
+    "bytes": 6234,
+    "compressed_bytes": 2534,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lbfgsb.cp313-win_amd64.dll.a",
+    "bytes": 1722,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lbfgsb.cp313-win_amd64.pyd",
+    "bytes": 49664,
+    "compressed_bytes": 23621,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lbfgsb_py.py",
+    "bytes": 21662,
+    "compressed_bytes": 7508,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linesearch.py",
+    "bytes": 28771,
+    "compressed_bytes": 6948,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linprog.py",
+    "bytes": 30973,
+    "compressed_bytes": 8822,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linprog_doc.py",
+    "bytes": 63363,
+    "compressed_bytes": 9218,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linprog_highs.py",
+    "bytes": 17567,
+    "compressed_bytes": 5059,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linprog_ip.py",
+    "bytes": 47792,
+    "compressed_bytes": 11435,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linprog_rs.py",
+    "bytes": 23718,
+    "compressed_bytes": 7345,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linprog_simplex.py",
+    "bytes": 25411,
+    "compressed_bytes": 5910,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_linprog_util.py",
+    "bytes": 64259,
+    "compressed_bytes": 13343,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsap.cp313-win_amd64.dll.a",
+    "bytes": 1692,
+    "compressed_bytes": 457,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsap.cp313-win_amd64.pyd",
+    "bytes": 190976,
+    "compressed_bytes": 79557,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/__init__.py",
+    "bytes": 177,
+    "compressed_bytes": 111,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/bvls.py",
+    "bytes": 5378,
+    "compressed_bytes": 1550,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/common.py",
+    "bytes": 21212,
+    "compressed_bytes": 6401,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/dogbox.py",
+    "bytes": 12522,
+    "compressed_bytes": 4039,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/givens_elimination.cp313-win_amd64.dll.a",
+    "bytes": 1886,
+    "compressed_bytes": 479,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/givens_elimination.cp313-win_amd64.pyd",
+    "bytes": 69632,
+    "compressed_bytes": 34883,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/least_squares.py",
+    "bytes": 43856,
+    "compressed_bytes": 13547,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/lsq_linear.py",
+    "bytes": 15636,
+    "compressed_bytes": 4978,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/trf.py",
+    "bytes": 21103,
+    "compressed_bytes": 5562,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_lsq/trf_linear.py",
+    "bytes": 7891,
+    "compressed_bytes": 2562,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_milp.py",
+    "bytes": 15647,
+    "compressed_bytes": 4806,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_minimize.py",
+    "bytes": 54249,
+    "compressed_bytes": 15044,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_minpack.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_minpack.cp313-win_amd64.pyd",
+    "bytes": 125952,
+    "compressed_bytes": 57219,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_minpack_py.py",
+    "bytes": 46764,
+    "compressed_bytes": 13423,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_moduleTNC.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_moduleTNC.cp313-win_amd64.pyd",
+    "bytes": 147968,
+    "compressed_bytes": 68878,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_nnls.py",
+    "bytes": 2699,
+    "compressed_bytes": 1233,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_nonlin.py",
+    "bytes": 54081,
+    "compressed_bytes": 13414,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_numdiff.py",
+    "bytes": 38227,
+    "compressed_bytes": 10723,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_optimize.py",
+    "bytes": 154034,
+    "compressed_bytes": 37766,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_pava_pybind.cp313-win_amd64.dll.a",
+    "bytes": 1800,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_pava_pybind.cp313-win_amd64.pyd",
+    "bytes": 324096,
+    "compressed_bytes": 145139,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_qap.py",
+    "bytes": 28078,
+    "compressed_bytes": 7093,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_remove_redundancy.py",
+    "bytes": 19279,
+    "compressed_bytes": 4820,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_root.py",
+    "bytes": 29439,
+    "compressed_bytes": 6486,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_root_scalar.py",
+    "bytes": 20920,
+    "compressed_bytes": 4123,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_shgo.py",
+    "bytes": 65114,
+    "compressed_bytes": 17081,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_shgo_lib/__init__.py",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_shgo_lib/_complex.py",
+    "bytes": 51485,
+    "compressed_bytes": 10086,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_shgo_lib/_vertex.py",
+    "bytes": 14456,
+    "compressed_bytes": 3153,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_slsqp_py.py",
+    "bytes": 25050,
+    "compressed_bytes": 7839,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_slsqplib.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_slsqplib.cp313-win_amd64.pyd",
+    "bytes": 48640,
+    "compressed_bytes": 21736,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_spectral.py",
+    "bytes": 8388,
+    "compressed_bytes": 2812,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_tnc.py",
+    "bytes": 17782,
+    "compressed_bytes": 5708,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trlib/__init__.py",
+    "bytes": 536,
+    "compressed_bytes": 206,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trlib/_trlib.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trlib/_trlib.cp313-win_amd64.pyd",
+    "bytes": 206336,
+    "compressed_bytes": 89589,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion.py",
+    "bytes": 12198,
+    "compressed_bytes": 3862,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/__init__.py",
+    "bytes": 186,
+    "compressed_bytes": 118,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/canonical_constraint.py",
+    "bytes": 12932,
+    "compressed_bytes": 2723,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/equality_constrained_sqp.py",
+    "bytes": 9391,
+    "compressed_bytes": 2803,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/minimize_trustregion_constr.py",
+    "bytes": 27165,
+    "compressed_bytes": 6264,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/projections.py",
+    "bytes": 13925,
+    "compressed_bytes": 3294,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/qp_subproblem.py",
+    "bytes": 23228,
+    "compressed_bytes": 5615,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/report.py",
+    "bytes": 1831,
+    "compressed_bytes": 491,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_constr/tr_interior_point.py",
+    "bytes": 15109,
+    "compressed_bytes": 4082,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_dogleg.py",
+    "bytes": 4511,
+    "compressed_bytes": 1482,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_exact.py",
+    "bytes": 17161,
+    "compressed_bytes": 5034,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_krylov.py",
+    "bytes": 3095,
+    "compressed_bytes": 969,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_trustregion_ncg.py",
+    "bytes": 4706,
+    "compressed_bytes": 1511,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_tstutils.py",
+    "bytes": 35032,
+    "compressed_bytes": 7551,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_zeros.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 463,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_zeros.cp313-win_amd64.pyd",
+    "bytes": 23040,
+    "compressed_bytes": 8559,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/_zeros_py.py",
+    "bytes": 58518,
+    "compressed_bytes": 13296,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/cobyla.py",
+    "bytes": 576,
+    "compressed_bytes": 309,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/cython_optimize.pxd",
+    "bytes": 453,
+    "compressed_bytes": 301,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/cython_optimize/__init__.py",
+    "bytes": 5020,
+    "compressed_bytes": 1691,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/cython_optimize/_zeros.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 466,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/cython_optimize/_zeros.cp313-win_amd64.pyd",
+    "bytes": 82432,
+    "compressed_bytes": 36894,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/cython_optimize/_zeros.pxd",
+    "bytes": 1272,
+    "compressed_bytes": 362,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/cython_optimize/c_zeros.pxd",
+    "bytes": 1144,
+    "compressed_bytes": 243,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/elementwise.py",
+    "bytes": 1228,
+    "compressed_bytes": 548,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/lbfgsb.py",
+    "bytes": 624,
+    "compressed_bytes": 334,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/linesearch.py",
+    "bytes": 553,
+    "compressed_bytes": 293,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/minpack.py",
+    "bytes": 691,
+    "compressed_bytes": 350,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/minpack2.py",
+    "bytes": 531,
+    "compressed_bytes": 281,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/moduleTNC.py",
+    "bytes": 526,
+    "compressed_bytes": 273,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/nonlin.py",
+    "bytes": 739,
+    "compressed_bytes": 368,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/optimize.py",
+    "bytes": 917,
+    "compressed_bytes": 414,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/slsqp.py",
+    "bytes": 591,
+    "compressed_bytes": 311,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/tnc.py",
+    "bytes": 582,
+    "compressed_bytes": 310,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/optimize/zeros.py",
+    "bytes": 646,
+    "compressed_bytes": 336,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/__init__.py",
+    "bytes": 14022,
+    "compressed_bytes": 3844,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_arraytools.py",
+    "bytes": 8558,
+    "compressed_bytes": 1868,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_czt.py",
+    "bytes": 20152,
+    "compressed_bytes": 5340,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_delegators.py",
+    "bytes": 15224,
+    "compressed_bytes": 3597,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_filter_design.py",
+    "bytes": 211042,
+    "compressed_bytes": 45037,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_fir_filter_design.py",
+    "bytes": 65721,
+    "compressed_bytes": 19381,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_lti_conversion.py",
+    "bytes": 20234,
+    "compressed_bytes": 6077,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_ltisys.py",
+    "bytes": 136228,
+    "compressed_bytes": 26768,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_max_len_seq.py",
+    "bytes": 5199,
+    "compressed_bytes": 2060,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_max_len_seq_inner.cp313-win_amd64.dll.a",
+    "bytes": 1886,
+    "compressed_bytes": 478,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_max_len_seq_inner.cp313-win_amd64.pyd",
+    "bytes": 979968,
+    "compressed_bytes": 347589,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_peak_finding.py",
+    "bytes": 50069,
+    "compressed_bytes": 12376,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_peak_finding_utils.cp313-win_amd64.dll.a",
+    "bytes": 1902,
+    "compressed_bytes": 477,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_peak_finding_utils.cp313-win_amd64.pyd",
+    "bytes": 130048,
+    "compressed_bytes": 61085,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_polyutils.py",
+    "bytes": 8567,
+    "compressed_bytes": 3024,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_savitzky_golay.py",
+    "bytes": 15073,
+    "compressed_bytes": 4777,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_short_time_fft.py",
+    "bytes": 105461,
+    "compressed_bytes": 24876,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_signal_api.py",
+    "bytes": 1326,
+    "compressed_bytes": 487,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_signaltools.py",
+    "bytes": 203726,
+    "compressed_bytes": 53810,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_sigtools.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_sigtools.cp313-win_amd64.pyd",
+    "bytes": 119296,
+    "compressed_bytes": 53437,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_sosfilt.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_sosfilt.cp313-win_amd64.pyd",
+    "bytes": 110592,
+    "compressed_bytes": 48948,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_spectral_py.py",
+    "bytes": 99636,
+    "compressed_bytes": 22132,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_spline.cp313-win_amd64.dll.a",
+    "bytes": 1722,
+    "compressed_bytes": 465,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_spline.cp313-win_amd64.pyd",
+    "bytes": 59392,
+    "compressed_bytes": 26988,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_spline_filters.py",
+    "bytes": 26305,
+    "compressed_bytes": 6041,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_support_alternative_backends.py",
+    "bytes": 18704,
+    "compressed_bytes": 3363,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_upfirdn.py",
+    "bytes": 8195,
+    "compressed_bytes": 3232,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_upfirdn_apply.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_upfirdn_apply.cp313-win_amd64.pyd",
+    "bytes": 192512,
+    "compressed_bytes": 83961,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_waveforms.py",
+    "bytes": 23639,
+    "compressed_bytes": 7181,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_wavelets.py",
+    "bytes": 915,
+    "compressed_bytes": 459,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/_whittaker.py",
+    "bytes": 18547,
+    "compressed_bytes": 6417,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/bsplines.py",
+    "bytes": 672,
+    "compressed_bytes": 338,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/filter_design.py",
+    "bytes": 1140,
+    "compressed_bytes": 513,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/fir_filter_design.py",
+    "bytes": 678,
+    "compressed_bytes": 346,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/lti_conversion.py",
+    "bytes": 659,
+    "compressed_bytes": 345,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/ltisys.py",
+    "bytes": 894,
+    "compressed_bytes": 438,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/signaltools.py",
+    "bytes": 1065,
+    "compressed_bytes": 485,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/spectral.py",
+    "bytes": 683,
+    "compressed_bytes": 362,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/spline.py",
+    "bytes": 554,
+    "compressed_bytes": 298,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/waveforms.py",
+    "bytes": 619,
+    "compressed_bytes": 333,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/wavelets.py",
+    "bytes": 527,
+    "compressed_bytes": 280,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/windows/__init__.py",
+    "bytes": 2178,
+    "compressed_bytes": 724,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/windows/_windows.py",
+    "bytes": 97653,
+    "compressed_bytes": 19886,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/signal/windows/windows.py",
+    "bytes": 862,
+    "compressed_bytes": 426,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/__init__.py",
+    "bytes": 8466,
+    "compressed_bytes": 3234,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_base.py",
+    "bytes": 65516,
+    "compressed_bytes": 14486,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_bsr.py",
+    "bytes": 33312,
+    "compressed_bytes": 7190,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_compressed.py",
+    "bytes": 54001,
+    "compressed_bytes": 11841,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_construct.py",
+    "bytes": 67182,
+    "compressed_bytes": 13918,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_coo.py",
+    "bytes": 79442,
+    "compressed_bytes": 17935,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_csc.py",
+    "bytes": 13374,
+    "compressed_bytes": 3043,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_csparsetools.cp313-win_amd64.dll.a",
+    "bytes": 1812,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_csparsetools.cp313-win_amd64.pyd",
+    "bytes": 406016,
+    "compressed_bytes": 131405,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_csr.py",
+    "bytes": 21014,
+    "compressed_bytes": 4597,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_data.py",
+    "bytes": 21923,
+    "compressed_bytes": 4343,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_dia.py",
+    "bytes": 27973,
+    "compressed_bytes": 6422,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_dok.py",
+    "bytes": 28654,
+    "compressed_bytes": 6657,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_extract.py",
+    "bytes": 8461,
+    "compressed_bytes": 1796,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_index.py",
+    "bytes": 18713,
+    "compressed_bytes": 4662,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_lil.py",
+    "bytes": 23458,
+    "compressed_bytes": 5385,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_matrix.py",
+    "bytes": 5743,
+    "compressed_bytes": 1889,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_matrix_io.py",
+    "bytes": 6402,
+    "compressed_bytes": 1672,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_sparsetools.cp313-win_amd64.dll.a",
+    "bytes": 1800,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_sparsetools.cp313-win_amd64.pyd",
+    "bytes": 4239360,
+    "compressed_bytes": 1254783,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_spfuncs.py",
+    "bytes": 2063,
+    "compressed_bytes": 711,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/_sputils.py",
+    "bytes": 21078,
+    "compressed_bytes": 6286,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/base.py",
+    "bytes": 633,
+    "compressed_bytes": 319,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/bsr.py",
+    "bytes": 583,
+    "compressed_bytes": 306,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/compressed.py",
+    "bytes": 570,
+    "compressed_bytes": 308,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/construct.py",
+    "bytes": 850,
+    "compressed_bytes": 381,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/coo.py",
+    "bytes": 615,
+    "compressed_bytes": 324,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csc.py",
+    "bytes": 583,
+    "compressed_bytes": 306,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/__init__.py",
+    "bytes": 8052,
+    "compressed_bytes": 2586,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_flow.cp313-win_amd64.dll.a",
+    "bytes": 1692,
+    "compressed_bytes": 459,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_flow.cp313-win_amd64.pyd",
+    "bytes": 184320,
+    "compressed_bytes": 77860,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_laplacian.py",
+    "bytes": 18840,
+    "compressed_bytes": 4994,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_matching.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_matching.cp313-win_amd64.pyd",
+    "bytes": 182272,
+    "compressed_bytes": 79917,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_min_spanning_tree.cp313-win_amd64.dll.a",
+    "bytes": 1886,
+    "compressed_bytes": 478,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_min_spanning_tree.cp313-win_amd64.pyd",
+    "bytes": 103424,
+    "compressed_bytes": 48634,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_reordering.cp313-win_amd64.dll.a",
+    "bytes": 1782,
+    "compressed_bytes": 466,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_reordering.cp313-win_amd64.pyd",
+    "bytes": 151552,
+    "compressed_bytes": 71828,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_shortest_path.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_shortest_path.cp313-win_amd64.pyd",
+    "bytes": 655360,
+    "compressed_bytes": 237823,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_tools.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 465,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_tools.cp313-win_amd64.pyd",
+    "bytes": 158720,
+    "compressed_bytes": 68825,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_traversal.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_traversal.cp313-win_amd64.pyd",
+    "bytes": 503808,
+    "compressed_bytes": 190767,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csgraph/_validation.py",
+    "bytes": 2925,
+    "compressed_bytes": 788,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/csr.py",
+    "bytes": 583,
+    "compressed_bytes": 306,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/data.py",
+    "bytes": 522,
+    "compressed_bytes": 277,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/dia.py",
+    "bytes": 583,
+    "compressed_bytes": 306,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/dok.py",
+    "bytes": 583,
+    "compressed_bytes": 306,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/extract.py",
+    "bytes": 590,
+    "compressed_bytes": 308,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/lil.py",
+    "bytes": 584,
+    "compressed_bytes": 307,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/__init__.py",
+    "bytes": 4378,
+    "compressed_bytes": 1352,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_dsolve/__init__.py",
+    "bytes": 2110,
+    "compressed_bytes": 779,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_dsolve/_add_newdocs.py",
+    "bytes": 3890,
+    "compressed_bytes": 1245,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_dsolve/_superlu.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_dsolve/_superlu.cp313-win_amd64.pyd",
+    "bytes": 425984,
+    "compressed_bytes": 207284,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_dsolve/linsolve.py",
+    "bytes": 34569,
+    "compressed_bytes": 8592,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/__init__.py",
+    "bytes": 482,
+    "compressed_bytes": 277,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/_svds.py",
+    "bytes": 20325,
+    "compressed_bytes": 6252,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/_svds_doc.py",
+    "bytes": 15385,
+    "compressed_bytes": 2565,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/arpack/__init__.py",
+    "bytes": 582,
+    "compressed_bytes": 369,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/arpack/_arpacklib.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/arpack/_arpacklib.cp313-win_amd64.pyd",
+    "bytes": 223232,
+    "compressed_bytes": 94781,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/arpack/arpack.py",
+    "bytes": 72031,
+    "compressed_bytes": 13429,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/lobpcg/__init__.py",
+    "bytes": 436,
+    "compressed_bytes": 280,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_eigen/lobpcg/lobpcg.py",
+    "bytes": 43091,
+    "compressed_bytes": 9569,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_expm_multiply.py",
+    "bytes": 27300,
+    "compressed_bytes": 6996,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_funm_multiply_krylov.py",
+    "bytes": 12522,
+    "compressed_bytes": 4248,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_interface.py",
+    "bytes": 42611,
+    "compressed_bytes": 9820,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/__init__.py",
+    "bytes": 499,
+    "compressed_bytes": 240,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/_gcrotmk.py",
+    "bytes": 16374,
+    "compressed_bytes": 5720,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/iterative.py",
+    "bytes": 34677,
+    "compressed_bytes": 6427,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/lgmres.py",
+    "bytes": 8936,
+    "compressed_bytes": 3360,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/lsmr.py",
+    "bytes": 16335,
+    "compressed_bytes": 5404,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/lsqr.py",
+    "bytes": 22016,
+    "compressed_bytes": 7685,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/minres.py",
+    "bytes": 11562,
+    "compressed_bytes": 3952,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/tfqmr.py",
+    "bytes": 6413,
+    "compressed_bytes": 2478,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_isolve/utils.py",
+    "bytes": 3613,
+    "compressed_bytes": 1207,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_matfuncs.py",
+    "bytes": 30272,
+    "compressed_bytes": 7871,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_norm.py",
+    "bytes": 6508,
+    "compressed_bytes": 2230,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_onenormest.py",
+    "bytes": 12309,
+    "compressed_bytes": 3890,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_propack.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_propack.cp313-win_amd64.pyd",
+    "bytes": 166912,
+    "compressed_bytes": 67059,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_special_sparse_arrays.py",
+    "bytes": 35302,
+    "compressed_bytes": 7847,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/_svdp.py",
+    "bytes": 11224,
+    "compressed_bytes": 3684,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/dsolve.py",
+    "bytes": 676,
+    "compressed_bytes": 360,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/eigen.py",
+    "bytes": 647,
+    "compressed_bytes": 341,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/interface.py",
+    "bytes": 593,
+    "compressed_bytes": 316,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/isolve.py",
+    "bytes": 671,
+    "compressed_bytes": 342,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/linalg/matfuncs.py",
+    "bytes": 588,
+    "compressed_bytes": 317,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/sparsetools.py",
+    "bytes": 533,
+    "compressed_bytes": 278,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/spfuncs.py",
+    "bytes": 525,
+    "compressed_bytes": 277,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/sparse/sputils.py",
+    "bytes": 525,
+    "compressed_bytes": 278,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/__init__.py",
+    "bytes": 3910,
+    "compressed_bytes": 1380,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_ckdtree.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_ckdtree.cp313-win_amd64.pyd",
+    "bytes": 863232,
+    "compressed_bytes": 348962,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_distance_pybind.cp313-win_amd64.dll.a",
+    "bytes": 1860,
+    "compressed_bytes": 476,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_distance_pybind.cp313-win_amd64.pyd",
+    "bytes": 1479168,
+    "compressed_bytes": 542336,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_distance_wrap.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_distance_wrap.cp313-win_amd64.pyd",
+    "bytes": 128512,
+    "compressed_bytes": 51588,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_geometric_slerp.py",
+    "bytes": 8875,
+    "compressed_bytes": 2959,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_hausdorff.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_hausdorff.cp313-win_amd64.pyd",
+    "bytes": 92672,
+    "compressed_bytes": 45728,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_kdtree.py",
+    "bytes": 38903,
+    "compressed_bytes": 10170,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_plotutils.py",
+    "bytes": 7454,
+    "compressed_bytes": 1884,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_procrustes.py",
+    "bytes": 4559,
+    "compressed_bytes": 1791,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_qhull.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_qhull.cp313-win_amd64.pyd",
+    "bytes": 870400,
+    "compressed_bytes": 392854,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_spherical_voronoi.py",
+    "bytes": 13851,
+    "compressed_bytes": 4353,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_voronoi.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/_voronoi.cp313-win_amd64.pyd",
+    "bytes": 87040,
+    "compressed_bytes": 43015,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/ckdtree.py",
+    "bytes": 541,
+    "compressed_bytes": 293,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/distance.py",
+    "bytes": 94977,
+    "compressed_bytes": 19944,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/kdtree.py",
+    "bytes": 661,
+    "compressed_bytes": 335,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/qhull.py",
+    "bytes": 647,
+    "compressed_bytes": 343,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/qhull_src/COPYING_QHULL.txt",
+    "bytes": 1759,
+    "compressed_bytes": 750,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/__init__.py",
+    "bytes": 857,
+    "compressed_bytes": 381,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rigid_transform.py",
+    "bytes": 74951,
+    "compressed_bytes": 16253,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rigid_transform_cy.cp313-win_amd64.dll.a",
+    "bytes": 1902,
+    "compressed_bytes": 477,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rigid_transform_cy.cp313-win_amd64.pyd",
+    "bytes": 237568,
+    "compressed_bytes": 109248,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rigid_transform_xp.py",
+    "bytes": 17297,
+    "compressed_bytes": 4427,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rotation.py",
+    "bytes": 110011,
+    "compressed_bytes": 24365,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rotation_cy.cp313-win_amd64.dll.a",
+    "bytes": 1800,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rotation_cy.cp313-win_amd64.pyd",
+    "bytes": 524800,
+    "compressed_bytes": 202199,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rotation_groups.py",
+    "bytes": 4562,
+    "compressed_bytes": 967,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rotation_spline.py",
+    "bytes": 14709,
+    "compressed_bytes": 3630,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/_rotation_xp.py",
+    "bytes": 45527,
+    "compressed_bytes": 12211,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/spatial/transform/rotation.py",
+    "bytes": 577,
+    "compressed_bytes": 304,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/__init__.pxd",
+    "bytes": 43,
+    "compressed_bytes": 40,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/__init__.py",
+    "bytes": 32693,
+    "compressed_bytes": 6716,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_add_newdocs.py",
+    "bytes": 250693,
+    "compressed_bytes": 44638,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_basic.py",
+    "bytes": 111699,
+    "compressed_bytes": 22475,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_comb.cp313-win_amd64.dll.a",
+    "bytes": 1692,
+    "compressed_bytes": 457,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_comb.cp313-win_amd64.pyd",
+    "bytes": 48128,
+    "compressed_bytes": 22073,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ellip_harm.py",
+    "bytes": 5610,
+    "compressed_bytes": 1791,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ellip_harm_2.cp313-win_amd64.dll.a",
+    "bytes": 1812,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ellip_harm_2.cp313-win_amd64.pyd",
+    "bytes": 131072,
+    "compressed_bytes": 60689,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_gufuncs.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_gufuncs.cp313-win_amd64.pyd",
+    "bytes": 937984,
+    "compressed_bytes": 386373,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_input_validation.py",
+    "bytes": 491,
+    "compressed_bytes": 249,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_lambertw.py",
+    "bytes": 4111,
+    "compressed_bytes": 1753,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_logsumexp.py",
+    "bytes": 14857,
+    "compressed_bytes": 4959,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_mptestutils.py",
+    "bytes": 14894,
+    "compressed_bytes": 4204,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_multiufuncs.py",
+    "bytes": 23449,
+    "compressed_bytes": 4469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_orthogonal.py",
+    "bytes": 85224,
+    "compressed_bytes": 16045,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/__init__.py",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/cosine_cdf.py",
+    "bytes": 371,
+    "compressed_bytes": 227,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/expn_asy.py",
+    "bytes": 1319,
+    "compressed_bytes": 684,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/gammainc_asy.py",
+    "bytes": 2618,
+    "compressed_bytes": 1167,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/gammainc_data.py",
+    "bytes": 4201,
+    "compressed_bytes": 1682,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/hyp2f1_data.py",
+    "bytes": 15191,
+    "compressed_bytes": 4122,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/lambertw.py",
+    "bytes": 2029,
+    "compressed_bytes": 834,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/loggamma.py",
+    "bytes": 1137,
+    "compressed_bytes": 411,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/struve_convergence.py",
+    "bytes": 3755,
+    "compressed_bytes": 1231,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/utils.py",
+    "bytes": 925,
+    "compressed_bytes": 465,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/wright_bessel.py",
+    "bytes": 13210,
+    "compressed_bytes": 4320,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/wright_bessel_data.py",
+    "bytes": 5799,
+    "compressed_bytes": 1701,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/wrightomega.py",
+    "bytes": 996,
+    "compressed_bytes": 366,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_precompute/zetac.py",
+    "bytes": 618,
+    "compressed_bytes": 322,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_sf_error.py",
+    "bytes": 390,
+    "compressed_bytes": 172,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_specfun.cp313-win_amd64.dll.a",
+    "bytes": 1740,
+    "compressed_bytes": 471,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_specfun.cp313-win_amd64.pyd",
+    "bytes": 311296,
+    "compressed_bytes": 140023,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_special_ufuncs.cp313-win_amd64.dll.a",
+    "bytes": 1842,
+    "compressed_bytes": 473,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_special_ufuncs.cp313-win_amd64.pyd",
+    "bytes": 1630720,
+    "compressed_bytes": 684937,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_spfun_stats.py",
+    "bytes": 5802,
+    "compressed_bytes": 2323,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_spherical_bessel.py",
+    "bytes": 13187,
+    "compressed_bytes": 2495,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_support_alternative_backends.py",
+    "bytes": 32082,
+    "compressed_bytes": 6582,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_test_internal.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_test_internal.cp313-win_amd64.pyd",
+    "bytes": 94208,
+    "compressed_bytes": 45911,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_testutils.py",
+    "bytes": 12315,
+    "compressed_bytes": 3450,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ufunc_tools.py",
+    "bytes": 6508,
+    "compressed_bytes": 2381,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ufuncs.cp313-win_amd64.dll.a",
+    "bytes": 1722,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ufuncs.cp313-win_amd64.pyd",
+    "bytes": 1434112,
+    "compressed_bytes": 608527,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ufuncs_cxx.cp313-win_amd64.dll.a",
+    "bytes": 1782,
+    "compressed_bytes": 463,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/_ufuncs_cxx.cp313-win_amd64.pyd",
+    "bytes": 2673664,
+    "compressed_bytes": 1129478,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/add_newdocs.py",
+    "bytes": 451,
+    "compressed_bytes": 239,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/basic.py",
+    "bytes": 1630,
+    "compressed_bytes": 555,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/cython_special.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/cython_special.cp313-win_amd64.pyd",
+    "bytes": 2272256,
+    "compressed_bytes": 794870,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/cython_special.pxd",
+    "bytes": 16779,
+    "compressed_bytes": 1636,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/orthogonal.py",
+    "bytes": 1769,
+    "compressed_bytes": 587,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/sf_error.py",
+    "bytes": 593,
+    "compressed_bytes": 309,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/specfun.py",
+    "bytes": 573,
+    "compressed_bytes": 307,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/special/spfun_stats.py",
+    "bytes": 552,
+    "compressed_bytes": 296,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/__init__.py",
+    "bytes": 19211,
+    "compressed_bytes": 5863,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_ansari_swilk_statistics.cp313-win_amd64.dll.a",
+    "bytes": 1980,
+    "compressed_bytes": 487,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_ansari_swilk_statistics.cp313-win_amd64.pyd",
+    "bytes": 105472,
+    "compressed_bytes": 52560,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_axis_nan_policy.py",
+    "bytes": 34052,
+    "compressed_bytes": 8880,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_biasedurn.cp313-win_amd64.dll.a",
+    "bytes": 1766,
+    "compressed_bytes": 470,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_biasedurn.cp313-win_amd64.pyd",
+    "bytes": 375296,
+    "compressed_bytes": 165497,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_biasedurn.pxd",
+    "bytes": 1073,
+    "compressed_bytes": 317,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_binned_statistic.py",
+    "bytes": 33746,
+    "compressed_bytes": 7904,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_binomtest.py",
+    "bytes": 15753,
+    "compressed_bytes": 5028,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_bws_test.py",
+    "bytes": 8706,
+    "compressed_bytes": 3120,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_censored_data.py",
+    "bytes": 19007,
+    "compressed_bytes": 4865,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_common.py",
+    "bytes": 177,
+    "compressed_bytes": 119,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_constants.py",
+    "bytes": 1044,
+    "compressed_bytes": 538,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_continued_fraction.py",
+    "bytes": 15895,
+    "compressed_bytes": 5478,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_continuous_distns.py",
+    "bytes": 425515,
+    "compressed_bytes": 104194,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_correlation.py",
+    "bytes": 31350,
+    "compressed_bytes": 9477,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_covariance.py",
+    "bytes": 24317,
+    "compressed_bytes": 5037,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_crosstab.py",
+    "bytes": 7233,
+    "compressed_bytes": 2410,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_discrete_distns.py",
+    "bytes": 68900,
+    "compressed_bytes": 16358,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_distn_infrastructure.py",
+    "bytes": 159461,
+    "compressed_bytes": 37483,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_distr_params.py",
+    "bytes": 9383,
+    "compressed_bytes": 2709,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_distribution_infrastructure.py",
+    "bytes": 239815,
+    "compressed_bytes": 53052,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_entropy.py",
+    "bytes": 16223,
+    "compressed_bytes": 5538,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_finite_differences.py",
+    "bytes": 4313,
+    "compressed_bytes": 1488,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_fit.py",
+    "bytes": 61024,
+    "compressed_bytes": 16670,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_hypotests.py",
+    "bytes": 90695,
+    "compressed_bytes": 26879,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_kde.py",
+    "bytes": 27111,
+    "compressed_bytes": 7565,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_ksstats.py",
+    "bytes": 20728,
+    "compressed_bytes": 6804,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_levy_stable/__init__.py",
+    "bytes": 47710,
+    "compressed_bytes": 11767,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_levy_stable/levyst.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 463,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_levy_stable/levyst.cp313-win_amd64.pyd",
+    "bytes": 45568,
+    "compressed_bytes": 20361,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_mannwhitneyu.py",
+    "bytes": 22375,
+    "compressed_bytes": 7367,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_mgc.py",
+    "bytes": 21948,
+    "compressed_bytes": 6792,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_morestats.py",
+    "bytes": 199507,
+    "compressed_bytes": 52002,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_mstats_basic.py",
+    "bytes": 134020,
+    "compressed_bytes": 32689,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_mstats_extras.py",
+    "bytes": 16929,
+    "compressed_bytes": 4668,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_multicomp.py",
+    "bytes": 17550,
+    "compressed_bytes": 5343,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_multivariate.py",
+    "bytes": 282078,
+    "compressed_bytes": 53120,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_new_distributions.py",
+    "bytes": 19969,
+    "compressed_bytes": 3951,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_odds_ratio.py",
+    "bytes": 17471,
+    "compressed_bytes": 4898,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_page_trend_test.py",
+    "bytes": 19799,
+    "compressed_bytes": 6761,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_probability_distribution.py",
+    "bytes": 76921,
+    "compressed_bytes": 11826,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_qmc.py",
+    "bytes": 110569,
+    "compressed_bytes": 27368,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_qmc_cy.cp313-win_amd64.dll.a",
+    "bytes": 1722,
+    "compressed_bytes": 466,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_qmc_cy.cp313-win_amd64.pyd",
+    "bytes": 1070080,
+    "compressed_bytes": 383487,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_qmvnt.py",
+    "bytes": 16942,
+    "compressed_bytes": 5441,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_qmvnt_cy.cp313-win_amd64.dll.a",
+    "bytes": 1752,
+    "compressed_bytes": 468,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_qmvnt_cy.cp313-win_amd64.pyd",
+    "bytes": 127488,
+    "compressed_bytes": 57965,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_quantile.py",
+    "bytes": 34264,
+    "compressed_bytes": 9018,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_rcont/__init__.py",
+    "bytes": 88,
+    "compressed_bytes": 62,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_rcont/rcont.cp313-win_amd64.dll.a",
+    "bytes": 1692,
+    "compressed_bytes": 460,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_rcont/rcont.cp313-win_amd64.pyd",
+    "bytes": 109056,
+    "compressed_bytes": 56576,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_relative_risk.py",
+    "bytes": 9834,
+    "compressed_bytes": 3010,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_resampling.py",
+    "bytes": 108947,
+    "compressed_bytes": 26163,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_result_classes.py",
+    "bytes": 1125,
+    "compressed_bytes": 455,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_sampling.py",
+    "bytes": 47846,
+    "compressed_bytes": 12971,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_sensitivity_analysis.py",
+    "bytes": 25842,
+    "compressed_bytes": 7868,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_sobol.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 464,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_sobol.cp313-win_amd64.pyd",
+    "bytes": 166400,
+    "compressed_bytes": 75865,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_sobol_direction_numbers.npz",
+    "bytes": 589334,
+    "compressed_bytes": 572347,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_stats.cp313-win_amd64.dll.a",
+    "bytes": 1706,
+    "compressed_bytes": 463,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_stats.cp313-win_amd64.pyd",
+    "bytes": 452096,
+    "compressed_bytes": 169219,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_stats.pxd",
+    "bytes": 719,
+    "compressed_bytes": 185,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_stats_mstats_common.py",
+    "bytes": 1219,
+    "compressed_bytes": 569,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_stats_py.py",
+    "bytes": 452488,
+    "compressed_bytes": 113330,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_stats_pythran.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 467,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_stats_pythran.cp313-win_amd64.pyd",
+    "bytes": 1044992,
+    "compressed_bytes": 375925,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_survival.py",
+    "bytes": 26737,
+    "compressed_bytes": 8378,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_tukeylambda_stats.py",
+    "bytes": 7080,
+    "compressed_bytes": 2083,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_unuran/__init__.py",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_unuran/unuran_wrapper.cp313-win_amd64.dll.a",
+    "bytes": 1826,
+    "compressed_bytes": 469,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_unuran/unuran_wrapper.cp313-win_amd64.pyd",
+    "bytes": 1264640,
+    "compressed_bytes": 529928,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_variation.py",
+    "bytes": 5041,
+    "compressed_bytes": 2039,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_warnings_errors.py",
+    "bytes": 1596,
+    "compressed_bytes": 367,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/_wilcoxon.py",
+    "bytes": 11433,
+    "compressed_bytes": 3620,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/biasedurn.py",
+    "bytes": 447,
+    "compressed_bytes": 236,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/contingency.py",
+    "bytes": 19390,
+    "compressed_bytes": 6014,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/distributions.py",
+    "bytes": 883,
+    "compressed_bytes": 410,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/kde.py",
+    "bytes": 534,
+    "compressed_bytes": 288,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/morestats.py",
+    "bytes": 984,
+    "compressed_bytes": 463,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/mstats.py",
+    "bytes": 2606,
+    "compressed_bytes": 967,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/mstats_basic.py",
+    "bytes": 1436,
+    "compressed_bytes": 657,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/mstats_extras.py",
+    "bytes": 746,
+    "compressed_bytes": 373,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/mvn.py",
+    "bytes": 515,
+    "compressed_bytes": 276,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/qmc.py",
+    "bytes": 11939,
+    "compressed_bytes": 5077,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/sampling.py",
+    "bytes": 2012,
+    "compressed_bytes": 654,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/stats/stats.py",
+    "bytes": 1518,
+    "compressed_bytes": 718,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/Lib/site-packages/scipy/version.py",
+    "bytes": 330,
+    "compressed_bytes": 207,
+    "reason": "SciPy numerical dependency replaced; old backend exists only in test harness"
+  },
+  {
+    "path": "python/_sqlite3.pyd",
+    "bytes": 131296,
+    "compressed_bytes": 61118,
+    "reason": "No application/tool database feature or import; not loaded by checks"
+  },
+  {
+    "path": "python/sqlite3.dll",
+    "bytes": 1584864,
+    "compressed_bytes": 849367,
+    "reason": "No application/tool database feature or import; not loaded by checks"
+  }
+]

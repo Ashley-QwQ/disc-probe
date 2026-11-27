@@ -1,0 +1,2 @@
+name,exit_code,seconds,command,log
+test_csp_browser,0,10.035,node tests/test_csp_browser.mjs,evidence\pr29-eval\checks\test_csp_browser_retry.log

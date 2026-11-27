@@ -1,0 +1,11 @@
+COMMAND: node tests/test_rw_discs.mjs
+✔ rewritable and write-once stop risks stay distinct in both languages (1.6934ms)
+✔ rewritable short and interrupted recordings offer erasing, retaining failure cause (0.5912ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 28.8651

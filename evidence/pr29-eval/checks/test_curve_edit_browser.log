@@ -1,0 +1,12 @@
+COMMAND: node tests/test_curve_edit_browser.mjs
+✔ curve display ticks: 3–5 nice steps, zero, bounds and finite labels (0.9961ms)
+Real CLI/browser: automatic, editing, rejection, valid save, 390px/1000px; synthetic only
+✔ curve editing: real CLI rejection, save gate, keyboard and responsive layout (9370.0232ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12322.4943

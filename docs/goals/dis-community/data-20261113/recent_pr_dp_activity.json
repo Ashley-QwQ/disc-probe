@@ -1,0 +1,141 @@
+{
+ "created_after_baseline": [
+  {
+   "thread": "P298",
+   "title": "Add measured Verbatim CD-R Extra Protection preset",
+   "where": "c1",
+   "login": "ManaOnTap",
+   "date": "2026-11-12T21:23:38Z",
+   "edited": false,
+   "body": "Just leaving my independent configuration for the same line of CDs. Was able to produce clean images with these details and presets, Incase the information is of value 😌\r\n\r\n**my setup**\r\n- disc: Verbatim CD-R Extra Protection, 10 pack wrap spindle (43725)\r\n- drive: PLDS DVD+-RW DH-16ABS (Lite-On), streaming burn at 16x, CD delay interleaving on\r\n- sectors read from disc: 359846 (359844 usable)\r\n\r\n**my final values**\r\n- inner: 25.279705174092161 mm\r\n- outer: 58.284462337181466 mm\r\n- pitch linear: 1.7576786015792444E-05\r\n- pitch quadratic: -9.5765810980462908E-05\r\n- pitch cubic: 4.5700188636938378E-05\r\n\r\nthats within ~3.6µm (inner) and ~1.4µm (outer) of the radii in this PR. I'm guessing it comes down to drive reader making microscopic differences in outer and inner\r\n\r\n(Still figuring out how to take the best photos of these though...)\r\n<img width=\"300\" height=\"300\" alt=\"Screenshot 2026-11-12 212254\" src=\"https://github.com/user-attachments/assets/6e2e3656-9e16-4d3e-b3a2-19ba04dacf5d\" />\r\n",
+   "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/pull/298#issuecomment-6836324517",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-I33",
+   "title": "GUE0N reports read completion +16 sectors late (≈+104° twist from raw `geo`); Linux SG_IO transport; MCC 02RG20 geometry",
+   "where": "c2",
+   "login": "exotic-namruth",
+   "date": "2026-11-12T15:18:38Z",
+   "edited": false,
+   "body": "Thanks for the quick and detailed reply!\n\n**1. Completion offset.** Yes, please use the three raw runs and the scan spiral as the test case. That's exactly why they're in the repo. A `timing`-based way to measure the offset would be great: it took a flatbed scan and literal-byte matching to find it here. I'm happy to run any test build on the GUE0N (I have blank MCC 02RG20 discs and the burned discs #3–#5 to read from).\n\n**2. Linux SG_IO.** I hadn't seen #30. I compared `discprobe/sg.py` on current `main` with my `linux_sg.py`, and yours is a strict superset: SCHED_FIFO and CPU pinning (mine only used `nice`), /dev/srN to /dev/sgN resolution, host and driver status checks, and bounded CDB and sense. So I don't think anything from mine is missing.\n\n**Tested current `main` (`c25dfac`) on the GUE0N, Linux, `--drive /dev/sr0`:**\n\n- `sg_selftest`: all checks passed. `list` finds `/dev/sr0`. `info` reads drive, firmware T.02, MID `MCC 02RG20`, speeds and page 2A correctly.\n- `geo` on disc #1 (`--ref-lba 1400000`) ran cleanly: settled at 16.739 ms (3584 rpm), jitter 56 µs, 22 rungs, chi2/dof 1.83, residual RMS 0.67°. Result: **`u = 179982.634, v = 5.5374444`**.\n- That still twists **≈ 103°** across 25–56 mm against the scan spiral, the same as my old runs. So the +16-sector lag is the drive, not my Linux transport. With the +16 correction it's 6.6°–8.6° (span 8.7°) vs 2.3° for my older run of the same disc. I think that's because this run only used 33.4–45.9 mm (see below); the reported uncertainty over 24–58 mm is 1.47° (1σ).\n- Three things I noticed:\n  1. **Picture discs are now refused** (`stopped: no random data found in the recorded area`) since the \"a sector mostly of one byte is not random\" change. My older checkout measured the same picture disc (#3, A5/92 portrait) without complaint (`geo-disc3-clean`). That's fine for accuracy, but it means you can't re-measure the geometry from a disc that holds only a picture.\n  2. On disc #1, the new check found only three random stretches (447168–519760, 780928–866432, 1166320–1264736), so the fit only spans 33–46 mm.\n  3. The 45.6 mm check point moved +1.06° ± 0.46° between start and end.\n- Run files (summary, targets, events, log) are in the repo under `geometry/raw-geo-runs/geo-sr0-20261112-203750-upstream-main-c25dfac/`.\n\nSo I don't think anything from my `linux_sg.py` is needed. Linux on `main` works on this drive.\n\nI'll point Linux users in my repo to `main` instead of my patch.\n\n**3. MCC 02RG20.** Thanks, a link back is perfect.\n\nOn the polar error diffusion: a side-by-side calibration disc sounds great. If it helps, `tools/build_portrait.py` has `--dr` / `--dt` for the cell size, so test strips with different along-track cell lengths (e.g. 0.02 / 0.05 / 0.08 / 0.15 mm) against plain 0.02 mm Floyd–Steinberg are easy to generate. I can burn one on the GUE0N + MCC 02RG20 if you'd like a second drive and medium.\n",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/issues/33#issuecomment-6827622004",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P32",
+   "title": "feat(console): guided console for the disc workflow",
+   "where": "c3",
+   "login": "domerawind",
+   "date": "2026-11-12T11:06:36Z",
+   "edited": false,
+   "body": "已按 review 改完并推到 `36ab873`，PR 现在 mergeable clean。\n\n**两项必改**\n- `zh.py` 里 drive 步骤的 key 已改成 `...and the name each one uses.`，中文模式不再漏这一行英文。\n- 新手回答“要看教程”后，教程打印完会停在 `按 Enter 继续。`，按 Enter 才进全屏，不会一闪而过。\n\n**顺手的小项**\n- 刻录页不再重复打印 `How to look at it` 标题。\n- 终端能显示但不能读键时，不再打印两遍步骤清单。\n- Start.bat 的注释已改成窗口会保留。\n\n**README 致谢** 已加：实验性 BD/CD 几何算法与 `--install` 由 domerawind 与 DeepSeek-v41F 共同完成，相关 PR 见仓库历史。\n\n**Windows Terminal 鼠标**：新增 `_WindowsVtKeys`，在 `WT_SESSION` 下打开 `ENABLE_VIRTUAL_TERMINAL_INPUT` / `ENABLE_MOUSE_INPUT` 并解析 SGR mouse；旧 conhost 仍走键盘，不影响原有行为。我这边没有交互式 Windows Terminal，鼠标点击需要你在 WT 里实际点一下确认；如果不行我再调。\n\n`python -m discprobe selftest` 全量通过（`all checks passed`）。后续回复我会用中文。",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6821894733",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P32",
+   "title": "feat(console): guided console for the disc workflow",
+   "where": "c4",
+   "login": "domerawind",
+   "date": "2026-11-12T11:16:58Z",
+   "edited": false,
+   "body": "这一轮已更新到 `a66fccd`，主要改了两件事：\n\n1. **命令可以直接点，不必按顺序执行。** 主界面和步骤页现在有 `Run/Open`、`Copy`、`Edit`、`Back` 按钮；底部的按键提示（`Enter/r`、`e`、`c`、`: `、`?`、`q` 等）也是可点击的。点击按钮和按对应快捷键走同一个动作，所以任意一步都能直接运行或编辑，不必先从上一步顺序走下来。\n2. **补上经典 Windows 控制台的鼠标支持。** Windows Terminal 继续走原来的 VT/SGR 鼠标路径；`cmd.exe`/conhost 现在通过 `ReadConsoleInputW` 读取鼠标记录，并把缓冲区坐标换算成当前窗口坐标。滚轮、左键点击步骤/按钮/底部按键都能用；没有鼠标支持的终端仍然保持纯键盘和数字回退。\n\n`python -m discprobe selftest` 已全部通过（包含新增的点击区域测试）。README 和中英文手册也补了按钮、底部按键和 `cmd.exe` 鼠标的说明。\n\n一点限制：我这边没有可交互的控制台，无法实际在 `cmd.exe` 窗口里点一次；代码是基于 conhost 的 `ReadConsoleInput` 输入记录实现的。方便的话请在 `cmd.exe` 里试一下点击；如果坐标有偏差，我再按真实窗口调整。Windows Terminal 和键盘路径不受影响。\n",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6822109953",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P32",
+   "title": "feat(console): guided console for the disc workflow",
+   "where": "c5",
+   "login": "domerawind",
+   "date": "2026-11-12T11:19:49Z",
+   "edited": false,
+   "body": "补了一条滚动时的小修复：步骤页内容超过窗口、滚动后，按钮的点击区域会跟着可见行重新对齐。最新提交 `f0e3384`，`python -m discprobe selftest` 仍然全部通过。",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6822169077",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P32",
+   "title": "feat(console): guided console for the disc workflow",
+   "where": "c6",
+   "login": "Ashley-QwQ",
+   "date": "2026-11-12T13:16:50Z",
+   "edited": false,
+   "body": "合并了，谢谢！两项必改都到位，可点击的命令和经典控制台的鼠标支持也是很实在的改进。我在 `f0e3384` 上跑过 selftest 和 pytest，全部通过。Windows Terminal 和 cmd 里的鼠标点击还要在真机上试，有问题我再开 issue。\n",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6824667692",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P34",
+   "title": "feat(guide): read the blank disc's available sectors",
+   "where": "post",
+   "login": "domerawind",
+   "date": "2026-11-12T13:41:56Z",
+   "edited": false,
+   "body": "## 为什么\n\n默认流程漏掉了空盘 `info` 这一步，但标定和 `disexport --sectors` 都需要空盘报告的可用扇区数。原来 `guide` 和引导控制台从 `list` 直接走到随机数据盘。\n\n## 改了什么\n\n- 在 `list` 之后、随机数据盘之前加入 **Blank disc (info)** 步骤；`guide`、清单、编号回退和 TUI 控制台同时生效。\n- 步骤上显示读到的数量（如 `2,295,104 sectors available`），并带进下一条随机盘提示。\n- 只有**同盘型的空盘**报告才会打勾：刻过的盘读回来的数可能偏大；`incomplete`（写了一半、未封盘）不算空盘；CD 的 ATIP 导出口、以及没有 track 空闲块的空 BD 容量仍算空盘容量。\n- 已经做过随机盘或 `timing` 的用户不会被拉回这一步：清单里它保持未做，但不挡后面的步骤，也不标“现在到这里”，下一条命令直接做图片 ISO。\n- `info` 结果按 CD/DVD/BD 盘型筛选，不会拿另一种盘的报告打勾。\n- 教程改为 6 步；README 中英文和两份手册同步更新。\n- 非交互脚本现在看到 6 个默认步骤（多出空盘检查这一行），这是有意的。\n\n## 验证\n\n- `python -m discprobe selftest` -> `all checks passed`\n- 新增测试覆盖：DVD 报告不勾 BD 步骤、`incomplete` 盘不算空盘、已做 timing/geo 的用户不回到 info、空 BD 容量回退。\n- `python -m discprobe guide` 第一条命令现在是 `python -m discprobe info --drive ...`。\n- `python -m discprobe menu` 从新的空盘步骤开始。\n\n基于 #32 合并后的最新 `main`。\n",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P34",
+   "title": "feat(guide): read the blank disc's available sectors",
+   "where": "c1",
+   "login": "Ashley-QwQ",
+   "date": "2026-11-12T14:15:21Z",
+   "edited": false,
+   "body": "补充一下：上面的审阅是在 `b605c77` 上看的，发出时你已经推了 `8ac08e8`。我又看了新提交：\n\n- 第 289 行的空格已经改好了，谢谢。\n- 第 1–3 项在 `8ac08e8` 上还在。\n- 新加的分支把 `disc_status` 为 `incomplete` 的盘也当成空盘。`incomplete` 是写了一部分、还没封盘的盘（比如追加刻录时故意保持开放的盘），这时 `capacity.last_lba` 已经不是空盘的容量了。建议只认 `empty`。如果这些蓝光盘确实报 `incomplete`，能不能贴一下它们的 info.json？\n",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34#issuecomment-6826027357",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P34",
+   "title": "feat(guide): read the blank disc's available sectors",
+   "where": "c2",
+   "login": "domerawind",
+   "date": "2026-11-12T16:29:39Z",
+   "edited": false,
+   "body": "对应处理：\r\n\r\n不再把已经走到后面的用户拉回 info\r\n\r\nPlan.current() 现在只在随机盘和 timing 都还没做时，才把 info 当作当前步骤。\r\n已经有 timing/geo 时，info 仍显示为未做，但不挡后续命令，也不带“现在到这里”标记；下一条命令直接做图片 ISO。\r\n用复制进来的 timing/geo 结果测过：清单显示 info 未打勾，当前标记落在 Picture ISO，Next 是 image ...。\r\n统一“偏大”方向\r\n\r\n代码注释改为 “can be larger than the blank's capacity / can be too high”。\r\nREADME、手册、PR 描述统一为“从刻过的盘读回来的数可能偏大”。\r\n按盘型筛选 info 报告\r\n\r\ninfo_runs 现在只取 r.media == media 的报告。\r\n补了测试：只有 DVD 报告时，BD 流程的空盘步骤不会打勾。\r\n同时修正 incomplete：只有 disc_status == \"empty\" 的盘才用 capacity 回退，写了一半未封盘的盘不再算空盘；补了对应测试。\r\n小项\r\n\r\nui_selftest 的说明改为 scripts 现在看到 6 个默认步骤，并已在 PR 描述里注明这是有意的：多出来的一行就是空盘检查。\r\nguide.py 注释同步更新；之前那处 or 后的长空格已在 8ac08e8 修掉。\r\n验证：python -m discprobe selftest 全部通过；新增测试覆盖了“已做 timing/geo 的用户”“DVD 报告不勾 BD”“incomplete 不算空盘”“空 BD 容量回退”。",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34#issuecomment-6829466426",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  },
+  {
+   "thread": "DP-P34",
+   "title": "feat(guide): read the blank disc's available sectors",
+   "where": "review1",
+   "login": "Ashley-QwQ",
+   "date": "2026-11-12T14:14:59Z",
+   "edited": false,
+   "body": "谢谢！先读空盘再刻随机盘，这个顺序是对的，`sectors_from_info` 也终于有了自然的入口。我在 `b605c77` 上跑了 selftest（全部通过）和 pytest（50 通过），另外有几处想请你改一下：\n\n**1. 已经走到后面的用户会被拉回这一步（必改）**\n把一份真实的 `timing` 和 `geo` 结果文件夹复制到空的 `results` 里，再跑 `guide`：清单是 `info ✗, disc ✓, timing ✓, geo ✓`，下一条命令给的却是 `info --drive H:`，而不是做图片 ISO。因为 `elif info_sectors is None:` 排在所有后续分支前面，没读过空盘的老用户会一直卡在这里。\n建议：只有随机盘和 `timing` 都还没做时，才把 `info` 当作下一步；之后它只显示成未做的一项，不挡后面的步骤，也不标\"you are here\"。\n\n**2. 偏大还是偏小，三处说法不一样（必改）**\nREADME 和手册写的是从刻过的盘上读回来的数\"可能偏大\"，PR 描述写\"too short\"，代码注释写\"short of the blank's capacity\"。我们之前在 `after_info` 里记的是一位用户在刻过的盘上读到的数偏大。请统一成同一个方向；如果你那边见过偏小的例子，把两种情况都写上。\n\n**3. 读空盘的结果没有按盘型筛选（必改）**\n`info_runs` 取的是所有 info 结果，所以 DVD 的流程会拿 CD 或 BD 的空盘报告来打勾，反过来也一样。测试里 `workflow(\"bd\")` 能通过，是因为同一个文件夹里还有一份 DVD 报告。建议按 `r.media == media` 筛选，再加一条测试：文件夹里只有 DVD 报告时，BD 流程的这一步不应打勾。\n\n**4. 小项**\n- `guide.py` 第 289 行的 `or` 后面有一长串空格，像是删掉续行符时留下的，改成正常换行就好。\n- `ui_selftest` 里 \"scripts keep the five steps they always saw\" 改成了 6 步，非交互模式下脚本看到的输出会多一行。如果这是有意的，请在 PR 描述里说一句。\n",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34#pullrequestreview-5875922257",
+   "comparison_note": "No prior PR/DP snapshot; creation timestamp only, no claim about prior body edits."
+  }
+ ],
+ "older_updated_candidates": [
+  {
+   "thread": "P298",
+   "where": "post",
+   "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/pull/298",
+   "createdAt": "2026-11-10T23:48:42Z",
+   "updatedAt": "2026-11-12T21:23:38Z",
+   "note": "Activity candidate only: parent updatedAt can change when comments arrive; not an inferred body edit."
+  },
+  {
+   "thread": "DP-I33",
+   "where": "post",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/issues/33",
+   "createdAt": "2026-11-12T04:15:15Z",
+   "updatedAt": "2026-11-12T15:18:38Z",
+   "note": "Activity candidate only: parent updatedAt can change when comments arrive; not an inferred body edit."
+  },
+  {
+   "thread": "DP-P32",
+   "where": "post",
+   "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32",
+   "createdAt": "2026-11-09T16:02:45Z",
+   "updatedAt": "2026-11-12T13:16:50Z",
+   "note": "Activity candidate only: parent updatedAt can change when comments arrive; not an inferred body edit."
+  }
+ ],
+ "note": "Separate from the exact DIS Issue/Discussion diff. PR/DP were not in the supplied old snapshots."
+}

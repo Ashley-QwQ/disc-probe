@@ -1,0 +1,5781 @@
+{
+  "samples": 20001,
+  "radius_grid": 40001,
+  "alignment": "subtract mean angle; one free overall rotation",
+  "media": {
+    "cd": {
+      "dp_dis_dp_max_angle_error_deg": 0.0001841830382867004,
+      "dp_to_dis_max_angle_error_deg": 0.0005313135152807094,
+      "max_map_checked_leg_error_deg": 0.0005313135152807094,
+      "input": "01-builtin-cd-0.json",
+      "tolerance_deg": 0.003,
+      "back_import": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.9993714178999653e-09,
+        "baseline_max_angle_error_deg": 0.00026990586402789646,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.4999999989266,
+          56.80000000385756
+        ],
+        "max_angle_error_deg": 0.000190813479826183
+      }
+    },
+    "dvd": {
+      "dp_dis_dp_max_angle_error_deg": 0.0007149506151979415,
+      "dp_to_dis_max_angle_error_deg": 0.0012150666751319643,
+      "max_map_checked_leg_error_deg": 0.0012150666751319643,
+      "input": "05-builtin-dvd-0.json",
+      "tolerance_deg": 0.003,
+      "back_import": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.5338841308221163e-09,
+        "baseline_max_angle_error_deg": 0.00020182408584594317,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.000000003981416,
+          58.00000000072083
+        ],
+        "max_angle_error_deg": 0.00016171186426660358
+      }
+    },
+    "bd": {
+      "dp_dis_dp_max_angle_error_deg": 1.7821451407204008e-08,
+      "dp_to_dis_max_angle_error_deg": 0.0025721045687973885,
+      "max_map_checked_leg_error_deg": 0.0025721045687973885,
+      "input": "11-builtin-bd-0.json",
+      "tolerance_deg": 0.003,
+      "back_import": {
+        "max_angle_error_deg": 0.0025721023799289617,
+        "max_radius_error_mm": 3.75945319319726e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      }
+    }
+  },
+  "fixture_approximation_max": {
+    "cd": {
+      "samples": 20001,
+      "max_radius_error_mm": 6.228928130269651e-05,
+      "baseline_max_angle_error_deg": 7.2201395632430785,
+      "polynomial_degree": 5,
+      "fit_range_mm": [
+        24.92158485099949,
+        57.83899120331769
+      ],
+      "max_angle_error_deg": 0.0027937414403789163,
+      "file": "18-community-3.json",
+      "id": "D275-1",
+      "image_compatible": true
+    },
+    "dvd": {
+      "samples": 20001,
+      "max_radius_error_mm": 26.79964503349406,
+      "baseline_max_angle_error_deg": 9698238.983354852,
+      "polynomial_degree": 16,
+      "fit_range_mm": [
+        24.0,
+        58.00000000000001
+      ],
+      "max_angle_error_deg": 1116.324391681701,
+      "file": "51-unwrapped-over360.json",
+      "id": "synthetic-unwrapped-over360",
+      "image_compatible": false
+    },
+    "bd": {
+      "max_angle_error_deg": 337.3641082270297,
+      "max_radius_error_mm": 0.0008042990860559485,
+      "samples": 20001,
+      "polynomial_degree": null,
+      "file": "37-bd-pitch.json",
+      "id": "bd-r-sl-25gb",
+      "image_compatible": false
+    }
+  },
+  "fixtures": [
+    {
+      "file": "01-builtin-cd-0.json",
+      "index": 0,
+      "id": "cd-80",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "02-builtin-cd-1.json",
+      "index": 0,
+      "id": "ritek-medical-aqua",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 5.002579958505433e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.911275,
+          57.931155
+        ],
+        "max_angle_error_deg": 5.002579958505433e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "file": "03-builtin-cd-2.json",
+      "index": 0,
+      "id": "verbatim-azo-43438",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 4.168816632087861e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.837775,
+          58.020875
+        ],
+        "max_angle_error_deg": 4.168816632087861e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "file": "04-builtin-cd-3.json",
+      "index": 0,
+      "id": "cd-74",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "05-builtin-dvd-0.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "06-builtin-dvd-1.json",
+      "index": 0,
+      "id": "verbatim-dvd-r-azo-43533",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.187769750529924e-05,
+        "baseline_max_angle_error_deg": 13.333269048059261,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.991460627731737,
+          57.964893657925366
+        ],
+        "max_angle_error_deg": 0.0036449608041912995
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "07-builtin-dvd-2.json",
+      "index": 0,
+      "id": "verbatim-dvd-r-azo-43523",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.187769750529924e-05,
+        "baseline_max_angle_error_deg": 13.333269048059261,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.991460627731737,
+          57.964893657925366
+        ],
+        "max_angle_error_deg": 0.0036449608041912995
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "08-builtin-dvd-3.json",
+      "index": 0,
+      "id": "verbatim-dvd-plus-r-azo-43498",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.207424882845089e-05,
+        "baseline_max_angle_error_deg": 8.916868283831873,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.954070288547207,
+          57.981456053451275
+        ],
+        "max_angle_error_deg": 0.004672871559224134
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "09-builtin-dvd-4.json",
+      "index": 0,
+      "id": "philips-dvd-plus-r",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.00015006536629158518,
+        "baseline_max_angle_error_deg": 41.51045220916332,
+        "polynomial_degree": 8,
+        "fit_range_mm": [
+          24.157723798864616,
+          57.8810391592571
+        ],
+        "max_angle_error_deg": 0.0028436946235288474
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "10-builtin-dvd-5.json",
+      "index": 0,
+      "id": "ritek-dvd-plus-r-e-series",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.1810870411466112e-05,
+        "baseline_max_angle_error_deg": 3.214112023155892,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.048201325754512,
+          58.02648816120638
+        ],
+        "max_angle_error_deg": 0.003738386823712858
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "11-builtin-bd-0.json",
+      "index": 0,
+      "id": "bd-r-sl-25gb",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "nominal",
+      "comparison": {
+        "max_angle_error_deg": 0.002572096438911925,
+        "max_radius_error_mm": 3.75945319319726e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "12-builtin-bd-1.json",
+      "index": 0,
+      "id": "bd-r-ritek-10x",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.0025917998480271785,
+        "max_radius_error_mm": 3.769436318634689e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "13-builtin-bd-2.json",
+      "index": 0,
+      "id": "bd-r-ritek-12x",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.00259446016414418,
+        "max_radius_error_mm": 3.769354606220077e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "14-builtin-bd-3.json",
+      "index": 0,
+      "id": "bd-r-verbatim-64099",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.00257832840037693,
+        "max_radius_error_mm": 3.762416156405379e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "15-community-0.json",
+      "index": 0,
+      "id": "D169-1",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 5.002579958505433e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.911653497674305,
+          57.93159241880254
+        ],
+        "max_angle_error_deg": 5.002579958505433e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "file": "16-community-1.json",
+      "index": 0,
+      "id": "D169-2",
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "file": "17-community-2.json",
+      "index": 0,
+      "id": "D169-3",
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "file": "18-community-3.json",
+      "index": 0,
+      "id": "D275-1",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 6.228928130269651e-05,
+        "baseline_max_angle_error_deg": 7.2201395632430785,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.92158485099949,
+          57.83899120331769
+        ],
+        "max_angle_error_deg": 0.0027937414403789163
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "19-community-4.json",
+      "index": 0,
+      "id": "D172-2",
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "file": "20-community-5.json",
+      "index": 0,
+      "id": "D172-3",
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "file": "21-chinese-name.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "22-emoji-name.json",
+      "index": 0,
+      "id": "../CON:\u76d8\ud83d\udcbf",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "file": "23-mid-present.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": false,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "Nominal, not calibrated.",
+        "Unknown fields retained; geometry use and DIS installation refused: mid"
+      ]
+    },
+    {
+      "file": "24-mid-absent.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "25-pitch-absent.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "26-pitch-zero.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "27-pitch-linear.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.0040198896658125705,
+        "baseline_max_angle_error_deg": 1142.5475807462822,
+        "polynomial_degree": 9,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 0.00598587532226702
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "28-pitch-cubic.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.0011774491474341175,
+        "baseline_max_angle_error_deg": 114.28286569177901,
+        "polynomial_degree": 9,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 0.0074318298316597975
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "29-dvd-odd-sectors.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419842187213362e-11,
+        "baseline_max_angle_error_deg": 7.255074961155146e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255074961155146e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "30-cd-rw.json",
+      "index": 0,
+      "id": "cd-80",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "31-dvd-plus-rw.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "32-dvd-minus-rw.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "33-unknown-field.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": false,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated.",
+        "Unknown fields retained; geometry use and DIS installation refused: futureGeometry"
+      ]
+    },
+    {
+      "file": "34-resource-null.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "35-cd-legacy-speed.json",
+      "index": 0,
+      "id": "cd-80",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated.",
+        "DIS generation uses 1200 mm/s; stored linearVelocityMmPerSecond retained only."
+      ]
+    },
+    {
+      "file": "36-dvd-legacy-bit.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated.",
+        "DIS generation uses 133.3 nm; stored channelBitLengthNm retained only."
+      ]
+    },
+    {
+      "file": "37-bd-pitch.json",
+      "index": 0,
+      "id": "bd-r-sl-25gb",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "nominal",
+      "comparison": {
+        "max_angle_error_deg": 337.3641082270297,
+        "max_radius_error_mm": 0.0008042990860559485,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "38-single-preset.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "39-dp-wrapper.json",
+      "index": 0,
+      "id": "cd-80",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "40-schema-2.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "41-schema-3.json",
+      "index": 0,
+      "id": "cd-80",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "42-duplicate-ids.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "42-duplicate-ids.json",
+      "index": 1,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.417000016270322e-11,
+        "baseline_max_angle_error_deg": 7.252073413180043e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          57.99000000000001
+        ],
+        "max_angle_error_deg": 7.252073413180043e-05
+      },
+      "issues": [
+        "Duplicate id in file; select by index. No entry is overwritten.",
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "43-disabled.json",
+      "index": 0,
+      "id": "cd-80",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Disabled in DIS; import requires explicit selection.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 0,
+      "id": "cd-80",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 1,
+      "id": "ritek-medical-aqua",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 5.002579958505433e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.911275,
+          57.931155
+        ],
+        "max_angle_error_deg": 5.002579958505433e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 2,
+      "id": "verbatim-azo-43438",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 4.168816632087861e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.837775,
+          58.020875
+        ],
+        "max_angle_error_deg": 4.168816632087861e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 3,
+      "id": "cd-74",
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.5,
+          56.8
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 4,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.419131644477602e-11,
+        "baseline_max_angle_error_deg": 7.255408466485713e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 7.255408466485713e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 5,
+      "id": "verbatim-dvd-r-azo-43533",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.187769750529924e-05,
+        "baseline_max_angle_error_deg": 13.333269048059261,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.991460627731737,
+          57.964893657925366
+        ],
+        "max_angle_error_deg": 0.0036449608041912995
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 6,
+      "id": "verbatim-dvd-r-azo-43523",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.187769750529924e-05,
+        "baseline_max_angle_error_deg": 13.333269048059261,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.991460627731737,
+          57.964893657925366
+        ],
+        "max_angle_error_deg": 0.0036449608041912995
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 7,
+      "id": "verbatim-dvd-plus-r-azo-43498",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.207424882845089e-05,
+        "baseline_max_angle_error_deg": 8.916868283831873,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.954070288547207,
+          57.981456053451275
+        ],
+        "max_angle_error_deg": 0.004672871559224134
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 8,
+      "id": "philips-dvd-plus-r",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.00015006536629158518,
+        "baseline_max_angle_error_deg": 41.51045220916332,
+        "polynomial_degree": 8,
+        "fit_range_mm": [
+          24.157723798864616,
+          57.8810391592571
+        ],
+        "max_angle_error_deg": 0.0028436946235288474
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 9,
+      "id": "ritek-dvd-plus-r-e-series",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.1810870411466112e-05,
+        "baseline_max_angle_error_deg": 3.214112023155892,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.048201325754512,
+          58.02648816120638
+        ],
+        "max_angle_error_deg": 0.003738386823712858
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 10,
+      "id": "ritek-dvd-r-e-series",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.9575673821113924e-06,
+        "baseline_max_angle_error_deg": 0.481609184848135,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.063109184084034,
+          58.23373375457525
+        ],
+        "max_angle_error_deg": 0.005829605926657891
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 11,
+      "id": "dvd-5-80mm",
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "nominal",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.191224896501808e-11,
+        "baseline_max_angle_error_deg": 4.9995784105303295e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0,
+          38.00000000000001
+        ],
+        "max_angle_error_deg": 4.9995784105303295e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 12,
+      "id": "bd-r-sl-25gb",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "nominal",
+      "comparison": {
+        "max_angle_error_deg": 0.002572096438911925,
+        "max_radius_error_mm": 3.75945319319726e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Nominal, not calibrated.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 13,
+      "id": "bd-r-ritek-10x",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.0025917998480271785,
+        "max_radius_error_mm": 3.769436318634689e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 14,
+      "id": "bd-r-ritek-12x",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.00259446016414418,
+        "max_radius_error_mm": 3.769354606220077e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 15,
+      "id": "bd-r-verbatim-64099",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.00257832840037693,
+        "max_radius_error_mm": 3.762416156405379e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "44-whole-catalog.json",
+      "index": 16,
+      "id": "bd-r-verbatim-64293",
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.00257832840037693,
+        "max_radius_error_mm": 3.762416156405379e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "file": "45-bad-json.json",
+      "accepted": false,
+      "comparison": null,
+      "issues": [
+        "invalid JSON: Expecting property name enclosed in double quotes: line 1 column 21 (char 20)"
+      ]
+    },
+    {
+      "file": "46-wrong-type.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "radii must satisfy 0 < innerRadiusMm < outerRadiusMm"
+      ]
+    },
+    {
+      "file": "47-negative-radius.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "radii must satisfy 0 < innerRadiusMm < outerRadiusMm"
+      ]
+    },
+    {
+      "file": "48-bad-pitch.json",
+      "index": 0,
+      "id": "dvd-5-120mm",
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "pitch must be finite and positive throughout 0 <= x <= 1"
+      ]
+    },
+    {
+      "file": "49-bd-odd.json",
+      "index": 0,
+      "id": "bd-r-sl-25gb",
+      "media": "bd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "BD needs outer <= 60 mm and totalSectors a multiple of 32 <= 12219392"
+      ]
+    },
+    {
+      "file": "50-future-schema.json",
+      "accepted": false,
+      "comparison": null,
+      "issues": [
+        "unsupported schemaVersion; expected 2, 3 or 4"
+      ]
+    },
+    {
+      "file": "51-unwrapped-over360.json",
+      "index": 0,
+      "id": "synthetic-unwrapped-over360",
+      "media": "dvd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 26.79964503349406,
+        "baseline_max_angle_error_deg": 9698238.983354852,
+        "polynomial_degree": 16,
+        "fit_range_mm": [
+          24.0,
+          58.00000000000001
+        ],
+        "max_angle_error_deg": 1116.324391681701
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "DP approximation exceeds 0.01 deg angle or 0.005 mm radius; archive only."
+      ]
+    }
+  ],
+  "community_source": {
+    "path": "D:\\disc-probe\\data\\community-calibrations\\dis-github.json",
+    "sha256": "bdafb77ec530f48c8d8aa35e097ffe689dc593b1a1cb6d3340ccd5e868f5c8e5"
+  },
+  "community": [
+    {
+      "id": "D169-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/169",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 5.002579958505433e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.911653497674305,
+          57.93159241880254
+        ],
+        "max_angle_error_deg": 5.002579958505433e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D169-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/169#discussioncomment-19475320",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "id": "D169-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/169#discussioncomment-19523418",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "id": "D275-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/275",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 6.228928130269651e-05,
+        "baseline_max_angle_error_deg": 7.2201395632430785,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.92158485099949,
+          57.83899120331769
+        ],
+        "max_angle_error_deg": 0.0027937414403789163
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D172-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/172#discussioncomment-19494863",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D172-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/172#discussioncomment-19471847",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D209-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/209",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.338719007535019e-05,
+        "baseline_max_angle_error_deg": 12.023751436315068,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.90648669437204,
+          57.961782720315824
+        ],
+        "max_angle_error_deg": 0.0044725094534268095
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D271-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/271",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.6992089690859302e-05,
+        "baseline_max_angle_error_deg": 4.646202692295878,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.933879,
+          57.95788399999999
+        ],
+        "max_angle_error_deg": 0.0027571675067337154
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D216-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/216",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.2506438785162572e-06,
+        "baseline_max_angle_error_deg": 0.3335594117914336,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.01242230278808,
+          58.07515547216516
+        ],
+        "max_angle_error_deg": 0.004048497620362766
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D216-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/216#discussioncomment-19474243",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D127-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/127",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1544865163036775e-06,
+        "baseline_max_angle_error_deg": 0.23135374171183218,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.063109387397535,
+          58.227347672141256
+        ],
+        "max_angle_error_deg": 0.0025677849845431658
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D127-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/127#discussioncomment-19490543",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D269-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/269",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.851748976378076e-08,
+        "baseline_max_angle_error_deg": 0.005622856517667133,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.098021857879267,
+          58.0256174407052
+        ],
+        "max_angle_error_deg": 0.0038024332153231166
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D268-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/268",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.00010134772898595656,
+        "baseline_max_angle_error_deg": 14.002073664381918,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          25.13942233836543,
+          58.09724246388315
+        ],
+        "max_angle_error_deg": 0.0031464941575496397
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D266-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/266",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D265-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/265",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 8.112244434954619e-05,
+        "baseline_max_angle_error_deg": 10.022904273229463,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.92157055438347,
+          57.83897767242325
+        ],
+        "max_angle_error_deg": 0.0047642262500584565
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D262-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/262",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.895563395976524e-05,
+        "baseline_max_angle_error_deg": 22.518659358905534,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.941746303096682,
+          58.143824844521475
+        ],
+        "max_angle_error_deg": 0.0024923268780252528
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D252-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/252",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.772939732333725e-06,
+        "baseline_max_angle_error_deg": 1.0002970354464094,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.012422170195464,
+          58.04598157168702
+        ],
+        "max_angle_error_deg": 0.009046949731719656
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D250-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/250",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 2.935955650102861,
+        "max_radius_error_mm": 6.9615607927175915e-06,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "D243-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/243",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.378609692423652e-05,
+        "baseline_max_angle_error_deg": 6.228518486377202,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.848105131341438,
+          58.04104199271717
+        ],
+        "max_angle_error_deg": 0.005143576833301022
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D244-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/244",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.110257634692971e-06,
+        "baseline_max_angle_error_deg": 1.1957949120376794,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.06311180704415,
+          58.22735489530275
+        ],
+        "max_angle_error_deg": 0.005280508898908964
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D241-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/241",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.6176194131936135,
+        "max_radius_error_mm": 1.5627628400238791e-06,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "D240-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/240",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "id": "D210-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/210",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.17404440035790195,
+        "max_radius_error_mm": 9.398466538357297e-07,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "D210-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/210#discussioncomment-19468299",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "bd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D109-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/109",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.0516243155793745e-06,
+        "baseline_max_angle_error_deg": 0.5485875339634808,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.048187720686766,
+          58.02648561121495
+        ],
+        "max_angle_error_deg": 0.008226161420879695
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D109-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/109#discussioncomment-19410765",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D109-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/109#discussioncomment-19454178",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D109-4",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/109#discussioncomment-19468098",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D198-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/198",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 6.474876400375251e-06,
+        "baseline_max_angle_error_deg": 1.6749202492353505,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.048709318826372,
+          58.102908414762325
+        ],
+        "max_angle_error_deg": 0.008330075479326737
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D225-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/225",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.402177068627225e-06,
+        "baseline_max_angle_error_deg": 1.8579553351131814,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.04819610858023,
+          58.026484917989976
+        ],
+        "max_angle_error_deg": 0.0025413510341698586
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D191-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/191",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.732819821626435e-05,
+        "baseline_max_angle_error_deg": 21.980054803419527,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.94175055849737,
+          58.14381800018977
+        ],
+        "max_angle_error_deg": 0.0026997153126107065
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D191-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/191#discussioncomment-19461868",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D220-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/220",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.565685125295204e-05,
+        "baseline_max_angle_error_deg": 9.997669897549486,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.98021745480856,
+          57.992243294142526
+        ],
+        "max_angle_error_deg": 0.005519199627059379
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D217-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/217",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.205957836627249e-05,
+        "baseline_max_angle_error_deg": 8.834645752901851,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.980221171740904,
+          57.992246098978356
+        ],
+        "max_angle_error_deg": 0.004838035346127256
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D214-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/214",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.3479246042134037e-09,
+        "baseline_max_angle_error_deg": 0.0008454927088936146,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063107749758757,
+          58.227348651529276
+        ],
+        "max_angle_error_deg": 0.0005818794174196613
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D214-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/214",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.275115290080066e-09,
+        "baseline_max_angle_error_deg": 0.0008134461816794288,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063107784866602,
+          58.22734878991406
+        ],
+        "max_angle_error_deg": 0.000562913301219954
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D214-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/214",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D208-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/208",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.451816610322567e-11,
+        "baseline_max_angle_error_deg": 7.293094568839787e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          23.906781873880774,
+          57.98362532780419
+        ],
+        "max_angle_error_deg": 7.293094568839787e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D208-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/208",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.451816610322567e-11,
+        "baseline_max_angle_error_deg": 7.293094568839787e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          23.906781873880774,
+          57.98362532780419
+        ],
+        "max_angle_error_deg": 7.293094568839787e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D201-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/201",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.00012729712786097025,
+        "baseline_max_angle_error_deg": 34.167273127125036,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.157776172681224,
+          57.8810435935905
+        ],
+        "max_angle_error_deg": 0.007738870722690194
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D115-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/115",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "bd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D199-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/199",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.0316643108440076e-05,
+        "baseline_max_angle_error_deg": 11.576727234494411,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.98003980490451,
+          57.992082240948
+        ],
+        "max_angle_error_deg": 0.0027079524722477544
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D163-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/163",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.382183422218077e-11,
+        "baseline_max_angle_error_deg": 7.210051741528597e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0980229,
+          58.0256167
+        ],
+        "max_angle_error_deg": 7.210051741528597e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D176-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/176",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.00010676450001767535,
+        "baseline_max_angle_error_deg": 14.412454203127782,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.93023784816711,
+          57.84264759148741
+        ],
+        "max_angle_error_deg": 0.003715749334414653
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D176-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/176#discussioncomment-19440618",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 9.334009561001722e-05,
+        "baseline_max_angle_error_deg": 11.700442290848294,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.92153111964273,
+          57.809384553085614
+        ],
+        "max_angle_error_deg": 0.009720621330507662
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D133-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/133",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.690028525544676e-06,
+        "baseline_max_angle_error_deg": 0.9959870176599395,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.098016536545153,
+          58.025617141670004
+        ],
+        "max_angle_error_deg": 0.002964188838076365
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I35-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/35",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.187769750529924e-05,
+        "baseline_max_angle_error_deg": 13.333269048059261,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.991460627731737,
+          57.964893657925366
+        ],
+        "max_angle_error_deg": 0.0036449608041912995
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I36-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/36",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.00259446016414418,
+        "max_radius_error_mm": 3.769354606220077e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "I41-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/41",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.00015006536629158518,
+        "baseline_max_angle_error_deg": 41.51045220916332,
+        "polynomial_degree": 8,
+        "fit_range_mm": [
+          24.157723798864616,
+          57.8810391592571
+        ],
+        "max_angle_error_deg": 0.0028436946235288474
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I41-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/41#issuecomment-6629704468",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I50-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/50",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.1810870411466112e-05,
+        "baseline_max_angle_error_deg": 3.214112023155892,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.048201325754512,
+          58.02648816120638
+        ],
+        "max_angle_error_deg": 0.003738386823712858
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I99-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/99",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.1810870411466112e-05,
+        "baseline_max_angle_error_deg": 3.214112023155892,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.048201325754512,
+          58.02648816120638
+        ],
+        "max_angle_error_deg": 0.003738386823712858
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I53-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53#issuecomment-6602721089",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.9575673821113924e-06,
+        "baseline_max_angle_error_deg": 0.481609184848135,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.063109184084034,
+          58.23373375457525
+        ],
+        "max_angle_error_deg": 0.005829605926657891
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I58-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/58",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.269660735189973e-06,
+        "baseline_max_angle_error_deg": 0.8200766711925512,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.06310839736449,
+          58.19808946526161
+        ],
+        "max_angle_error_deg": 0.0051747798735556905
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I58-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/58#issuecomment-6628105669",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I60-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/60",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.686607655595253e-06,
+        "baseline_max_angle_error_deg": 1.0330013685746056,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          23.961390747478745,
+          58.055958571455946
+        ],
+        "max_angle_error_deg": 0.008115315748601082
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I60-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/60",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I61-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/61",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.074425290909403e-06,
+        "baseline_max_angle_error_deg": 1.0747279013487125,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.015314703488574,
+          58.12464993434426
+        ],
+        "max_angle_error_deg": 0.008556487335020346
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I61-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/61#issuecomment-6632385629",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.074034105158944e-06,
+        "baseline_max_angle_error_deg": 1.0746135048515115,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.015314703488574,
+          58.11827433235999
+        ],
+        "max_angle_error_deg": 0.008549291331092279
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I61-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/61#issuecomment-6632385629",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.2145207495706245e-05,
+        "baseline_max_angle_error_deg": 2.488895630503216,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.015143514319153,
+          58.1182017040803
+        ],
+        "max_angle_error_deg": 0.003528291734172573
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I64-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/64",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.710464200272327e-05,
+        "baseline_max_angle_error_deg": 22.072705272304013,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.029483882537843,
+          58.0508670334849
+        ],
+        "max_angle_error_deg": 0.002539066180011318
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I65-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/65#issuecomment-6629489472",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.467448550509289e-11,
+        "baseline_max_angle_error_deg": 7.292094052848086e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.063,
+          58.227
+        ],
+        "max_angle_error_deg": 7.292094052848086e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I65-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/65#issuecomment-6652728564",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I69-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/69",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "bd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I73-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/73",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.031606802357146e-05,
+        "baseline_max_angle_error_deg": 11.575947499031544,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.98134934523504,
+          57.99270124492141
+        ],
+        "max_angle_error_deg": 0.002707204755757253
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I74-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/74",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.288001965273679e-05,
+        "baseline_max_angle_error_deg": 9.46966256732374,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.951609168781605,
+          57.97877301487387
+        ],
+        "max_angle_error_deg": 0.008214053692080725
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I74-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/74#issuecomment-6657653052",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I75-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/75",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.0826859011103807e-05,
+        "baseline_max_angle_error_deg": 3.392853471361564,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.098012,
+          58.025605000000006
+        ],
+        "max_angle_error_deg": 0.005203208346844068
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I76-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/76",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.40349970429088e-11,
+        "baseline_max_angle_error_deg": 7.240734231940763e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          23.9861614,
+          57.961045000000006
+        ],
+        "max_angle_error_deg": 7.240734231940763e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I77-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/77",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I77-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/77",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I79-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/79",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.91571232191254,
+          57.836468946099515
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I82-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/82",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.971476234454485e-05,
+        "baseline_max_angle_error_deg": 11.11055052857059,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.096827842743366,
+          57.81478062130707
+        ],
+        "max_angle_error_deg": 0.00833977864116342
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I82-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/82#issuecomment-6701404438",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I83-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/83",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I86-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/86",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.9216519,
+          57.8388868
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I87-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.93814048038621e-09,
+        "baseline_max_angle_error_deg": 0.0009708273471740097,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063112765327595,
+          58.22734793558852
+        ],
+        "max_angle_error_deg": 0.0005706823201004366
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I87-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87#issuecomment-6630231132",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I87-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87#issuecomment-6638836862",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I94-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/94#issuecomment-6655880918",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.690028525544676e-06,
+        "baseline_max_angle_error_deg": 0.9959870176599395,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.098016536545153,
+          58.025617141670004
+        ],
+        "max_angle_error_deg": 0.002964188838076365
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I132-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/132",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.690028525544676e-06,
+        "baseline_max_angle_error_deg": 0.9959870176599395,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.098016536545153,
+          58.025617141670004
+        ],
+        "max_angle_error_deg": 0.002964188838076365
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I119-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/119",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.173416983377365e-05,
+        "baseline_max_angle_error_deg": 11.552190783752184,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.966240074096643,
+          57.95448936129535
+        ],
+        "max_angle_error_deg": 0.004322010132081999
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I119-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/119#issuecomment-6646442995",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I124-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/124",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I129-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/129",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.581868480750927e-05,
+        "baseline_max_angle_error_deg": 9.435112732423052,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.908301803322303,
+          57.962540424538744
+        ],
+        "max_angle_error_deg": 0.002713552678346609
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I146-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/146",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I140-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/140",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.304418180187895e-05,
+        "baseline_max_angle_error_deg": 6.465899643247946,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          23.95405107427104,
+          57.97974608956845
+        ],
+        "max_angle_error_deg": 0.008667054651416262
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I144-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/144",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 5.65143835018489e-06,
+        "baseline_max_angle_error_deg": 1.2248133709328755,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.098005359823514,
+          58.025618459777874
+        ],
+        "max_angle_error_deg": 0.0037113899124927574
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I144-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/144#issuecomment-6762199303",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I145-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/145",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.7386909689776076e-09,
+        "baseline_max_angle_error_deg": 0.00033146427794395866,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.06310960446304,
+          58.23373846932162
+        ],
+        "max_angle_error_deg": 0.00017613106927540705
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I151-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/151",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.830241682185488e-06,
+        "baseline_max_angle_error_deg": 1.4849613225556302,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.063111262317697,
+          58.23374051269595
+        ],
+        "max_angle_error_deg": 0.004870915355275729
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I165-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/165",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.987210939015995e-05,
+        "baseline_max_angle_error_deg": 11.99335417633687,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.99146516037803,
+          57.96489751336602
+        ],
+        "max_angle_error_deg": 0.009412333449459354
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I185-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/185",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.000500903348360282,
+        "baseline_max_angle_error_deg": 170.86526402593125,
+        "polynomial_degree": 9,
+        "fit_range_mm": [
+          23.9667913,
+          57.9550043
+        ],
+        "max_angle_error_deg": 0.005198705236168166
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I185-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/185",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "id": "I189-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/189",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.911660272607765,
+          57.93160041561783
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I200-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/200",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 1.197953262334576,
+        "max_radius_error_mm": 2.697966266396179e-06,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "I200-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/200",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.5613584013892705e-05,
+        "baseline_max_angle_error_deg": 6.0346285256959815,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.837761044759006,
+          58.020854350879986
+        ],
+        "max_angle_error_deg": 0.0024288292444660797
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I202-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/202",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 5.1730005289130077e-05,
+        "baseline_max_angle_error_deg": 7.08859981899741,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.848209,
+          58.041014999999994
+        ],
+        "max_angle_error_deg": 0.008070620880271662
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I205-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/205",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 8.185890565215459e-05,
+        "baseline_max_angle_error_deg": 23.625839453347375,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.94175088829706,
+          58.1438243858009
+        ],
+        "max_angle_error_deg": 0.00320310290380732
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I212-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/212",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.47165278213879e-06,
+        "baseline_max_angle_error_deg": 0.7554571352441867,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.098017140000003,
+          58.025617200000006
+        ],
+        "max_angle_error_deg": 0.0024868762375475084
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I213-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/213",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 1.0105773500157738,
+        "max_radius_error_mm": 4.680359964481795e-06,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "I223-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/223",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.2468797159215228e-05,
+        "baseline_max_angle_error_deg": 3.0333863616406385,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.97952235798999,
+          58.0272352151831
+        ],
+        "max_angle_error_deg": 0.002409879072711618
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I228-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/228",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.110257634692971e-06,
+        "baseline_max_angle_error_deg": 1.1957949120376794,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.06311180704415,
+          58.22735489530275
+        ],
+        "max_angle_error_deg": 0.005280508898908964
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I248-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/248",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.5673209006195066e-06,
+        "baseline_max_angle_error_deg": 0.3488194918052168,
+        "polynomial_degree": 4,
+        "fit_range_mm": [
+          24.063108158117767,
+          58.22734939725815
+        ],
+        "max_angle_error_deg": 0.005893495103272334
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I248-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/248#issuecomment-6741550893",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I255-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/255",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.753584592506968e-05,
+        "baseline_max_angle_error_deg": 9.547138183481668,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.921568286852377,
+          57.83897934386466
+        ],
+        "max_angle_error_deg": 0.005955858934592051
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I272-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/272",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.077486327958013e-05,
+        "baseline_max_angle_error_deg": 11.589500978907964,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.906491028717873,
+          57.9617794844775
+        ],
+        "max_angle_error_deg": 0.00358446106898036
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I277-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/277",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.207374224700743e-05,
+        "baseline_max_angle_error_deg": 8.917834038562969,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.95181955709438,
+          57.97888782096304
+        ],
+        "max_angle_error_deg": 0.004674445898007029
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I278-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/278",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.7536509197668693e-05,
+        "baseline_max_angle_error_deg": 3.343248585519165,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.934090363794045,
+          57.987156121352996
+        ],
+        "max_angle_error_deg": 0.007376292446975352
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I281-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/281",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 8.564930730869946e-06,
+        "baseline_max_angle_error_deg": 2.7842967464182924,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.91158602298646,
+          57.93863465434508
+        ],
+        "max_angle_error_deg": 0.006455896173948039
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I281-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/281",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 1.153747421554718,
+        "max_radius_error_mm": 4.593308702283139e-06,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "I281-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/281",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.845082179054771e-05,
+        "baseline_max_angle_error_deg": 11.236483705532699,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          24.07366103402171,
+          58.18984272351673
+        ],
+        "max_angle_error_deg": 0.00272638347217935
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I281-4",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/281",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 3.930686439141343,
+        "max_radius_error_mm": 1.5333009635298822e-05,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "I283-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/283",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 1.141093577643078,
+        "max_radius_error_mm": 3.4417093388583453e-06,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "I289-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/289",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.699208915795225e-05,
+        "baseline_max_angle_error_deg": 4.64620248218752,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.933879893109697,
+          57.957884267199745
+        ],
+        "max_angle_error_deg": 0.002757176058319377
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I171-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": false,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.196470306538913e-05,
+        "baseline_max_angle_error_deg": 12.767067406716508,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.991460702437305,
+          57.93579168028282
+        ],
+        "max_angle_error_deg": 0.0025843962147371613
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP).",
+        "Unknown fields retained; geometry use and DIS installation refused: interleave"
+      ]
+    },
+    {
+      "id": "I171-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171#issuecomment-6700847608",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I171-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171#issuecomment-6711804614",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.15812276241445e-05,
+        "baseline_max_angle_error_deg": 6.8098073285755305,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          23.991445968448673,
+          57.9358368947455
+        ],
+        "max_angle_error_deg": 0.0033396341073759217
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I171-4",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171#issuecomment-6712059117",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.9993409906458055e-05,
+        "baseline_max_angle_error_deg": 10.704690489495423,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          23.991477984273075,
+          57.93578721535887
+        ],
+        "max_angle_error_deg": 0.004722216755085995
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I184-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/184#issuecomment-6694283038",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.196470306538913e-05,
+        "baseline_max_angle_error_deg": 12.767067406716508,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.991460702437305,
+          57.93579168028282
+        ],
+        "max_angle_error_deg": 0.0025843962147371613
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I184-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/184#issuecomment-6694283038",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I116-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/116#issuecomment-6646681796",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "id": "I232-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/232",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 5.002579958505433e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          25.279714430920993,
+          58.28454700401646
+        ],
+        "max_angle_error_deg": 5.002579958505433e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I232-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/232",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "sectors must be a positive integer <= 9223372036854775807"
+      ]
+    },
+    {
+      "id": "I260-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/260",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 5.770600034082918e-05,
+        "baseline_max_angle_error_deg": 14.902824077754497,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.952682041205854,
+          57.980920145965584
+        ],
+        "max_angle_error_deg": 0.005286273582903789
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I249-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/249",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.4212632726848824e-11,
+        "baseline_max_angle_error_deg": 7.258743519791383e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          23.950238720108224,
+          57.95845741522966
+        ],
+        "max_angle_error_deg": 7.258743519791383e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I242-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/242",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          25.280000000000005,
+          58.05
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I292-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/292",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.839999999999996,
+          58.019999999999996
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I25-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/25",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1316282072803006e-14,
+        "baseline_max_angle_error_deg": 4.168816632087861e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.837775,
+          58.020875
+        ],
+        "max_angle_error_deg": 4.168816632087861e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I52-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/52",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "bd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D107-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19407670",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.0837268860086624e-09,
+        "baseline_max_angle_error_deg": 0.00037478328533131,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063109045500653,
+          58.23373689303116
+        ],
+        "max_angle_error_deg": 0.00023714101414417968
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19408350",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.7492638448857178e-09,
+        "baseline_max_angle_error_deg": 0.0005841212462749283,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063254612285274,
+          58.233596692135684
+        ],
+        "max_angle_error_deg": 0.0003837811190719852
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19409228",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.58646478971059e-11,
+        "baseline_max_angle_error_deg": 6.196529041935396e-05,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063096249368826,
+          58.23374463169329
+        ],
+        "max_angle_error_deg": 4.404256079778828e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-4",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19411378",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.1950796735836775e-09,
+        "baseline_max_angle_error_deg": 0.00030339980437674315,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          23.966292532202864,
+          57.92539289698838
+        ],
+        "max_angle_error_deg": 0.0001901098547515561
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-5",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19412567",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.2355592932399304e-09,
+        "baseline_max_angle_error_deg": 0.0003828441091711151,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          23.954101122611203,
+          57.98148334658079
+        ],
+        "max_angle_error_deg": 0.00020715866253948935
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-6",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19412203",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 8.427456040038805e-05,
+        "baseline_max_angle_error_deg": 23.600572665951848,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.941740912,
+          58.143835191
+        ],
+        "max_angle_error_deg": 0.007524275684508197
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-7",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19416387",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.749794345812688e-05,
+        "baseline_max_angle_error_deg": 21.85064259556549,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          23.941736672,
+          58.143828897999995
+        ],
+        "max_angle_error_deg": 0.008048583575206436
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-8",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19445201",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.734666717595928e-05,
+        "baseline_max_angle_error_deg": 21.98531394902884,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.941750558,
+          58.14381800000001
+        ],
+        "max_angle_error_deg": 0.002700224253681327
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-9",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19418103",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 5.002579958505433e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          25.13937364,
+          49.72465012799999
+        ],
+        "max_angle_error_deg": 5.002579958505433e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D107-10",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19433020",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.312514541496057e-10,
+        "baseline_max_angle_error_deg": 0.00013626861054303515,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          25.139377106,
+          58.081035234999995
+        ],
+        "max_angle_error_deg": 9.551055276300885e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-11",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19433975",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.866097356412638e-05,
+        "baseline_max_angle_error_deg": 10.436624079120849,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          25.139299976,
+          58.080969651
+        ],
+        "max_angle_error_deg": 0.005407515087933135
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-12",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19435380",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 9.457841464666217e-05,
+        "baseline_max_angle_error_deg": 12.971116460035116,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          25.13942819012611,
+          58.08103629315155
+        ],
+        "max_angle_error_deg": 0.0029233199705105406
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-13",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19435380",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 7.868054364479349e-05,
+        "baseline_max_angle_error_deg": 10.439381716304915,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          25.139454699150175,
+          58.081036615432446
+        ],
+        "max_angle_error_deg": 0.005408946180852858
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-14",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19472472",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 9.264851910728567e-05,
+        "baseline_max_angle_error_deg": 12.154883326053065,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          25.13927952,
+          58.097173508
+        ],
+        "max_angle_error_deg": 0.0072064714226440785
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-15",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.7371277749589353e-09,
+        "baseline_max_angle_error_deg": 0.00033103739112083283,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063109604,
+          58.233738469
+        ],
+        "max_angle_error_deg": 0.00017589380109651743
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-16",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442592",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.2151851908347453e-08,
+        "baseline_max_angle_error_deg": 0.006319659209980743,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063109647000005,
+          58.19809381400001
+        ],
+        "max_angle_error_deg": 0.004339767505271667
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-17",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19435910",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.2195056459395346e-08,
+        "baseline_max_angle_error_deg": 0.006339042539793299,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063109417,
+          58.198091996
+        ],
+        "max_angle_error_deg": 0.004351190580318143
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-18",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19435910",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.221316819372987e-08,
+        "baseline_max_angle_error_deg": 0.0063436048927154555,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.063108273,
+          58.198092799
+        ],
+        "max_angle_error_deg": 0.004354483528708662
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-19",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19434982",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.9392757621972123e-08,
+        "baseline_max_angle_error_deg": 0.0042884416591089485,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.012422498,
+          58.045988249
+        ],
+        "max_angle_error_deg": 0.0022975162627900197
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-20",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19438546",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 8.272398829944905e-06,
+        "baseline_max_angle_error_deg": 1.6602330313278821,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.012422903460966,
+          58.045976694853614
+        ],
+        "max_angle_error_deg": 0.0035716515851942354
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-21",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421090",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.382183422218077e-11,
+        "baseline_max_angle_error_deg": 7.210718752189731e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.09803,
+          58.02560999999999
+        ],
+        "max_angle_error_deg": 7.210718752189731e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D107-22",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19426856",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.382183422218077e-11,
+        "baseline_max_angle_error_deg": 7.210051741528597e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.0980229,
+          58.0256167
+        ],
+        "max_angle_error_deg": 7.210051741528597e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D107-23",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19453747",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.0103953229645413e-08,
+        "baseline_max_angle_error_deg": 0.002982154640130787,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          23.941673835,
+          58.143740701
+        ],
+        "max_angle_error_deg": 0.0017897817300642457
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-24",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19462404",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.477541892811132e-09,
+        "baseline_max_angle_error_deg": 0.001470418332363419,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.048190563133662,
+          58.02648115677677
+        ],
+        "max_angle_error_deg": 0.0009063171393599389
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-25",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19462404",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.298399858271296e-09,
+        "baseline_max_angle_error_deg": 0.0014029535390430146,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          24.048191566046626,
+          58.02648233901463
+        ],
+        "max_angle_error_deg": 0.0008627334451201023
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-26",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19462404",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 0.00029735911412132054,
+        "baseline_max_angle_error_deg": 69.55383548290807,
+        "polynomial_degree": 8,
+        "fit_range_mm": [
+          24.04765837600876,
+          58.026554301590615
+        ],
+        "max_angle_error_deg": 0.005210447288256148
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-27",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19461043",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D107-28",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19471307",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.5665335695302929e-09,
+        "baseline_max_angle_error_deg": 0.00027456493349591786,
+        "polynomial_degree": 0,
+        "fit_range_mm": [
+          23.911578441731752,
+          57.93862562435573
+        ],
+        "max_angle_error_deg": 0.00014702842744330954
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D107-29",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19471307",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "bd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "max_angle_error_deg": 0.002579080537253872,
+        "max_radius_error_mm": 3.762611555657713e-09,
+        "samples": 20001,
+        "polynomial_degree": null
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Unknown fields retained; geometry use and DIS installation refused: channelBitLengthNm",
+        "BD geometry maps to r0/pitch; DP image command has no BD writer."
+      ]
+    },
+    {
+      "id": "D107-30",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19476887",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.431921413721284e-11,
+        "baseline_max_angle_error_deg": 7.26474661574159e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.012452531678793,
+          58.045970875311475
+        ],
+        "max_angle_error_deg": 7.26474661574159e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D107-31",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19411985",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 3.3350533056702886e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.911761984709965,
+          57.93170828230436
+        ],
+        "max_angle_error_deg": 3.3350533056702886e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "D174-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/174#discussioncomment-19435686",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 8.749936093721544e-05,
+        "baseline_max_angle_error_deg": 25.412384880543595,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.94175427744226,
+          58.14383337836783
+        ],
+        "max_angle_error_deg": 0.003567368383659897
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "D181-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/181",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 5.333547515817827e-05,
+        "baseline_max_angle_error_deg": 6.857450210062074,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.880391237427595,
+          57.79370167081931
+        ],
+        "max_angle_error_deg": 0.006948793330180614
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I67-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/67#issuecomment-6612469167",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 5.262497377600539e-05,
+        "baseline_max_angle_error_deg": 15.97097373320012,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.987192744709116,
+          57.96783172001172
+        ],
+        "max_angle_error_deg": 0.006543255741053855
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I67-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/67#issuecomment-6653552228",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 4.358974624807388e-05,
+        "baseline_max_angle_error_deg": 12.842807964727216,
+        "polynomial_degree": 7,
+        "fit_range_mm": [
+          23.987121960028368,
+          57.9678245054176
+        ],
+        "max_angle_error_deg": 0.0048170650189423014
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I67-3",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/67#issuecomment-6615174042",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 2.7229181775112465e-05,
+        "baseline_max_angle_error_deg": 6.207432820292933,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          23.987012693792046,
+          57.96779289470711
+        ],
+        "max_angle_error_deg": 0.007416787360313926
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I78-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/78#issuecomment-6642602694",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.92096883174986e-05,
+        "baseline_max_angle_error_deg": 4.9995689139660415,
+        "polynomial_degree": 5,
+        "fit_range_mm": [
+          24.84853699298933,
+          58.04108987773998
+        ],
+        "max_angle_error_deg": 0.003471445812174956
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP)."
+      ]
+    },
+    {
+      "id": "I78-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/78#issuecomment-6621544494",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "cd",
+      "valid": true,
+      "accepted": true,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 1.4210854715202004e-14,
+        "baseline_max_angle_error_deg": 4.168816632087861e-09,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          24.848579307275145,
+          58.0411140904524
+        ],
+        "max_angle_error_deg": 4.168816632087861e-09
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP."
+      ]
+    },
+    {
+      "id": "I88-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/88#issuecomment-6720871060",
+      "complete": false,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "radii must satisfy 0 < innerRadiusMm < outerRadiusMm"
+      ]
+    },
+    {
+      "id": "I218-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/218#issuecomment-6721690645",
+      "complete": true,
+      "pitch_fields": false,
+      "nonzero_pitch": false,
+      "media": "dvd",
+      "valid": true,
+      "accepted": false,
+      "status": "unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 3.4290792427782435e-11,
+        "baseline_max_angle_error_deg": 7.267081153055559e-05,
+        "polynomial_degree": null,
+        "fit_range_mm": [
+          23.962,
+          57.97200000000001
+        ],
+        "max_angle_error_deg": 7.267081153055559e-05
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "Imported values; calibration not verified by DP.",
+        "Unknown fields retained; geometry use and DIS installation refused: pitch_um, r0_mm, u, v"
+      ]
+    },
+    {
+      "id": "I320-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/320",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "D323-1",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/323",
+      "complete": false,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "dvd",
+      "valid": false,
+      "accepted": false,
+      "status": null,
+      "comparison": null,
+      "issues": [
+        "totalSectors must be a positive integer <= 4294967295"
+      ]
+    },
+    {
+      "id": "I86-2",
+      "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/86#issuecomment-6822624773",
+      "complete": true,
+      "pitch_fields": true,
+      "nonzero_pitch": true,
+      "media": "cd",
+      "valid": true,
+      "accepted": false,
+      "status": "converted_unverified",
+      "comparison": {
+        "samples": 20001,
+        "max_radius_error_mm": 8.41474881525528e-05,
+        "baseline_max_angle_error_deg": 11.426506203331005,
+        "polynomial_degree": 6,
+        "fit_range_mm": [
+          24.92157313130725,
+          57.83895664859281
+        ],
+        "max_angle_error_deg": 0.0058253922970674665
+      },
+      "issues": [
+        "MID unknown; DIS has no MID field.",
+        "L unknown; DIS has no along-track constant.",
+        "Imported values; calibration not verified by DP.",
+        "Imported from DIS, converted to DP correction (not measured by DP).",
+        "Unknown fields retained; geometry use and DIS installation refused: linearDensity"
+      ]
+    }
+  ],
+  "summary": {
+    "records": 174,
+    "complete": 132,
+    "pitch_fields": 130,
+    "nonzero_pitch": 119,
+    "usable": 119,
+    "usable_nonzero_pitch": 99
+  },
+  "conversion": {
+    "samples": 20001,
+    "angle_limit_deg": 0.01,
+    "radius_limit_mm": 0.005,
+    "max_degree": 16,
+    "alignment": "sector-zero anchored; signed data-side unwrapped angles",
+    "model": "exact DIS arc integrands; constant CD area rule; BD unchanged"
+  }
+}

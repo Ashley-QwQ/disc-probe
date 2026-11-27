@@ -1,0 +1,12 @@
+COMMAND: node tests/test_burn_cancel.mjs
+✔ a finalized 576-sector disc is rejected, with a blank-disc recovery in both languages (2.1018ms)
+✔ burn cancellation names the user and percentage; failures retain the actual cause (0.6809ms)
+✔ Space and Enter use a held second when opted in; disabled states ignore both (0.4608ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13.4918

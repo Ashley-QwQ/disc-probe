@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "discs": {
+    "media": "dvd-r",
+    "count": 1,
+    "seed": 17,
+    "capacity": 8192,
+    "initial_state": {
+      "state": "burned",
+      "random": true,
+      "sectors": 4096,
+      "seed": 23
+    }
+  },
+  "drive": {
+    "profile": "gh70n"
+  },
+  "faults": [
+    {
+      "id": "short-success",
+      "kind": "burn_interrupt",
+      "params": {
+        "fraction": 0.4,
+        "report_success": true
+      }
+    }
+  ]
+}

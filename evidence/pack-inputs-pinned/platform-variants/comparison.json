@@ -1,0 +1,129 @@
+{
+  "commit": "76f6a302b53e43e04851c63f30255deafd1cab18",
+  "gates": 68,
+  "mjs": 55,
+  "cjs": 1,
+  "asset_checksums": 9,
+  "raw_input_count": 10,
+  "variants": {
+    "full": {
+      "file": "disc-probe-1.0.0.0-alpha-full.zip",
+      "size": 268078728,
+      "platforms": [
+        "windows",
+        "linux"
+      ],
+      "sha256": "f63b3fdddbaaa2967ecc0362f3a0e837c9e47cd44f13e3a82d3c811596624bd7"
+    },
+    "win64": {
+      "file": "disc-probe-1.0.0.0-alpha-win64.zip",
+      "size": 120493842,
+      "platforms": [
+        "windows"
+      ],
+      "sha256": "d3bbbb233c34da2093794351d8855cf70d52108145cabc8552c8df338cd6bdb6"
+    },
+    "linux-x86_64": {
+      "file": "disc-probe-1.0.0.0-alpha-linux-x86_64.zip",
+      "size": 164687278,
+      "platforms": [
+        "linux"
+      ],
+      "sha256": "2532492e1f56e5cbce631a9dd1e43761d2458ca20a76376f6b1d4a4d40ea9668"
+    }
+  },
+  "app": {
+    "file_count": 607,
+    "expected_snapshot": "76f6a302b53e43e04851c63f30255deafd1cab18",
+    "hash": "74a699d95de24a9ff60a18b20d1779fa9af4155d4020f2fb5c5570f0d38abf4a",
+    "troubleshoot_sha256": "7a89ec8b80e2de1aac1bc2558e13c882f98a083b74ca11fc910a2d2fc106d321"
+  },
+  "runtime": {
+    "windows": {
+      "files": 1327,
+      "single_files": 1327,
+      "identical_shared_files": true,
+      "single_omits": [],
+      "identical_old_files": 1326,
+      "old_metadata_differences": [
+        "python/Lib/site-packages/numpy-2.5.1.dist-info/RECORD"
+      ],
+      "dependencies": {
+        "numpy": "2.5.1",
+        "opencv-python-headless": "5.0.0.93",
+        "pillow": "12.3.0",
+        "scipy": "1.18.1"
+      }
+    },
+    "linux": {
+      "files": 2544,
+      "single_files": 2542,
+      "identical_shared_files": true,
+      "single_omits": [
+        "linux/python/lib/python3.13/ctypes/macholib/fetch_macholib.bat",
+        "linux/python/lib/python3.13/idlelib/idle.bat"
+      ],
+      "identical_old_files": 2543,
+      "old_metadata_differences": [
+        "linux/python/lib/python3.13/site-packages/numpy-2.5.1.dist-info/RECORD"
+      ],
+      "dependencies": {
+        "numpy": "2.5.1",
+        "opencv-python-headless": "5.0.0.93",
+        "pillow": "12.3.0",
+        "pip": "26.1.2",
+        "scipy": "1.18.1"
+      }
+    }
+  },
+  "old_zip": {
+    "builder_commit": "f4e7f43",
+    "path": "F:/dp-dev-tmp/linuxpack/rehearsal-platforms-baseline/disc-probe-1.0.0.0-alpha-full.zip",
+    "sha256": "d0d4da4b9916d91a22293a37e5c55ed2eff1b1196a07065ef73ca80f350eaef9",
+    "size": 267963404
+  },
+  "platform_checks": [
+    {
+      "variant": "win64",
+      "host": "windows",
+      "status": "PASS",
+      "log": "F:/dp-dev-tmp/linuxpack/platform-verification/win64/windows/verify.log",
+      "log_sha256": "4289ab0754678d5594d4f7e474fcf341014d5aa4df560f2e0940aa07b435e5d5"
+    },
+    {
+      "variant": "linux-x86_64",
+      "host": "x79",
+      "status": "PASS",
+      "log": "F:/dp-dev-tmp/linuxpack/platform-verification/linux-x86_64/x79/verify.log",
+      "log_sha256": "676f167a2904632aa3a62cec3e8c06d2b31e02d06f23b16a79699bd4e5909424"
+    },
+    {
+      "variant": "linux-x86_64",
+      "host": "agentbox",
+      "status": "PASS",
+      "log": "F:/dp-dev-tmp/linuxpack/platform-verification/linux-x86_64/agentbox/verify.log",
+      "log_sha256": "ec0918407d4105e2bf8d3fa77604cfb12ab91675e66bdf9617ee36a57792b70c"
+    },
+    {
+      "variant": "full",
+      "host": "windows",
+      "status": "PASS",
+      "log": "F:/dp-dev-tmp/linuxpack/platform-verification/full/windows/verify.log",
+      "log_sha256": "94e5e5daf8529d3f8a3acdd19ff755c9c26f96e90526c80284ad82434a8aa7ba"
+    },
+    {
+      "variant": "full",
+      "host": "x79",
+      "status": "PASS",
+      "log": "F:/dp-dev-tmp/linuxpack/platform-verification/full/x79/verify.log",
+      "log_sha256": "4ce89af69f088cfd74dccdb51eb12e67cbaac5a59265d0ddbfbe0058dfb04672"
+    },
+    {
+      "variant": "full",
+      "host": "agentbox",
+      "status": "PASS",
+      "log": "F:/dp-dev-tmp/linuxpack/platform-verification/full/agentbox/verify.log",
+      "log_sha256": "d5b7a674232733108f3d4b92c3cff7247fd3bbad23ec65f35a86b70f9dbf680d"
+    }
+  ]
+}

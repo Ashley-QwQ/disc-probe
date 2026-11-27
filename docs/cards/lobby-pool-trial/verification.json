@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "protected_count": 128,
+  "paper_count": 116,
+  "changed_protected": [],
+  "added_protected": [],
+  "original_scripts_unchanged": {
+    "render_round5_nightb.py": true,
+    "render_fax_nightb.py": true,
+    "night_b_palette.py": true,
+    "glow_review.json": true
+  },
+  "scene_copy_unchanged": true,
+  "renderer_checks": {
+    "render_fax_nightb.py": {
+      "paper_style_equal": true,
+      "non_light_dark_style_equal": true,
+      "functions_equal": {
+        "outline_mask": true,
+        "compose_and_save": true,
+        "make_light": true,
+        "facing_tone": true,
+        "band_tone": true
+      },
+      "sha256": "c500e780f68b339dc6e846765b626b9d1cb2f508f242ee923c65c8a9b265564f",
+      "stage_equal": true
+    },
+    "render_round5_nightb.py": {
+      "paper_style_equal": true,
+      "non_light_dark_style_equal": true,
+      "functions_equal": {
+        "outline_mask": true,
+        "compose_and_save": true,
+        "make_light": true,
+        "facing_tone": true,
+        "band_tone": true
+      },
+      "sha256": "9f597ba89baa712a2ff28c94baf007f8fe30e54ba14324b2d60546ac1b2f476f",
+      "stage_equal": true
+    }
+  },
+  "base_only_render": true,
+  "paper_gate_accepted": true,
+  "screenshots_1440x1000": true,
+  "screenshot_changed_pixels": 809797,
+  "trial_png_is_raw_output": true,
+  "errors": [],
+  "csp": [],
+  "fixed_layout_equal": true,
+  "visual_approval": "PENDING_REVIEW",
+  "drive_layer": "UNCHANGED_OVERLAY",
+  "free_bytes": {
+    "D": 42454450176,
+    "F": 26094084096
+  }
+}

@@ -1,0 +1,2 @@
+COMMAND: node tests/test_preset_geometry.mjs
+Imported preset page geometry selection passed

@@ -1,0 +1,31 @@
+{
+  "core": {
+    "zip": "D:\\disc-probe-dist\\slim-20261111\\disc-probe-slim-20261111-core.zip",
+    "sha256": "30ddc1c210ceeae7d0f60c21b5217615a19cce26c34a2fb8b8ae19acb350016c",
+    "extracted_identical": true
+  },
+  "full-win64": {
+    "zip": "D:\\disc-probe-dist\\slim-20261111\\disc-probe-slim-20261111-full-win64.zip",
+    "sha256": "d0be3842707331eae23f66f094b2dc35c57c0b8f9a55daeb34df82dade75bb39",
+    "extracted_identical": true
+  },
+  "selftest": {
+    "returncode": 0,
+    "log": "D:\\disc-probe-dist\\slim-20261111\\extracted-selftest-1794433701560524800.log",
+    "command": [
+      "D:\\disc-probe-dist\\slim-20261111\\解压 验证 1794433697171430800\\disc-probe-slim-20261111-full-win64\\python\\python.exe",
+      "-I",
+      "-X",
+      "utf8",
+      "-B",
+      "D:\\disc-probe\\.claude\\worktrees\\slim-pack\\tests\\slim_trace.py",
+      "--root",
+      "D:\\disc-probe-dist\\slim-20261111\\解压 验证 1794433697171430800\\disc-probe-slim-20261111-full-win64",
+      "--output",
+      "D:\\disc-probe-dist\\slim-20261111\\audit-extracted",
+      "--mode",
+      "selftest"
+    ]
+  },
+  "destination": "D:\\disc-probe-dist\\slim-20261111\\解压 验证 1794433697171430800"
+}

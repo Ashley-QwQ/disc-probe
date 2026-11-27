@@ -1,0 +1,29 @@
+{
+  "source": "F:\\dp-archive\\tmp\\lobbypool\\final\\L_lobby3\\desk_newplan_dark.png",
+  "surface": "top-cover upward faces, 3px edge and internal-line guard",
+  "pixels": 67926,
+  "desktop": {
+    "xy": [
+      842,
+      1074
+    ],
+    "L_star": 16.116784936095094
+  },
+  "brightest": {
+    "xy": [
+      1063,
+      868
+    ],
+    "L_star": 35.28658863127351
+  },
+  "darkest": {
+    "xy": [
+      1102,
+      724
+    ],
+    "L_star": 29.878216127970695
+  },
+  "min_contrast": 13.761431191875602,
+  "required_contrast": 6.0,
+  "hero_override_required": false
+}

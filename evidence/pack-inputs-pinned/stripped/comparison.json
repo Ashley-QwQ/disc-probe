@@ -1,0 +1,80 @@
+{
+  "before": {
+    "total_bytes": 350706167,
+    "sha256": "c552518c7d323585ba66ac742cfb359b03ee554946e2ecfe951663fe5d58b7fb",
+    "parts": {
+      "source": 16720239,
+      "linux/python": 116555164,
+      "linux/pillow": 6917122,
+      "linux/opencv-python-headless": 61126272,
+      "linux/numpy": 14723500,
+      "linux/scipy": 30394291,
+      "windows/python": 10051174,
+      "windows/scipy": 31675894,
+      "windows/pillow": 7081440,
+      "windows/opencv-python-headless": 43820166,
+      "windows/numpy": 10471463,
+      "zip_headers": 1169442
+    },
+    "binaries": {
+      "linux/python/bin/python3.13": {
+        "compressed": 42092424,
+        "original": 115004800
+      },
+      "linux/python/lib/libpython3.13.so.1.0": {
+        "compressed": 63088403,
+        "original": 240772000
+      }
+    }
+  },
+  "after": {
+    "total_bytes": 267953316,
+    "sha256": "4a3b5741d6235eb29d6efe0ed5da7f0f2330b39946e05a9828d49c32003d2f21",
+    "parts": {
+      "source": 16778722,
+      "linux/python": 33743043,
+      "linux/pillow": 6917122,
+      "linux/opencv-python-headless": 61126272,
+      "linux/numpy": 14723500,
+      "linux/scipy": 30394291,
+      "windows/python": 10051174,
+      "windows/scipy": 31675894,
+      "windows/pillow": 7081440,
+      "windows/opencv-python-headless": 43820166,
+      "windows/numpy": 10471462,
+      "zip_headers": 1170230
+    },
+    "binaries": {
+      "linux/python/bin/python3.13": {
+        "compressed": 12229691,
+        "original": 31549320
+      },
+      "linux/python/lib/libpython3.13.so.1.0": {
+        "compressed": 10321714,
+        "original": 31864152
+      }
+    }
+  },
+  "reduction_bytes": 82752851,
+  "added_linux_runtime_paths": [],
+  "removed_linux_runtime_paths": [],
+  "runtime_asset": {
+    "bytes": 34931836,
+    "official_checksums_sha256": "698c0a756445f998fe752d220391ef87f8e207aea16dfa329a4bf6f65acd899e",
+    "kind": "runtime",
+    "name": "cpython",
+    "version": "3.13.14",
+    "platform": "x86_64-unknown-linux-gnu",
+    "python_tag": "cp313",
+    "abi": "cp313",
+    "file": "cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.13.14%2B20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+    "checksum_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/SHA256SUMS",
+    "sha256": "d607e18e83227a0527cf3f54a48be973a75358a6885e4be67d4b0359b6f1c880"
+  },
+  "troubleshoot_sha256": "99c9bc161b3a757763dd72f5fd4102aed66c8a580d6ff8babf9501900f7bae1d",
+  "verified_assets": 7,
+  "gates": 68,
+  "node_mjs": 55,
+  "node_cjs": 1
+}

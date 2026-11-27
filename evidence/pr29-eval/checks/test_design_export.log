@@ -1,0 +1,2 @@
+COMMAND: node tests/test_design_export.mjs
+design export rules: geometry choice, black-and-white textures, grids passed

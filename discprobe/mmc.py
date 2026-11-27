@@ -148,6 +148,17 @@ def media_family(profile: int | None) -> str:
     return "unknown"
 
 
+RW_PROFILES = {0x0A, 0x13, 0x14, 0x1A, 0x2A, 0x43}
+
+
+def rewritable(profile, erasable=None):
+    """Current medium evidence, never the drive's supported-profile list."""
+    return dict(rewritable=profile in RW_PROFILES or erasable is True,
+                rewritable_sources=dict(current_profile=profile,
+                                        profile_rewritable=profile in RW_PROFILES,
+                                        erasable=erasable))
+
+
 def block_sectors(family: str) -> int:
     """Sectors per error-correction block: the smallest unit a drive reads from media."""
     return {"dvd": 16, "bd": 32}.get(family, 1)
@@ -260,7 +271,8 @@ def parse_atip(d: bytes) -> dict:
         "leadin_start_lba": msf_to_lba(*leadin),
         # Last possible lead-out start on classic media; newer formats may put SAL here.
         "last_leadout_start_msf": "%02d:%02d:%02d" % leadout,
-        "last_leadout_start_lba": msf_to_lba(*leadout),
+        "last_leadout_start_lba": (msf_to_lba(*leadout)
+                                  if leadout[0] < 90 and leadout[1] < 60 and leadout[2] < 75 else None),
         "a1_a2_a3_valid": [bool(a[2] & 4), bool(a[2] & 2), bool(a[2] & 1)],
     }
 
@@ -309,6 +321,56 @@ def parse_dvd_plus_adip(d: bytes) -> dict:
     return {"manufacturer_id": p[19:27].decode("ascii", "replace").strip("\x00 "),
             "media_type_id": p[27:30].decode("ascii", "replace").strip("\x00 "),
             "product_revision": p[30], "ascii_runs": ascii_runs(p)}
+
+
+def disc_structure_payload(d: bytes) -> bytes:
+    # MMC-6 Tables 398, 424 and 426: length excludes its own two bytes.
+    return d[4:2 + (_be(d, 0, 2) or 0)]
+
+
+def parse_dvd_plus_r_dl_mid(d: bytes) -> dict:
+    """Strict MID for DVD+R DL ADIP (11h) or physical format information (00h)."""
+    p = disc_structure_payload(d)
+    # ECMA-364 §14.4.2.1 and §18.8.1 Table 13: category Eh and two OTP
+    # write-once layers, then manufacturer [19:27], media type [27:30]
+    # and a binary revision/stack byte at 30. IDs are padded with trailing NULs.
+    if len(p) < 31 or p[0] >> 4 != 0xE or p[2] != 0x32 or p[30] >> 6 == 3:
+        return {}
+    manufacturer = p[19:27].rstrip(b"\0")
+    media_type = p[27:30].rstrip(b"\0")
+    if not all(field.strip() and all(0x20 <= byte <= 0x7E for byte in field)
+               for field in (manufacturer, media_type)):
+        return {}
+    return {"manufacturer_id": manufacturer.decode("ascii"),
+            "media_type_id": media_type.decode("ascii"),
+            "product_revision": p[30] & 0x3F, "product_revision_byte": p[30]}
+
+
+DVD_DATA_START_PSN = 0x030000  # MMC-6 Table 404, for DVD-ROM and DVD±R/±RW
+
+
+def parse_dvd_layer0_end(d: bytes) -> int | None:
+    # MMC-6 Table 398: PFI bytes 5..7 and 13..15 are the start and inclusive
+    # L0 end PSNs. The L0 end field applies to dual-layer OTP media.
+    p = disc_structure_payload(d)
+    if len(p) < 16 or p[2] & 0xF0 != 0x30 or _be(p, 5, 3) != DVD_DATA_START_PSN:
+        return None
+    end = _be(p, 13, 3)
+    if DVD_DATA_START_PSN <= end < 0x800000:
+        return end
+    return None
+
+
+def parse_dvd_layer_capacity(d: bytes) -> dict:
+    # MMC-6 §6.22.3.2.20 Table 426: payload byte 0 bit 7 is Init Status.
+    # Payload bytes 4..7 count L0 sectors, in whole DVD ECC blocks.
+    p = disc_structure_payload(d)
+    if len(p) != 8 or _be(d, 0, 2) != 10:
+        return {}
+    sectors = _be(p, 4, 4)
+    if not 0 < sectors <= 0x800000 - DVD_DATA_START_PSN or sectors % block_sectors("dvd"):
+        return {}
+    return {"sectors": sectors, "initialized": bool(p[0] & 0x80)}
 
 
 def parse_get_performance(d: bytes, perf_type: int) -> dict:

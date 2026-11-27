@@ -1,0 +1,16 @@
+{
+  "environment": {
+    "CYCLES_CPU_NO_AVX2": "1"
+  },
+  "stats": {
+    "rgb_mean": 1.2730737235924785,
+    "alpha_mean": 0.0001986639847028732,
+    "over8_percent": 2.1807978312367777
+  },
+  "absolute_pass": false,
+  "default_cpu_stats": {
+    "rgb_mean": 1.2460169666873577,
+    "alpha_mean": 0.0003352454741860985,
+    "over8_percent": 2.1440606037573318
+  }
+}

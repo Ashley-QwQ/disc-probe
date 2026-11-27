@@ -1,0 +1,32 @@
+{
+  "command": [
+    "evidence\\pr29-eval\\evaluate.py",
+    "--seeds",
+    "200",
+    "--end-seeds",
+    "30",
+    "--workers",
+    "2"
+  ],
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "numpy": "2.5.1",
+  "seed_range": [
+    1,
+    200
+  ],
+  "end_seed_range": [
+    1,
+    30
+  ],
+  "workers": 2,
+  "tail_model": "all media reads: 80% U(10,20) + 20% U(4,60) degrees; independent RNG seed+1000003",
+  "quantiles": "numpy.quantile linear; phase p95 absolute signed circular error; win per-seed RMS over 14 fixed targets",
+  "source_sha256": {
+    "discprobe/analysis.py": "e08a3e1491ee56d8d902163bd02915b654af65491c2d65684d9a274e843a3a30",
+    "discprobe/sim.py": "cd4a810347f7e8edc4c24d6cc4b2ec46ca01e953a460c85d1e589372b930bb6e",
+    "discprobe/geo.py": "f14b95d3b533cc3033ad8e791456d519626b4d1531d9e5c806f8e979037786f2",
+    "discprobe/selftest.py": "ff45ecf88736341aa0182e2812d9f28cecf216938560204894858ad0ad113556",
+    "tools/geo_reanalyse.py": "f70445dea602d5fa05861d6397f9657092281ce52d176dbc764d3dbda602139d"
+  },
+  "script_sha256": "e323e007353acb00a81093906e30cfe9e66fe80232721ebdc03cada57a6e2be3"
+}

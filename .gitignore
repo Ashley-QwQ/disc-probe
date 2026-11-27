@@ -6,8 +6,12 @@ scans/
 photos/
 art/
 results/
+designs/
+.webui-jobs/
 docs/goals/
 research-prompt*.md
 /dis_preset*.json
 /*_preset.json
 /*.iso
+# Offline focal maps are regenerated into DISC_PROBE_FOCAL_CACHE_DIR.
+delta_map_1x.npy

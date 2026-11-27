@@ -176,7 +176,7 @@ class SgDevice:
             raise ValueError("CDB length must be between 1 and 16 bytes")
         if data_len < 0:
             raise ValueError("transfer length must not be negative")
-        check_allowed(cdb)
+        name = check_allowed(cdb)
         if direction == DATA_OUT:
             raise PermissionError("data-out commands are not used by this probe")
         if data_len > BUFFER_BYTES:
@@ -203,11 +203,13 @@ class SgDevice:
         t1 = time.perf_counter_ns()
         if rc != 0:
             err = ctypes.get_errno()
-            raise OSError(err, f"SG_IO on {self.path} failed: {os.strerror(err)}")
+            raise OSError(err, f"{name}: SG_IO failed (limit {timeout_s}s): {os.strerror(err)}. Reload this same disc and retry; save diagnostics if it repeats.")
 
         if hdr.host_status or hdr.driver_status & ~0x08:
-            raise OSError(errno.EIO, f"SG_IO on {self.path} failed: "
-                          f"host status 0x{hdr.host_status:04X}, driver status 0x{hdr.driver_status:04X}")
+            raise OSError(errno.ETIMEDOUT if hdr.host_status == 3 else errno.EIO,
+                          f"{name}: SG_IO failed (limit {timeout_s}s): "
+                          f"host status 0x{hdr.host_status:04X}, driver status 0x{hdr.driver_status:04X}. "
+                          "Reload this same disc and retry; save diagnostics if it repeats.")
         transferred = max(0, min(data_len, data_len - hdr.resid))
         data = ctypes.string_at(ctypes.addressof(self._buf), transferred) if transferred else b""
         sense = None

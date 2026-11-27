@@ -1,0 +1,46 @@
+[
+  {
+    "name": "lobby-dark",
+    "clicked_from_lobby": null,
+    "theme": "dark",
+    "mode": "lobby",
+    "url": "http://127.0.0.1:65445/home/?mock#/lobby",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "csp": []
+  },
+  {
+    "name": "lobby-to-newplan-dark",
+    "clicked_from_lobby": "#lobby-new",
+    "theme": "dark",
+    "mode": "newplan",
+    "url": "http://127.0.0.1:65445/home/?mock#/newplan",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "csp": []
+  },
+  {
+    "name": "lobby-to-faxnews-dark",
+    "clicked_from_lobby": ".lb-hit[data-target=\"faxnews\"]",
+    "theme": "dark",
+    "mode": "faxnews",
+    "url": "http://127.0.0.1:65445/home/?mock#/faxnews",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "csp": []
+  },
+  {
+    "name": "lobby-to-pastworks-dark",
+    "clicked_from_lobby": "#lobby-open",
+    "theme": "dark",
+    "mode": "pastworks",
+    "url": "http://127.0.0.1:65445/home/?mock#/pastworks",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "csp": []
+  }
+]

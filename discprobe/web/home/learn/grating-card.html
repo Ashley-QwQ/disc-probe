@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Generated from docs/grating-card.md by tools/render_learning_guide.py. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Make a tilting grating card · disc-probe</title>
+<link rel="icon" type="image/x-icon" href="../../brand/probe/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../brand/probe/apple-touch-icon.png">
+<link rel="stylesheet" href="../guide.css">
+<link rel="stylesheet" href="./page.css">
+<link rel="stylesheet" href="../../fonts/titles.css">
+<script type="module" src="./page.mjs"></script>
+</head>
+<body><main>
+<h1 id="make-a-tilting-grating-card">Make a tilting grating card</h1>
+<p>On a DVD grating card, the same part of the disc shows different pictures as you tilt it. Repeated written marks form a diffraction grating. Each texture sends different wavelengths toward your eye at different angles. By mixing textures in small cells, the card gives each picture its strongest chance at its chosen angle.</p>
+<p><a href="grating-card.zh.html" data-doc>中文</a></p>
+<h2 id="make-a-card-from-your-pictures">Make a card from your pictures</h2>
+<p>Use a DVD geometry measured for your blanks. The command ships with 124 eligible textures used on the two recorded role cards. The index and channel report must both admit a texture. The command excludes textures containing byte <code>92</code> and requires the original limits of F512 below 1.5%, worst eight-sector frame lean at most 0.15, and absolute frame-end DSV of at most 100. These are recording-signal model checks.</p>
+<pre><code>disc-probe gratingcard sun.png moon.png --angles -6.5 3 --axis y --geo results/geo-run/summary.json --output iso/my-card.iso</code></pre>
+<p>Pass two or three images and the same number of distinct angles from −15° to +15°. Image order determines angle order. PNG transparency leaves room for the common background. The default box is 24 mm wide and centred at <code>(39, 0)</code> mm. Looking at the data side, x points to 3 o’clock and y to 12 o’clock. Change the box with <code>--centre X Y</code> and <code>--width MM</code>. The command writes the ISO, a material preview, a 20 µm label array with its texture list and a Markdown viewing guide. Use <code>--json</code> for their paths and the angle list.</p>
+<p>Keep the camera and flash at the positions shown in the viewing guide. You can set a different measured rig with <code>--camera X Y Z --flash X Y Z</code>; z is height above the data surface. The 12 o’clock arrow marks the orientation on new cards. Positive X tilt raises 12 o’clock. Positive Y tilt lowers 3 o’clock. Turn off the room lights, use the phone flash or a single small light, and look at the disc near each angle before moving to the next.</p>
+<details><summary>What the solver and the archive replay do</summary>
+<p>The solver rotates the camera and flash coordinates into each tilted disc plane. It uses the table’s calibrated δ scale and models how illumination changes with distance. It fits area shares in linear colour across the target poses and nearby angles, then distributes those shares on the 20 µm grid with ordered dithering. Two views can overlap or change colour in the transition. Three views share the available light among more targets.</p>
+<p><code>--replay</code> rebuilds either a saved 0.06 mm weight grid or a version 2 DVD editor work on the 20 µm grid, using its material order and the same image writer. Supply the archived angles and use <code>--titles</code> to name the states. This preserves historical layout, marks and texture choices. Replaying the historical files is separate from computing a new layout from PNGs.</p>
+<p>Use <code>--lookup</code> to supply a different role-card NPZ, along with its original <code>--channel-checks</code> file. The command loads <code>angle-curves-index.csv</code> beside the NPZ unless you give <code>--index</code>. The 58-texture colour-picture table uses a different format. Replays also need their own original channel report. The bundled subset keeps 124 of the 132 textures used across both cards. The other eight were tested in the FLIP-A comparisons and are available for historical replay with their archive reports.</p>
+</details>
+<h2 id="what-the-two-recorded-cards-show">What the two recorded cards show</h2>
+<h3 id="showcase-blink-4-20">SHOWCASE-BLINK 4-20</h3>
+<p>The character sits on the 3 o’clock side. Keep the 1× camera and light at the placement-sheet position. The archive’s camera was about 222 mm above the data face and 28 mm toward 12 o’clock.</p>
+<div class="learn-table"><table><thead><tr><th scope="col">X tilt</th><th scope="col">Visible effect</th></tr></thead><tbody><tr><td>0°</td><td>The eyes are open. In the recorded footage the pupil appears purple and the face green-yellow.</td></tr><tr><td>+6°</td><td>The eye closes into a dark lash. Raise the 12 o’clock edge rather than sliding the phone so the character stays in frame.</td></tr><tr><td>−2.5°</td><td>The body turns dark blue-purple. The eyes and ear tips glow orange-red in the footage.</td></tr><tr><td>Between positions</td><td>A band of colour shifts along the scarf and hair tie.</td></tr></tbody></table></div>
+<p><img src="media/grating-4-20-photo.png" alt="Three real frames of the character card showing the eye and surrounding colours" loading="lazy"></p>
+<p>Real frames from IMG_8338, rectified to the disc. The physical card used 112 textures. The model predicted a larger brightness change at the eye than the phone recorded. Source record in the <a href="colour-solver-audit.html#4-已有实拍逐区对照" data-doc>colour-solver audit</a>.</p>
+<h3 id="flip-a-4-21">FLIP-A 4-21</h3>
+<p>Two large sun-and-moon motifs sit on opposite sides of the inner ring. In the design model both show the sun near <strong>−6.5°</strong> about the Y axis and the moon near <strong>+3°</strong>. One motif uses a texture with two periods in overlapping strokes. The other interleaves the two pictures across fine cells. The small outer panels compare angle spacings of 5°, 8° and 12°, plus the earlier O/X and a low-contrast control.</p>
+<p><img src="media/grating-4-21-model.png" alt="Model of the two sun and moon panels across their designed tilts" loading="lazy"></p>
+<p>Model prediction. FLIP-A was recorded and passed 96 sampled readbacks. The photo evidence available for this card does not establish the two target angles. See the LG delivery report.</p>
+</main></body>
+</html>

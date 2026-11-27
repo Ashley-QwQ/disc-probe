@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [
+    {
+      "id": "philips-dvd-plus-r",
+      "displayName": "PHILIPS DVD+R（实测）",
+      "description": "PHILIPS DVD+R 实测标定参数：24.157724–57.881039 mm，共 2,295,104 个扇区；采用三次轨距分布。",
+      "totalSectors": 2295104,
+      "usableSectors": 2295104,
+      "innerRadiusMm": 24.157723798864616,
+      "outerRadiusMm": 57.8810391592571,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -0.00015487792452410765,
+      "pitchQuadratic": 0.0001962455822194293,
+      "pitchCubic": -8.668360288829188e-05,
+      "displayNameResourceKey": "DiscPreset_PhilipsDvdPlusR_DisplayName",
+      "descriptionResourceKey": "DiscPreset_PhilipsDvdPlusR_Description",
+      "contributor": "DBPolp"
+    }
+  ],
+  "bluRayPresets": []
+}

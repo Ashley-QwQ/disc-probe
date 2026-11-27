@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disc Neo 纹理图谱</title>
+<link rel="icon" href="__NEO_FAVICON__">
+<!--
+Disc Neo __NEO_VERSION__ offline reader. GPL-3.0-or-later (see LICENSE next to this file).
+Data snapshot: __NEO_SNAPSHOT__. The reader and its data run offline. The Disc Probe guides open on GitHub.
+
+Embedded font: Archivo, licensed under the SIL Open Font License 1.1:
+__NEO_FONT_LICENSE__
+-->
+<style>__NEO_TOKENS__</style>
+<style>
+@font-face { font-family: "Archivo"; src: url(data:font/woff2;base64,__NEO_FONT__) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+:root {
+  --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --ink-2: #5d5850; --ink-3: #8a847a;
+  --rule: #cfc9bf; --rule-strong: #a9a297; --accent: #a8693c; --warn: #9a6a14; --good: #3f7d55;
+  --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --edge: clamp(16px, 3.2vw, 56px); --row: 52px; --t: 200ms; --ease: cubic-bezier(.2, .8, .2, 1);
+  color-scheme: light;
+}
+/* Paper and night surfaces from the DP lobby. */
+:root[data-theme="dark"] {
+  --paper: #0a1114; --paper-2: #121a1e; --ink: #eef0ee; --ink-2: #a6b0b3; --ink-3: #7b868a;
+  --rule: #202d33; --rule-strong: #3a4a51; --accent: #e0ab5c; --warn: #e2b866; --good: #8fca9a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; color: var(--ink); font: 16px/1.5 var(--font); min-height: 100vh; isolation: isolate;   /* the sheet's shadow (z-index -1) sits between the desk and the sheet */
+  background: url(__NEO_DESK_PAPER__) 0 0 / 384px repeat, var(--paper); }
+:root[data-theme="dark"] body { background-image: url(__NEO_DESK_DARK__); }
+
+/* the long sheet: the newplan paper, nine-sliced (corners and edges kept, middle stretched), lying on the desk */
+.paper { position: relative; margin: 16px var(--edge) calc(var(--edge) + 16px); max-width: 1560px;
+  border: 40px solid transparent;
+  padding: clamp(4px, 1.2vw, 20px) clamp(4px, 1.6vw, 28px) clamp(8px, 1.6vw, 24px);
+  --ink: #24221e; --ink-2: #6b6558; --ink-3: #8b8576; --rule: rgba(36, 34, 30, .14); --rule-strong: rgba(36, 34, 30, .32);
+  --paper-2: rgba(36, 34, 30, .05); --well: rgba(255, 255, 255, .35); --accent: #a8693c; --warn: #8a5a1c; --on-ink: #fbf8f1; color: var(--ink); }
+@media (min-width: 1640px) { .paper { margin-left: auto; margin-right: auto; } }
+/* Darken the sheet image in night mode to keep the atlas text legible. */
+.paper::after { content: ""; position: absolute; inset: -40px; z-index: -1; pointer-events: none;
+  border: 40px solid transparent; border-image: url(__NEO_PAPER_PAPER__) 120 fill / 40px / 20px stretch; }
+:root[data-theme="dark"] .paper::after { border-image-source: url(__NEO_PAPER_DARK__); filter: brightness(.40); }
+/* the baked drop shadow at full softness (its 60 px margin unscaled), moved lower left like newplan's paper (-.4 m, +.5 m) */
+.paper::before { content: ""; position: absolute; inset: -40px; z-index: -1; pointer-events: none; translate: -24px 30px;
+  border: 40px solid transparent; border-image: url(__NEO_SHADOW_PAPER__) 120 fill / 120px / 60px stretch; }
+:root[data-theme="dark"] .paper {
+  --ink: #ece6d6; --ink-2: #d6d0c1; --ink-3: #b9b3a3; --rule: rgba(236, 230, 214, .2); --rule-strong: rgba(236, 230, 214, .4);
+  --paper-2: rgba(255, 255, 255, .05); --well: rgba(0, 0, 0, .16); --accent: #d9a75c; --warn: #e0b066; --on-ink: #23282a; }
+:root[data-theme="dark"] .paper::before { border-image-source: url(__NEO_SHADOW_DARK__); }
+.paper .status { color: var(--ink-2); font-size: .9rem; margin: 20px 0 0; padding-top: 12px; border-top: 1px solid var(--rule); }
+::selection { background: var(--accent); color: #fff; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html { scrollbar-color: var(--rule-strong) transparent; }
+input { caret-color: var(--accent); }
+button, input { font: inherit; color: inherit; }
+.mono, code { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Guide and header */
+.front { background: var(--paper); padding: 0 var(--edge) var(--s-6); border-bottom: 1px solid var(--rule); }
+header, .guide { max-width: 960px; margin: auto; }
+header { display: flex; align-items: center; gap: var(--s-2); min-height: var(--row); padding-top: var(--s-2); }
+.brand img { display: block; width: clamp(136px, 23vw, 208px); height: auto; }
+.tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.tools .icon { min-height: var(--tap); min-width: var(--tap); }
+.guide { padding-top: clamp(16px, 4vw, 52px); }
+.guide h1 { font-size: clamp(1.55rem, 3vw, 2.75rem); }
+.guide h2 { margin-top: var(--s-6); font-size: 1.22rem; }
+.guide p { margin: var(--s-1) 0 0; color: var(--ink-2); }
+.guide .intro { margin-top: var(--s-2); }
+.routes { list-style: none; padding: 0; margin: var(--s-2) 0 0; }
+.routes li { display: grid; grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); gap: var(--s-3);
+  align-items: baseline; border-top: 1px solid var(--rule); padding: var(--s-2) 0; }
+.routes li:last-child { border-bottom: 1px solid var(--rule); }
+.routes p { margin: 0; }
+a { color: var(--ink); text-underline-offset: .18em; }
+a:hover { text-decoration-color: var(--accent); }
+.route { width: fit-content; font-weight: 700; }
+.routes li:first-child .route { text-decoration-color: var(--accent); }
+.guide .evidence { margin-top: var(--s-4); }
+.guide .evidence-links { display: flex; column-gap: var(--s-4); flex-wrap: wrap; }
+.atlas-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.query-examples { margin-top: var(--s-6); padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.query-examples pre { overflow: auto; font-family: var(--mono); }
+.search { position: relative; }
+.search input { width: min(42vw, 340px); height: 36px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--paper-2); }
+.search input::placeholder { color: var(--ink-2); opacity: 1; }
+.search input:hover { border-color: var(--ink-3); }
+.hits { position: absolute; right: 0; top: 40px; width: min(92vw, 460px); background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 8px; z-index: 10; max-height: 60vh; overflow: auto; }
+.hits button { display: block; width: 100%; text-align: left; padding: 8px 12px; border: 0; background: none; cursor: pointer; }
+.hits button:hover, .hits button:focus-visible { background: var(--paper-2); }
+.hits .empty { padding: 10px 12px; color: var(--ink-2); }
+.icon { height: 36px; min-width: 36px; padding: 0 10px; border: 0; border-radius: 4px; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.icon:hover { background: var(--paper-2); }
+.icon:active { transform: translateY(1px); }
+.icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+
+/* body: map left, paper right */
+.atlas-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(340px, 1fr); gap: clamp(16px, 2.4vw, 40px); margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--rule-strong); align-items: start; }
+@media (max-width: 1180px) { .atlas-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .paper { border-width: 24px; margin-left: 12px; margin-right: 12px; }
+  .paper::after { inset: -24px; border-width: 24px; border-image-width: 24px; border-image-outset: 12px; }
+  .paper::before { inset: -24px; border-width: 24px; border-image-width: 60px; border-image-outset: 30px; } }
+@media (max-width: 640px) {
+  .guide h2 { margin-top: var(--s-4); }
+  .routes li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .search { width: 100%; } .search input { width: 100%; }
+}
+h1, h2 { font-stretch: 115%; font-weight: 800; line-height: 1.2; margin: 0; }
+.sheet .t { font-size: clamp(1.35rem, 2.2vw, 1.8rem); font-stretch: 115%; font-weight: 800; }
+h1 { font-size: clamp(1.35rem, 2.2vw, 1.8rem); }
+h2 { font-size: 1.05rem; font-stretch: 105%; font-weight: 700; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.seg button { border: 0; background: none; padding: 6px 12px; cursor: pointer; color: var(--ink-2); white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button:hover { color: var(--ink); background: var(--paper-2); }
+.seg button[aria-pressed="true"] { color: var(--on-ink); background: var(--ink); }
+.check { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); cursor: pointer; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.mapwrap { position: relative; }
+canvas { display: block; width: 100%; touch-action: manipulation; }
+#map { cursor: crosshair; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--on-ink); border: 0; border-radius: 8px; padding: 6px 10px; font-size: .9rem; white-space: nowrap; z-index: 5; display: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 10px; color: var(--ink-2); font-size: .95rem; }
+.legend i { display: inline-block; width: 22px; height: 10px; vertical-align: -1px; margin-right: 6px; border-radius: 2px; }
+
+.delta { margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 16px; }
+.delta-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.delta-head output { font-family: var(--mono); font-size: 1.1rem; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 10px 0 4px; }
+.small { color: var(--ink-2); font-size: 1rem; margin: 6px 0 0; max-width: 64ch; }
+details.help { margin-top: 12px; color: var(--ink-2); max-width: 70ch; }
+details.help summary { cursor: pointer; color: var(--ink); font-weight: 600; width: fit-content; }
+details.help summary:hover { color: var(--accent); }
+details.help p, details.help dl { margin: 8px 0 0; }
+details.help dt { color: var(--ink); font-weight: 600; margin-top: 8px; }
+details.help dd { margin: 2px 0 0; }
+.lines { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 0 0 18px; }
+.lines .lbl { color: var(--ink-2); }
+.back { border: 0; background: none; padding: 4px 0; margin: 0 0 8px; cursor: pointer; color: var(--ink-2); font: inherit; }
+.back:hover { color: var(--accent); }
+.pick thead th { text-align: left; color: var(--ink-2); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--rule-strong); }
+abbr[title] { text-decoration: underline dotted var(--ink-3); text-underline-offset: 3px; cursor: help; }
+
+/* paper */
+.sheet { border-left: 1px solid var(--rule); padding-left: clamp(16px, 2.4vw, 40px); min-height: 60vh; }
+@media (max-width: 1180px) { .sheet { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 20px; } }
+.idline { display: flex; align-items: center; gap: 8px; margin: 8px 0 16px; flex-wrap: wrap; }
+.idline code { font-size: .92rem; color: var(--ink-2); word-break: break-all; }
+.copy { border: 0; background: none; border-radius: 4px; padding: 4.5px; cursor: pointer; color: var(--ink-2); margin-left: 2px; vertical-align: middle; line-height: 0; }
+.copy svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.copy:hover { color: var(--ink); background: var(--paper-2); }
+.copy.done { color: var(--accent); }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 18px; }
+dl.facts dt { color: var(--ink-2); }
+dl.facts dd { margin: 0; }
+.progress { width: 100%; border-collapse: collapse; margin: 22px 0 8px; font-variant-numeric: tabular-nums; }
+.progress th, .progress td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+.progress th:first-child, .progress td:first-child { text-align: left; padding-left: 0; }
+.progress thead th { color: var(--ink-2); font-weight: 600; border-bottom-color: var(--rule-strong); }
+.progress tbody th { font-weight: 600; }
+.pick { width: 100%; border-collapse: collapse; }
+.pick td { padding: 6px 4px; border-top: 1px solid var(--rule); }
+.pick tr { cursor: pointer; }
+.pick tr:hover td { background: var(--paper-2); }
+
+table.cands { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
+table.cands tbody tr:hover td { background: var(--paper-2); }
+table.cands th { text-align: left; font-weight: 600; color: var(--ink-2); padding: 6px 5px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+table.cands td { padding: 6px 5px; border-bottom: 1px solid var(--rule); vertical-align: middle; white-space: nowrap; }
+table.cands tr.win td { background: var(--paper-2); }
+.basis { font-size: .78rem; border: 1px solid var(--rule-strong); border-radius: 2px; padding: 0 5px; white-space: nowrap; color: var(--ink-2); }
+.basis.w { border-color: var(--ink-2); color: var(--ink); }
+.bar { display: inline-block; width: 30px; height: 6px; background: var(--rule); border-radius: 2px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--ink); }
+.risk-hi { color: var(--warn); font-weight: 600; }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 4px; border: 1px solid var(--rule-strong); }
+.sw.none { background: none; border: 1.5px dashed var(--ink-3); }
+.more { margin-top: 12px; border: 1px solid var(--rule-strong); background: none; border-radius: 4px; padding: 6px 14px; cursor: pointer; }
+.more:hover { border-color: var(--ink-3); background: var(--paper-2); }
+.tablewrap { overflow-x: auto; }
+.sheet { min-width: 0; }
+.cands code { overflow-wrap: anywhere; }
+
+a.icon { color: inherit; text-decoration: none; white-space: nowrap; }
+.loading { padding: 40px 0; color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="front" id="start">
+<header>
+  <a class="brand" href="#start"><img id="wordmark" src="__NEO_WORDMARK_PAPER__" data-ink="__NEO_WORDMARK_INK__" alt="Disc Neo"></a>
+  <div class="tools">
+    <button class="icon" id="lang" type="button" data-i18n-aria="langLabel"><span id="langLabel">EN</span></button>
+    <button class="icon" id="theme" type="button" data-i18n-title="theme"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor"/></svg></button>
+  </div>
+</header>
+<section class="guide" aria-labelledby="guideTitle">
+  <h1 id="guideTitle" data-i18n="guideTitle">DVD 纹理图谱</h1>
+  <p class="intro" data-i18n="intro"></p>
+  <h2 data-i18n="routesTitle"></h2>
+  <ul class="routes">
+    <li><a class="route" href="__NEO_COLOUR_ZH__" data-en-href="__NEO_COLOUR_EN__" data-i18n="burnRoute"></a><p data-i18n="burnSteps"></p></li>
+    <li><a class="route" href="__NEO_THEORY_ZH__" data-en-href="__NEO_THEORY_EN__" data-i18n="theoryRoute"></a><p data-i18n="theoryStep"></p></li>
+    <li><a class="route" href="#atlas" data-i18n="atlasRoute"></a><p data-i18n="atlasStep"></p></li>
+    <li><a class="route" href="SCHEMA.md" data-i18n="codeRoute"></a><p><span data-i18n="codeStep"></span> <a href="#query-examples" data-i18n="examples"></a></p></li>
+  </ul>
+  <p class="evidence" data-i18n="evidence"></p>
+  <p class="evidence-links">
+    <a href="colour-card-photo.jpg" data-i18n="cardPhoto"></a>
+    <a href="__NEO_SHOWCASE_PHOTO__" data-i18n="showPhoto"></a>
+    <a href="character-disc-photo.png" data-i18n="characterPhoto"></a>
+    <a href="colour-evidence.csv" data-i18n="evidenceList"></a>
+  </p>
+</section>
+</div>
+
+<main class="paper" id="paper">
+<div class="atlas-head">
+  <h2 id="atlas" class="atlas-title" tabindex="-1" data-i18n="atlasTitle"></h2>
+  <div class="search">
+    <input id="q" type="search" autocomplete="off" spellcheck="false" data-i18n-ph="searchPh" data-i18n-aria="searchLabel">
+    <div class="hits" id="hits" hidden></div>
+  </div>
+</div>
+<details class="help" open><summary data-i18n="tableHelp"></summary><p data-i18n="tableTerms"></p></details>
+<div class="atlas-grid">
+  <section aria-labelledby="mapTitle">
+    <div class="controls">
+      <div class="seg" id="range" role="group"></div>
+      <label class="check"><input type="checkbox" id="onlyMeasured"> <span data-i18n="onlyMeasured"></span></label>
+    </div>
+    <h2 id="mapTitle" class="visually" style="position:absolute;left:-9999px" data-i18n="mapTitle"></h2>
+    <div class="mapwrap">
+      <canvas id="map" height="320" tabindex="0" role="application" data-i18n-aria="mapAria"></canvas>
+      <canvas id="spectrum" height="34" aria-hidden="true"></canvas>
+      <div class="tip" id="tip"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <details class="help" id="mapHelp"><summary data-i18n="mapHelpTitle"></summary><div id="mapHelpBody"></div></details>
+    <div class="delta">
+      <div class="delta-head"><h2 data-i18n="deltaTitle"></h2><output id="deltaOut" for="delta"></output></div>
+      <input type="range" id="delta" min="0.1" max="2" step="0.01" value="0.6" data-i18n-aria="deltaTitle">
+      <p class="small" data-i18n="deltaHelp"></p>
+    </div>
+  </section>
+  <section class="sheet" id="sheet" aria-live="polite"><p class="loading" data-i18n="loading"></p></section>
+</div>
+<section class="query-examples" id="query-examples" aria-labelledby="queryTitle">
+  <h2 id="queryTitle" data-i18n="queryTitle"></h2>
+  <p data-i18n="queryIntro"></p>
+  <pre><code>import csv
+
+with open('atlas/dvd/singles.csv', encoding='utf-8') as source:
+    rows = [r for r in csv.DictReader(source) if 0.95 &lt;= float(r['period_um']) &lt;= 1.05]
+for row in sorted(rows, key=lambda r: -float(r['purity']))[:5]:
+    print(row['id'], row['spec'], row['purity'])</code></pre>
+  <a href="README.zh.md" data-en-href="README.md" data-i18n="readme"></a>
+</section>
+<p class="status" id="status"></p>
+</main>
+
+
+<script>
+"use strict";
+const DATA_B64 = "__NEO_DATA__";
+const I18N = {
+  zh: {
+    guideTitle: "DVD 纹理图谱", intro: "这里可以查 DVD 上每种数据纹理在不同角度会显出什么颜色。",
+    routesTitle: "你想做什么？", burnRoute: "我只想刻一张彩色盘",
+    burnSteps: "可以跳过图谱。去 Disc Probe 网页标定这批盘，再新建作品、导入图片、打开彩色、生成、刻录、拍照。",
+    theoryRoute: "我想知道原理", theoryStep: "读《光盘怎么变成图》，看看盘面为什么会显色。",
+    atlasRoute: "我想自己挑纹理或做实验", atlasStep: "进图谱，先了解 δ、周期和纯度，再按机位找纹理。",
+    codeRoute: "我是 agent 或者写程序", codeStep: "读字段说明和", examples: "查询示例", queryTitle: "查询示例",
+    queryIntro: "在数据包目录运行这段 Python 代码，按纯度列出周期约 1 µm 的前五种单周期纹理。", readme: "看 README 中的其他查法",
+    evidence: "DVD 预览版。DP 色表用六张实拍色卡拟合。Neo 有 __NEO_CARD_SPECS__ 种候选有取色记录，__NEO_SHOW_SPECS__ 种用在实拍展示盘 SHOW-A 到 E 上（RITEKF1 DVD-R、GH70N，两组有重合）。另有 __NEO_MODEL_SPECS__ 种未匹配到这两组记录，显色用模型估计。CD 和蓝光暂无数据。",
+    cardPhoto: "色卡实拍", showPhoto: "SHOW-D 实拍", characterPhoto: "眨眼角色卡实拍", evidenceList: "纹理清单",
+    atlasTitle: "查纹理", tableHelp: "怎么读这张表",
+    tableTerms: "δ 表示光源和相机的相对角度。周期是纹理沿轨道重复的间距，在同一个 δ 下决定主色。纯度是集中到目标周期的信号能量占比，越高主色通常越干净。选一个周期格或搜索纹理，就能查看候选。",
+    searchLabel: "按编号、spec 或周期查找", langLabel: "Switch to English", searchPh: "编号、spec 或周期，如 A37062、1.2 µm", theme: "切换纸色 / 夜色",
+    onlyMeasured: "只看有整块编码结果的", mapTitle: "周期覆盖图", mapAria: "周期覆盖图。每一行是一种纹理，横轴是周期（µm，对数刻度），颜色越深越纯。用左右方向键移动周期（按住 Shift 走得快），上下方向键换行，回车打开。",
+    ranges: [["当前 δ 看得见的", null, null], ["全部周期", 0.75, 210], ["0.7–3 µm", 0.7, 3], ["3–20 µm", 3, 20], ["20 µm 以上", 20, 210]],
+    legendMeasured: "有整块编码结果（越深越纯）", legendTodo: "还没有结果", legendVisible: "当前 δ 下一阶落在可见光的周期",
+    deltaTitle: "视角因子 δ", deltaHelp: "δ = sin θ入 + sin θ出（沿轨道），由光源和相机的位置决定。周期 P 的纹理把 λ = 1000·P·δ nm 的光送到你眼前。色条只是单波长的粗略示意；真实颜色取决于光源、手机和机位，要用 disc-probe 的颜色模型算。",
+    loading: "正在解开数据……", noDecompress: "这个浏览器不支持解压（需要 Chrome 80+、Edge 80+、Firefox 113+ 或 Safari 16.4+）。数据也在 atlas/dvd/ 的 CSV 里。",
+    kinds: ["单周期", "双线", "三线", "亮度阶梯", "暗色", "二阶", "三阶"],
+    status: ["还没搜", "已搜", "已收敛", "已穷举"], risk: ["低", "低，帧偏", "中", "高", "未知"],
+    emptyTitle: "点周期图上任意一格，看那里的纹理", emptyText: "也可以搜索编号、spec 或周期。每格按名次列出候选，整块编码结果在前，GPU 近似值在后。",
+    progHead: ["", "目标", "GPU 搜完", "整块精修完", "收敛"], progRows: ["粗网格", "加密", "合计"],
+    progTips: ["", "这轮安排搜索的目标数", "已完成 GPU 搜索的比例", "已在完整 ECC 块上精修的比例", "达到停止条件的目标数"],
+    progNote: (m) => `已有整块实测结果的目标 ${m.whole_pct}%。${m.final ? '这一轮已经结束，这是最终快照。' : `粗网格跑完之后才轮到加密，这一轮计划 ${m.end} 结束。`}`,
+    hereN: (n) => `这个位置有 ${n} 个目标`, pickHint: "按目前最好的纯度排序，选一个看它的全部候选。缩小周期范围可以点得更准。",
+    status_: "状态", period: "周期区间", density: "搜索密度", dense: "加密", coarse: "粗网格", ring: "排队优先级（0 最先）", todoInherited: "还没单独搜（已继承实测结果）", linesAt: (d) => `δ ${d} 时一阶落在`,
+    back: (n) => `返回这 ${n} 个目标`, pickHead: ["目标", "周期", "状态", "最好纯度"], periodHit: (p, n) => `周期 ${p} µm：${n} 个目标`,
+    pickTips: ["要找的纹理种类与目标", "目标周期的范围（µm）", "目标目前的搜索状态", "候选的最佳整块纯度"],
+    thRankTip: "候选名次（按综合目标值，不只看纯度），以及整块编码结果或 GPU 近似", thSpecTip: "沿轨道重复写入的十六进制字节", thPeriodTip: "候选的主周期（µm）",
+    thPurityTip: "每条线上的能量占比（0–1）；双线、三线按顺序列出每条线", thRiskTip: "用编码信号估计的读盘风险", thF512Tip: "长段同极性数据的比例（%），越低越好读",
+    colsTitle: "这些列是什么意思", thPurityDarkTip: "暗色目标不计纯度，按漏光排名", darkNote: "暗色目标按漏光计，不计纯度，所以纯度一列空着是正常的。名次看的是漏出的可见光有多少，越少越靠前。",
+    colsBody: "<dt>名次</dt><dd>名次按综合目标值（objective）排，不只看纯度，所以纯度更高的候选可能排在后面。目标值按种类算：单周期和双线、三线看最弱的那条线够不够它该占的份额；亮度阶梯和灰色混合看纯度离参考值有多近，不是越高越好；暗色看漏出来的可见光，越少越好；二阶、三阶看高阶衍射的得分。目标值相同时，漏光更少、字节更短的排前面。</dd><dt>整块 / 近似</dt><dd>整块：在完整的 DVD ECC 块上用 CPU 测过；近似：只有 GPU 在随机填充上的估计。</dd><dt>纯度</dt><dd>这段数据的能量有多少正好落在目标周期上，1 是完美的一条线。双线、三线每条线各一个数。条形按目标配比折算。</dd><dt>风险</dt><dd>按长段同极性（F512）和帧偏的模型阈值分档：低、低（帧偏）、中、高。不是真光驱上的读盘测试。</dd><dt>F512</dt><dd>512 位窗口里平均电平偏得太多的比例（%），越低越不容易读错。</dd>",
+    mapHelpTitle: "这张图怎么看", mapHelpBody: "<p>每一行是一种纹理，横轴是周期（对数刻度）。深色表示已有整块实测结果，越深越纯；底部细线表示还没有结果。默认只显示在当前 δ 下一阶看得见的周期；拖动 δ，范围跟着变。</p><p>二阶、三阶：用更高级次的衍射出颜色，适合长周期。暗色：没有固定周期，用来把一片区域压暗。</p>", visible: "设计机位可见比例",
+    candCount: "候选", candOf: (n, w) => `${n} 个（${w} 个整块实测）`, noPeriod: "无固定周期",
+    thRank: "#", thBasis: "依据", thSpec: "spec", thPeriod: "主周期 µm", thPurity: "纯度", thRisk: "风险", thF512: "F512", thLambda: "λ@δ",
+    whole: "整块", proxy: "近似", winner: "冠军", showAll: (n) => `显示全部 ${n} 个`, copy: "复制", copied: "已复制",
+    proxyNote: "“近似”是 GPU 在随机填充上的估计值，没有整块测量，纯度和风险只能参考。",
+    noCands: "这个目标还没有任何候选。", invisible: "不可见", nm: "nm",
+    tipTargets: (n, p) => !n ? "这里没有目标" : `${n} 个目标` + (p == null ? "，还没有结果" : `，最好纯度 ${p.toFixed(2)}`), kindLabel: "种类",
+    status2: (m) => `数据快照 ${m.snapshot}，搜索轮次 ${m.epoch}。这份数据按 GPL-3.0-or-later 授权，出处和每个文件的校验和见 PROVENANCE.json。`,
+    label: labelZh, noHit: "没找到。试试编号的开头、spec 的开头，或一个周期（µm）。", specHit: "spec",
+  },
+  en: {
+    guideTitle: "DVD texture atlas", intro: "Look up the colours that different data textures on a DVD show at different angles.",
+    routesTitle: "What would you like to do?", burnRoute: "I just want to burn a colour disc",
+    burnSteps: "Skip the atlas. In the Disc Probe web app, calibrate your batch, start a new work, import a picture, enable colour, generate, burn and photograph the disc.",
+    theoryRoute: "I want to understand how it works", theoryStep: "Read How a disc becomes a picture to see why it shows colour.",
+    atlasRoute: "I want to pick textures or experiment", atlasStep: "Learn δ, period and purity, then look up textures for your setup.",
+    codeRoute: "I'm an agent or writing code", codeStep: "Read the schema and", examples: "query examples", queryTitle: "Query examples",
+    queryIntro: "Run this Python code from the data pack to list the five purest single-period textures near 1 µm.", readme: "Find more lookups in the README",
+    evidence: "DVD preview. DP fitted its colour table to six photographed test discs. Neo has __NEO_CARD_SPECS__ textures with colour samples and __NEO_SHOW_SPECS__ used on photographed SHOW-A–E discs (RITEKF1 DVD-R, GH70N, with overlap). For the __NEO_MODEL_SPECS__ unmatched textures, colour cues come from models. No CD or Blu-ray data yet.",
+    cardPhoto: "Test disc photo", showPhoto: "SHOW-D photo", characterPhoto: "Character disc photos", evidenceList: "Texture evidence list",
+    atlasTitle: "Look up textures", tableHelp: "How to read this table",
+    tableTerms: "δ describes the angles of the light and camera. Period is the repeat spacing along the track and sets the main colour at a given δ. Purity is the share of signal power at the target period, so higher values usually give a cleaner colour. Pick a cell or search to see the candidates.",
+    searchLabel: "Find by ID, spec or period", langLabel: "切换到中文", searchPh: "ID, spec or period, e.g. A37062, 1.2 µm", theme: "Switch paper / night theme",
+    onlyMeasured: "Whole-block results only", mapTitle: "Period coverage map", mapAria: "Period coverage map. One row per texture kind, period in µm on a log scale, darker is purer. Left and right arrows move along the period (hold Shift for big steps), up and down change row, Enter opens.",
+    ranges: [["Visible at this δ", null, null], ["All periods", 0.75, 210], ["0.7–3 µm", 0.7, 3], ["3–20 µm", 3, 20], ["Above 20 µm", 20, 210]],
+    legendMeasured: "Whole-block result (darker = purer)", legendTodo: "No result yet", legendVisible: "Periods whose first order is visible at this δ",
+    deltaTitle: "Viewing factor δ", deltaHelp: "δ = sin θin + sin θout along the track, set by where the light and camera are. A texture of period P sends λ = 1000·P·δ nm toward you. The colour strip is a rough single-wavelength sketch; real colour depends on the lamp, the phone and the pose and needs disc-probe's colour model.",
+    loading: "Unpacking data…", noDecompress: "This browser cannot decompress the data (needs Chrome 80+, Edge 80+, Firefox 113+ or Safari 16.4+). The same data is in the CSV files under atlas/dvd/.",
+    kinds: ["Single", "Two-line", "Three-line", "Ladder", "Dark", "Order 2", "Order 3"],
+    status: ["Not searched", "Searched", "Converged", "Exhausted"], risk: ["Low", "Low, lean", "Medium", "High", "Unknown"],
+    emptyTitle: "Click any cell on the period map to see its textures", emptyText: "You can also search by ID, spec or period. Each cell ranks its candidates with whole-block encoding results first and GPU estimates after.",
+    progHead: ["", "Targets", "GPU done", "Refined", "Converged"], progRows: ["Coarse grid", "Dense", "All"],
+    progTips: ["", "Number of scheduled search targets", "Share with a completed GPU search", "Share refined over full ECC blocks", "Targets that have met a stopping rule"],
+    progNote: (m) => `${m.whole_pct}% of targets have a whole-block result. ${m.final ? 'The run has ended; this is its final snapshot.' : `The dense pass starts once the coarse grid is done; this run is planned to end on ${m.end}.`}`,
+    hereN: (n) => `${n} targets at this spot`, pickHint: "Sorted by best purity so far; pick one to see all its candidates. A narrower period range makes clicks more precise.",
+    status_: "Status", period: "Period range", density: "Search density", dense: "Dense", coarse: "Coarse", ring: "Queue priority (0 first)", todoInherited: "Not searched on its own yet (inherited measurements)", linesAt: (d) => `At δ ${d} the first order lands at`,
+    back: (n) => `Back to these ${n} targets`, pickHead: ["Target", "Period", "Status", "Best purity"], periodHit: (p, n) => `Period ${p} µm: ${n} targets`,
+    pickTips: ["Texture kind and search target", "Target period range (µm)", "Current search status for this target", "Best whole-block purity among candidates"],
+    thRankTip: "Candidate rank (by the objective, not purity alone), with whole-block encoding or GPU estimate", thSpecTip: "The hexadecimal bytes written repeatedly along the track", thPeriodTip: "The candidate's main period (µm)",
+    thPurityTip: "Share of the pattern's power on each line (0–1); mixes list each line in order", thRiskTip: "Read risk estimated from the encoded signal", thF512Tip: "Share (%) of long same-polarity stretches; lower reads more reliably",
+    colsTitle: "What these columns mean", thPurityDarkTip: "Dark targets have no purity; they rank by leakage", darkNote: "Dark targets are scored by light leakage, not purity, so the purity column is empty on purpose. They rank by how little visible light leaks; less ranks higher.",
+    colsBody: "<dt>Rank</dt><dd>Candidates are ranked by the target's objective, not by purity alone, so a purer candidate can rank lower. The objective depends on the kind: single, two-line and three-line take the weakest line relative to the share it should have; ladder and grey mixes take how close purity is to a reference value, so higher is not better; dark takes how little visible light leaks, less is better; order 2 and order 3 use a score for the higher diffraction order. Ties go to less leakage, then shorter byte patterns.</dd><dt>whole / estimate</dt><dd>whole: measured by the CPU over complete DVD ECC blocks; estimate: a GPU approximation on random fill only.</dd><dt>Purity</dt><dd>How much of the pattern's power sits exactly on the target period; 1 would be a perfect single line. Mixes give one number per line. The bar is scaled by the target's shares.</dd><dt>Risk</dt><dd>Model classes from long same-polarity runs (F512) and frame lean: low, low with lean frames, medium, high. Not a read test on a real drive.</dd><dt>F512</dt><dd>Share (%) of 512-bit windows whose mean level drifts too far; lower is less likely to misread.</dd>",
+    mapHelpTitle: "How to read this map", mapHelpBody: "<p>Each row is one texture kind; the x axis is period on a log scale. Dark marks have a whole-block result, darker is purer; a thin line at the bottom means no result yet. By default only periods whose first order is visible at the current δ are shown; move δ and the range follows.</p><p>Order 2 and order 3 make colour with higher diffraction orders, for long periods. Dark textures have no fixed period; they darken an area.</p>", visible: "Visible in design poses",
+    candCount: "Candidates", candOf: (n, w) => `${n} (${w} whole-block)`, noPeriod: "No fixed period",
+    thRank: "#", thBasis: "Basis", thSpec: "spec", thPeriod: "Main period µm", thPurity: "Purity", thRisk: "Risk", thF512: "F512", thLambda: "λ@δ",
+    whole: "whole", proxy: "estimate", winner: "winner", showAll: (n) => `Show all ${n}`, copy: "Copy", copied: "Copied",
+    proxyNote: "“Estimate” is a GPU approximation on random fill, not a whole-block measurement; treat its purity and risk as rough.",
+    noCands: "No candidates for this target yet.", invisible: "invisible", nm: "nm",
+    tipTargets: (n, p) => !n ? "No targets here" : `${n} target${n > 1 ? "s" : ""}` + (p == null ? ", no result yet" : `, best purity ${p.toFixed(2)}`), kindLabel: "Kind",
+    status2: (m) => `Data snapshot ${m.snapshot}, search run ${m.epoch}. Licensed GPL-3.0-or-later; sources and file checksums are in PROVENANCE.json.`,
+    label: labelEn, noHit: "Nothing found. Try the start of an ID, the start of a spec, or a period in µm.", specHit: "spec",
+  },
+};
+function labelZh(id, k) {
+  let m;
+  if ((m = id.match(/-2-R(\d+)_(\d+)-S([\d_]+)-/))) return `比例 ${m[1]}:${m[2]}，配比 ${m[3].replace(/_/g, "/")}`;
+  if ((m = id.match(/-3-H([\d_]+)-(\w+)-/))) return `谐波 ${m[1].replace(/_/g, ":")}，${({white: "白", grey: "灰", yellow: "黄", magenta: "品红", cyan: "青"})[m[2]] || m[2]}`;
+  if ((m = id.match(/-L(\d{3})-K/))) return `${+m[1]}% 亮度`;
+  if ((m = id.match(/-D-d(\d+)-(\w+)-/))) return `δ ${(+m[1] / 100).toFixed(2)}，风险档 ${m[2]}`;
+  if ((m = id.match(/-O(\d)-B\d+-G(\w+)-/))) return `${m[1]} 阶` + (m[2] === "NONE" ? "" : `，防 ${m[2].replace(/_/g, "、")} 阶`);
+  return "单周期";
+}
+function labelEn(id, k) {
+  let m;
+  if ((m = id.match(/-2-R(\d+)_(\d+)-S([\d_]+)-/))) return `ratio ${m[1]}:${m[2]}, shares ${m[3].replace(/_/g, "/")}`;
+  if ((m = id.match(/-3-H([\d_]+)-(\w+)-/))) return `harmonics ${m[1].replace(/_/g, ":")}, ${m[2]}`;
+  if ((m = id.match(/-L(\d{3})-K/))) return `${+m[1]}% brightness`;
+  if ((m = id.match(/-D-d(\d+)-(\w+)-/))) return `δ ${(+m[1] / 100).toFixed(2)}, risk class ${m[2]}`;
+  if ((m = id.match(/-O(\d)-B\d+-G(\w+)-/))) return `order ${m[1]}` + (m[2] === "NONE" ? "" : `, guards order ${m[2].replace(/_/g, ", ")}`);
+  return "single period";
+}
+
+let lang = (navigator.language || "zh").toLowerCase().startsWith("zh") ? "zh" : "en";
+try { const s = localStorage.getItem("neo-lang"); if (s === "zh" || s === "en") lang = s; } catch (e) {}
+const L = () => I18N[lang];
+let D = null, T = [], C = [], byId = new Map(), candsOf = [], specIndex = new Map();
+let range = 0, onlyMeasured = false, delta = 0.6, selected = -1, picked = null, showAllCands = false;
+const KIND_ROWS = [0, 1, 2, 3, 5, 6, 4];   // single, two, three, ladder, order2, order3, dark (no period) last
+
+/* ---------- data ---------- */
+async function load() {
+  if (typeof DecompressionStream === "undefined") { sheet().innerHTML = `<p class="loading">${L().noDecompress}</p>`; return; }
+  const bin = Uint8Array.from(atob(DATA_B64), (c) => c.charCodeAt(0));
+  const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+  D = JSON.parse(text); T = D.t; C = D.c;
+  candsOf = T.map(() => []);
+  for (const c of C) candsOf[c[0]].push(c);
+  for (const list of candsOf) list.sort((a, b) => a[1] - b[1]);
+  T.forEach((t, i) => byId.set(t[0].toUpperCase(), i));
+  for (const c of C) { const s = c[3].toUpperCase(); if (!specIndex.has(s)) specIndex.set(s, []); specIndex.get(s).push(c[0]); }
+  applyLang();
+  fromHash();
+  if (selected >= 0) sheet().scrollIntoView();
+}
+
+/* ---------- colour of a single wavelength (rough sketch) ---------- */
+function lambdaRGB(nm) {
+  if (nm < 380 || nm > 780) return null;
+  let r = 0, g = 0, b = 0;
+  if (nm < 440) { r = (440 - nm) / 60; b = 1; } else if (nm < 490) { g = (nm - 440) / 50; b = 1; }
+  else if (nm < 510) { g = 1; b = (510 - nm) / 20; } else if (nm < 580) { r = (nm - 510) / 70; g = 1; }
+  else if (nm < 645) { r = 1; g = (645 - nm) / 65; } else { r = 1; }
+  const f = nm < 420 ? 0.3 + 0.7 * (nm - 380) / 40 : nm > 700 ? 0.3 + 0.7 * (780 - nm) / 80 : 1;
+  const c = (x) => Math.round(255 * Math.pow(x * f, 0.8));
+  return `rgb(${c(r)},${c(g)},${c(b)})`;
+}
+
+/* ---------- map ---------- */
+const map = document.getElementById("map"), spec = document.getElementById("spectrum"), tip = document.getElementById("tip");
+const LABEL_W = () => Math.min(108, map.clientWidth * 0.2), ROW_H = 40, TOP = 6, AXIS = 30;
+function css(v) { return getComputedStyle(document.getElementById("paper")).getPropertyValue(v).trim(); }
+function domain() {
+  const r = L().ranges[range];
+  if (r[1] != null) return [r[1], r[2]];
+  return [Math.max(0.75, 0.38 / delta / 1.06), Math.min(210, 0.78 / delta * 1.06)];   /* first order 380–780 nm at this δ */
+}
+function xOf(p, w) { const [a, b] = domain(), x0 = LABEL_W(); return x0 + (Math.log(p / a) / Math.log(b / a)) * (w - x0 - 8); }
+function pOf(x, w) { const [a, b] = domain(), x0 = LABEL_W(); return a * Math.pow(b / a, (x - x0) / (w - x0 - 8)); }
+function rowOf(kind) { return KIND_ROWS.indexOf(kind); }
+function measured(t) { return t[8] != null || t[9] > 0; }
+function visibleT(t) { return !onlyMeasured || measured(t); }
+function kindMax() { const m = new Array(7).fill(0.01); for (const t of T) if (t[8] != null) m[t[1]] = Math.max(m[t[1]], t[8]); return m; }
+let KMAX = null;
+
+function sizeCanvas(cv, h) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + "px";
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); return [g, w];
+}
+function draw() {
+  if (!D) return;
+  KMAX = KMAX || kindMax();
+  const H = TOP + ROW_H * KIND_ROWS.length + AXIS, [g, w] = sizeCanvas(map, H);
+  const ink = css("--ink"), ink2 = css("--ink-2"), ink3 = css("--ink-3"), rule = css("--rule"), strong = css("--rule-strong"), accent = css("--accent"), paper2 = css("--paper-2");
+  g.clearRect(0, 0, w, H);
+  const [a, b] = domain(), x0 = LABEL_W();
+  // visible band at this δ
+  const vlo = 0.38 / delta, vhi = 0.78 / delta;
+  if (vhi > a && vlo < b) { g.fillStyle = ink; g.globalAlpha = 0.08; const xa = Math.max(x0, xOf(Math.max(vlo, a), w)), xb = Math.min(w - 8, xOf(Math.min(vhi, b), w)); g.fillRect(xa, TOP, xb - xa, ROW_H * KIND_ROWS.length); g.globalAlpha = 1; }
+  g.font = `600 13px ${css("--font")}`; g.textBaseline = "middle";
+  KIND_ROWS.forEach((k, r) => {
+    const y = TOP + r * ROW_H;
+    g.fillStyle = ink2; g.fillText(L().kinds[k], 0, y + ROW_H / 2);
+    g.strokeStyle = rule; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y + ROW_H - 0.5); g.lineTo(w - 8, y + ROW_H - 0.5); g.stroke();
+  });
+  // per-row pixel columns: max normalised purity, any target
+  const cols = KIND_ROWS.map(() => ({ best: new Float32Array(Math.ceil(w)).fill(-1), any: new Uint8Array(Math.ceil(w)) }));
+  const darks = [];
+  T.forEach((t, i) => {
+    if (!visibleT(t)) return;
+    if (t[2] == null) { darks.push(i); return; }
+    if (t[3] < a || t[2] > b) return;
+    const r = rowOf(t[1]); if (r < 0) return;
+    const xa = Math.max(x0, Math.floor(xOf(Math.max(t[2], a), w))), xb = Math.min(w - 9, Math.max(xa + 1, Math.ceil(xOf(Math.min(t[3], b), w))));
+    const v = t[8] == null ? -1 : Math.min(1, t[8] / KMAX[t[1]]);
+    const col = cols[r];
+    for (let x = xa; x <= xb; x++) { col.any[x] = 1; if (v > col.best[x]) col.best[x] = v; }
+  });
+  cols.forEach((col, r) => {
+    const y = TOP + r * ROW_H + 8, h = ROW_H - 16;
+    for (let x = Math.floor(x0); x < w - 8; x++) {
+      if (!col.any[x]) continue;
+      if (col.best[x] >= 0) { g.globalAlpha = 0.18 + 0.82 * col.best[x]; g.fillStyle = ink; g.fillRect(x, y, 1, h); }
+      else { g.globalAlpha = 1; g.fillStyle = strong; g.fillRect(x, y + h - 3, 1, 3); }
+    }
+  });
+  g.globalAlpha = 1;
+  // dark textures: no period, evenly spaced squares in their row
+  const rd = rowOf(4), yd = TOP + rd * ROW_H + 10, pitch = Math.min(ROW_H - 10, (w - 8 - x0 - 6) / Math.max(1, darks.length)), sq = Math.max(6, Math.min(ROW_H - 20, pitch - 6));
+  darks.forEach((i, n) => {
+    const x = x0 + 6 + n * pitch; const t = T[i];
+    if (measured(t)) { g.fillStyle = ink; g.fillRect(x, yd, sq, sq); }
+    else { g.strokeStyle = strong; g.strokeRect(x + 0.5, yd + 0.5, sq - 1, sq - 1); }
+    t._x = [x, x + sq];
+  });
+  // selection
+  const sel = selected >= 0 ? T[selected] : null;
+  if (sel) {
+    const r = rowOf(sel[1]), y = TOP + r * ROW_H + 4;
+    let xa, xb;
+    if (sel[2] == null) [xa, xb] = sel._x || [x0, x0 + 10]; else { xa = xOf(sel[2], w); xb = Math.max(xa + 2, xOf(sel[3], w)); }
+    g.strokeStyle = accent; g.lineWidth = 2; g.strokeRect(xa - 2, y, xb - xa + 4, ROW_H - 8);
+  }
+  // axis
+  const ya = TOP + ROW_H * KIND_ROWS.length;
+  g.fillStyle = ink2; g.font = `12px ${css("--mono")}`; g.textBaseline = "top"; g.textAlign = "center";
+  let lastX = -1e9;
+  const ticks = b / a < 3 ? [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 2, 2.5, 3] : [0.8, 1, 1.5, 2, 3, 5, 10, 20, 50, 100, 200];
+  for (const v of ticks) {
+    if (v < a || v > b) continue;
+    const x = xOf(v, w); if (x - lastX < 34) continue; lastX = x;
+    g.fillRect(x, ya, 1, 5); g.fillText(v + "", x, ya + 8);
+  }
+  g.textAlign = "left"; g.fillText("µm", 0, ya + 8);
+  drawSpectrum();
+}
+function drawSpectrum() {
+  const [g, w] = sizeCanvas(spec, 34), x0 = LABEL_W();
+  g.clearRect(0, 0, w, 34);
+  for (let x = Math.ceil(x0); x < w - 8; x++) {
+    const nm = 1000 * pOf(x, w) * delta, c = lambdaRGB(nm);
+    if (c) { g.fillStyle = c; g.fillRect(x, 4, 1, 14); }
+  }
+  g.fillStyle = css("--ink-2"); g.font = `12px ${css("--font")}`; g.textBaseline = "top";
+  g.fillText(`λ @ δ ${delta.toFixed(2)}`, 0, 5);
+}
+function targetsAt(ev) {
+  const rect = map.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  return hitTest(Math.floor((y - TOP) / ROW_H), x, rect.width);
+}
+function hitTest(r, x, w) {
+  if (r < 0 || r >= KIND_ROWS.length || x < LABEL_W()) return [];
+  const k = KIND_ROWS[r];
+  if (k === 4) return T.map((t, i) => i).filter((i) => T[i][1] === 4 && visibleT(T[i]) && T[i]._x && x >= T[i]._x[0] - 3 && x <= T[i]._x[1] + 3);
+  const p = pOf(x, w), slack = pOf(x + 3, w) / p;
+  return T.map((t, i) => i).filter((i) => { const t = T[i]; return t[1] === k && visibleT(t) && t[2] != null && t[2] <= p * slack && t[3] >= p / slack; });
+}
+const hoverLine = document.createElement("div");
+hoverLine.style.cssText = "position:absolute;top:0;width:1px;background:var(--accent);pointer-events:none;display:none";
+map.parentElement.appendChild(hoverLine);
+map.addEventListener("mousemove", (ev) => {
+  const r = map.getBoundingClientRect(), x = ev.clientX - r.left;
+  if (x >= LABEL_W()) { hoverLine.style.display = "block"; hoverLine.style.left = x + "px"; hoverLine.style.height = (TOP + ROW_H * KIND_ROWS.length) + "px"; } else hoverLine.style.display = "none";
+  const hits = targetsAt(ev); if (!hits.length) { tip.style.display = "none"; return; }
+  const best = hits.reduce((m, i) => (T[i][8] != null && (m == null || T[i][8] > m) ? T[i][8] : m), null);
+  const p = pOf(ev.clientX - map.getBoundingClientRect().left, map.clientWidth);
+  tip.textContent = (T[hits[0]][2] != null ? `${p.toPrecision(3)} µm, ` : "") + L().tipTargets(hits.length, best);
+  tip.style.display = "block";
+  const wr = map.parentElement.getBoundingClientRect();
+  tip.style.left = Math.max(0, Math.min(ev.clientX - wr.left + 12, wr.width - tip.offsetWidth - 4)) + "px"; tip.style.top = ev.clientY - wr.top + 14 + "px";
+});
+map.addEventListener("mouseleave", () => { if (document.activeElement !== map) { tip.style.display = "none"; hoverLine.style.display = "none"; } });
+/* keyboard: a cursor that walks the map the way the mouse does */
+const kb = { r: 0, p: 1.2 };
+function showCursor() {
+  const w = map.clientWidth, [a, b] = domain(); kb.p = Math.min(b * 0.999, Math.max(a * 1.001, kb.p));
+  const x = xOf(kb.p, w); hoverLine.style.display = "block"; hoverLine.style.left = x + "px";
+  hoverLine.style.height = (TOP + ROW_H * KIND_ROWS.length) + "px";
+  const hits = hitTest(kb.r, x, w), best = hits.reduce((m, i) => (T[i][8] != null && (m == null || T[i][8] > m) ? T[i][8] : m), null);
+  tip.textContent = `${L().kinds[KIND_ROWS[kb.r]]}, ${kb.p.toPrecision(3)} µm, ` + (hits.length ? L().tipTargets(hits.length, best) : L().tipTargets(0, null));
+  tip.style.display = "block"; tip.style.left = Math.max(0, Math.min(x + 12, map.clientWidth - tip.offsetWidth - 4)) + "px"; tip.style.top = (TOP + kb.r * ROW_H + ROW_H) + "px";
+  return hits;
+}
+map.addEventListener("focus", () => { if (D) showCursor(); });
+map.addEventListener("blur", () => { tip.style.display = "none"; hoverLine.style.display = "none"; });
+map.addEventListener("keydown", (e) => {
+  if (!D) return;
+  const step = e.shiftKey ? 1.1 : 1.01;
+  if (e.key === "ArrowRight") kb.p *= step; else if (e.key === "ArrowLeft") kb.p /= step;
+  else if (e.key === "ArrowDown") kb.r = Math.min(KIND_ROWS.length - 1, kb.r + 1); else if (e.key === "ArrowUp") kb.r = Math.max(0, kb.r - 1);
+  else if (e.key === "Enter" || e.key === " ") {
+    const hits = showCursor(); if (hits.length === 1) select(hits[0]); else if (hits.length) openPick(hits);
+    e.preventDefault(); return;
+  } else return;
+  e.preventDefault(); showCursor();
+});
+map.addEventListener("click", (ev) => {
+  const hits = targetsAt(ev); if (!hits.length) return;
+  if (hits.length === 1) select(hits[0]); else openPick(hits);
+});
+
+/* ---------- paper ---------- */
+const sheet = () => document.getElementById("sheet");
+const COPY_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5"/></svg>';
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const f2 = (x) => (x == null ? "–" : x.toFixed(2)), f3 = (x) => (x == null ? "–" : x.toPrecision(3));
+let backTo = null;
+function select(i, keepHash) {
+  backTo = picked || (keepHash ? backTo : null);
+  selected = i; picked = null; showAllCands = false;
+  if (!keepHash) { try { history.pushState(null, "", "#" + T[i][0]); } catch (e) {} }
+  renderTarget(); draw();
+  if (!keepHash) revealSheet();
+}
+/* one-column layout: the details open below the map, so bring them into view after a user action */
+function revealSheet() {
+  if (!matchMedia("(max-width: 1180px)").matches) return;
+  const top = sheet().getBoundingClientRect().top;
+  if (top > innerHeight * 0.6 || top < 0) sheet().scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
+function openPick(list) {
+  picked = list; selected = -1; showAllPick = false; backTo = null;
+  try { if (location.hash !== "#atlas") history.pushState(null, "", "#atlas"); } catch (e) {}
+  renderPick(); draw(); revealSheet();
+}
+function tableHeader(labels, tips) {
+  return labels.map((label, i) => `<th scope="col">${tips[i] ? `<abbr title="${esc(tips[i])}">${esc(label)}</abbr>` : esc(label)}</th>`).join("");
+}
+function renderEmpty() {
+  const m = D.meta, s = L(), p = m.progress || {};
+  const row = (name, r) => r ? `<tr><th scope="row">${name}</th><td>${r.jobs}</td><td>${pc(r.gpu_restarts_complete, r.jobs)}</td><td>${pc(r.cpu_refined_round, r.jobs)}</td><td>${r.converged_or_exhausted}</td></tr>` : "";
+  sheet().innerHTML = `<h2 class="t">${s.emptyTitle}</h2><p class="small">${s.emptyText}</p>
+    <div class="tablewrap"><table class="progress"><thead><tr>${tableHeader(s.progHead, s.progTips)}</tr></thead>
+    <tbody>${row(s.progRows[0], p.coarse_pass)}${row(s.progRows[1], p.dense_pass)}${row(s.progRows[2], p.all_jobs)}</tbody></table></div>
+    <p class="small">${s.progNote(m)}</p>`;
+}
+const pc = (a, b) => (b ? (100 * a / b).toFixed(1) + "%" : "–");
+let showAllPick = false;
+function renderPick() {
+  const s = L(), all = picked.slice().sort((a, b) => (T[b][8] ?? -1) - (T[a][8] ?? -1)), list = showAllPick ? all : all.slice(0, 40);
+  sheet().innerHTML = `<h2 class="t">${s.hereN(all.length)}</h2><p class="small">${s.pickHint}</p>
+    <table class="pick"><thead><tr>${tableHeader(s.pickHead, s.pickTips)}</tr></thead><tbody>${list.map((i) => { const t = T[i]; return `<tr tabindex="0" data-i="${i}">
+      <td>${esc(t[1] === 0 ? s.kinds[0] : s.kinds[t[1]] + (lang === "zh" ? "，" : ", ") + s.label(t[0], t[1]))}</td><td class="num">${t[2] == null ? "" : f3(t[2]) + "–" + f3(t[3]) + " µm"}</td>
+      <td>${s.status[t[4]]}</td><td class="num">${f2(t[8])}</td></tr>`; }).join("")}</tbody></table>
+    ${all.length > list.length ? `<button class="more" id="morePick">${s.showAll(all.length)}</button>` : ""}`;
+  const mp = document.getElementById("morePick"); if (mp) mp.addEventListener("click", () => { showAllPick = true; renderPick(); });
+  sheet().querySelectorAll("tr[data-i]").forEach((tr) => {
+    const go = () => select(+tr.dataset.i);
+    tr.addEventListener("click", go); tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  });
+}
+function lambdaCell(p) {
+  if (p == null) return "–";
+  const nm = 1000 * p * delta, c = lambdaRGB(nm);
+  return c ? `<span><span class="sw" style="background:${c}"></span><span class="num">${Math.round(nm)} nm</span></span>`
+           : `<span><span class="sw none"></span><span class="num">${Math.round(nm)} nm</span> ${L().invisible}</span>`;
+}
+function barValue(t, c) {
+  const pur = c[6]; if (!pur.length) return 0;
+  const sh = t[12];
+  if (sh && sh.length === pur.length && pur.length > 1) return Math.min(...pur.map((p, k) => (sh[k] > 0 ? p / sh[k] : Infinity)).filter(isFinite));
+  return Math.max(...pur);
+}
+function renderTarget() {
+  const s = L(), t = T[selected], list = candsOf[selected], shown = showAllCands ? list : list.slice(0, 16);
+  const hasProxy = list.some((c) => !c[2]);
+  const lead = list.find((c) => c[2]) || list[0];
+  const linePeriods = lead ? lead[5] : (t[2] != null ? [Math.sqrt(t[2] * t[3])] : []);
+  const periodsVary = new Set(list.map((c) => (c[4] == null ? "" : c[4].toPrecision(3)))).size > 1;
+  const headers = [s.thRank, s.thSpec, ...(periodsVary ? [s.thPeriod] : []), s.thPurity, s.thRisk, s.thF512];
+  const dark = t[1] === D.meta.kinds.indexOf("dark");   // dark targets are scored by leakage, not purity
+  const headerTips = [s.thRankTip, s.thSpecTip, ...(periodsVary ? [s.thPeriodTip] : []), dark ? s.thPurityDarkTip : s.thPurityTip, s.thRiskTip, s.thF512Tip];
+  const statusText = t[4] === 0 && t[9] > 0 ? s.todoInherited : s.status[t[4]];
+  const what = t[1] === 0 ? (t[2] == null ? "" : `${s.kinds[0]} ${f3(t[2])} µm`) : s.kinds[t[1]] + (lang === "zh" ? "，" : ", ") + s.label(t[0], t[1]);
+  sheet().innerHTML = `${backTo ? `<button class="back" type="button" id="back">← ${s.back(backTo.length)}</button>` : ""}<h2 class="t">${esc(what || s.kinds[t[1]])}</h2>
+    <div class="idline"><code>${esc(t[0])}</code><button class="copy" type="button" data-copy="${esc(t[0])}" aria-label="${s.copy} ${esc(t[0])}" title="${s.copy}">${COPY_ICON}</button></div>
+    <dl class="facts">
+      <dt>${s.kindLabel}</dt><dd>${s.kinds[t[1]]}</dd>
+      <dt>${s.status_}</dt><dd>${statusText}</dd>
+      <dt>${s.period}</dt><dd class="num">${t[2] == null ? s.noPeriod : f3(t[2]) + " – " + f3(t[3]) + " µm"}</dd>
+      <dt>${s.density}</dt><dd>${t[5] ? s.dense : s.coarse}</dd>
+      <dt>${s.ring}</dt><dd class="num">${t[6] ?? "–"}</dd>
+      <dt>${s.visible}</dt><dd class="num">${t[7] == null ? "–" : Math.round(t[7] * 100) + "%"}</dd>
+      <dt>${s.candCount}</dt><dd>${s.candOf(t[10], t[9])}</dd>
+    </dl>
+    ${linePeriods.length ? `<div class="lines"><span class="lbl">${s.linesAt(delta.toFixed(2))}</span>${linePeriods.map(lambdaCell).join("")}</div>` : ""}
+    ${list.length ? `<div class="tablewrap"><table class="cands"><thead><tr>${tableHeader(headers, headerTips)}</tr></thead><tbody>
+      ${shown.map((c) => { const bar = barValue(t, c); return `<tr class="${c[1] === 1 && c[2] ? "win" : ""}">
+        <td><span class="num">${c[1]}</span> <span class="basis ${c[2] ? "w" : ""}">${c[2] ? (c[1] === 1 ? s.winner : s.whole) : s.proxy}</span></td>
+        <td><code>${esc(c[3])}</code><button class="copy" type="button" data-copy="${esc(c[3])}" aria-label="${s.copy} ${esc(c[3])}" title="${s.copy}">${COPY_ICON}</button></td>
+        ${periodsVary ? `<td class="num">${f3(c[4])}</td>` : ""}
+        <td class="num"><span class="bar"><i style="width:${Math.round(100 * Math.min(1, bar))}%"></i></span>${c[6].map(f2).join(" / ") || "–"}</td>
+        <td class="${c[7] === 3 ? "risk-hi" : ""}">${s.risk[c[7]]}</td>
+        <td class="num">${c[8] == null ? "–" : c[8].toFixed(2)}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      ${list.length > shown.length ? `<button class="more" id="more">${s.showAll(list.length)}</button>` : ""}
+      ${dark ? `<p class="small" id="dark-note">${s.darkNote}</p>` : ""}
+      ${hasProxy ? `<p class="small">${s.proxyNote}</p>` : ""}
+      <details class="help"><summary>${s.colsTitle}</summary><dl>${s.colsBody}</dl></details>` : `<p class="small">${s.noCands}</p>`}`;
+  const bk = document.getElementById("back"); if (bk) bk.addEventListener("click", () => { picked = backTo; backTo = null; selected = -1; try { history.pushState(null, "", "#atlas"); } catch (e) {} renderPick(); draw(); });
+  const more = document.getElementById("more"); if (more) more.addEventListener("click", () => { showAllCands = true; renderTarget(); });
+  sheet().querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.classList.add("done"); b.title = s.copied; setTimeout(() => { b.classList.remove("done"); b.title = s.copy; }, 1200); } catch (e) {}
+  }));
+}
+function renderSheet() { if (!D) return; if (selected >= 0) renderTarget(); else if (picked) renderPick(); else renderEmpty(); }
+
+/* ---------- search ---------- */
+const q = document.getElementById("q"), hits = document.getElementById("hits");
+function search(text) {
+  const s = L(), v = text.trim().toUpperCase(); if (!v) { hits.hidden = true; return; }
+  const out = [];
+  const num = v.match(/^(\d*\.?\d+)\s*(µM|UM)?$/);
+  if (num) {
+    const p = +num[1], at = T.map((t, i) => i).filter((i) => T[i][2] != null && T[i][2] <= p && T[i][3] >= p);
+    hits.innerHTML = at.length ? `<button data-period="${p}">${esc(s.periodHit(p.toPrecision(3), at.length))}</button>` : `<div class="empty">${s.noHit}</div>`;
+    hits.hidden = false;
+    const pb = hits.querySelector("[data-period]");
+    if (pb) pb.addEventListener("click", () => { hits.hidden = true; openPick(at); });
+    return;
+  }
+  if (byId.has(v)) out.push([byId.get(v), ""]);
+  if (v.startsWith("DVD") || v.includes("-")) {
+    for (const [id, i] of byId) { if (out.length >= 12) break; if (id.toUpperCase().includes(v) && id.toUpperCase() !== v) out.push([i, ""]); }
+  }
+  const seen = new Set(out.map((o) => o[0]));
+  for (const [spec, list] of specIndex) {
+    if (seen.size >= 24) break;
+    if (!spec.startsWith(v)) continue;
+    for (const i of list) { if (!seen.has(i)) { seen.add(i); out.push([i, s.specHit + " " + spec]); } if (out.length >= 24) break; }
+  }
+  const name = (i) => (T[i][1] === 0 ? `${s.kinds[0]} ${f3(T[i][2])} µm` : s.kinds[T[i][1]] + (lang === "zh" ? "，" : ", ") + s.label(T[i][0], T[i][1]));
+  hits.innerHTML = out.length ? out.map(([i, why]) => `<button data-i="${i}"><code>${esc(T[i][0])}</code><br><span class="small">${why ? esc(why) + (lang === "zh" ? "：" : ": ") : ""}${esc(name(i))}</span></button>`).join("") : `<div class="empty">${s.noHit}</div>`;
+  hits.hidden = false;
+  hits.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => { hits.hidden = true; select(+b.dataset.i); }));
+}
+q.addEventListener("input", () => search(q.value));
+q.addEventListener("keydown", (e) => { if (e.key === "Enter") { const b = hits.querySelector("button"); if (b) b.click(); } if (e.key === "Escape") hits.hidden = true; });
+document.addEventListener("click", (e) => { if (!e.target.closest(".search")) hits.hidden = true; });
+
+/* ---------- controls, language, theme ---------- */
+const rangeEl = document.getElementById("range");
+function renderRange() {
+  rangeEl.innerHTML = L().ranges.map((r, i) => `<button type="button" aria-pressed="${i === range}" data-i="${i}">${r[0]}</button>`).join("");
+  rangeEl.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { range = +b.dataset.i; renderRange(); draw(); }));
+}
+document.getElementById("onlyMeasured").addEventListener("change", (e) => { onlyMeasured = e.target.checked; draw(); });
+const deltaEl = document.getElementById("delta"), deltaOut = document.getElementById("deltaOut");
+deltaEl.addEventListener("input", () => { delta = +deltaEl.value; deltaOut.textContent = delta.toFixed(2); draw(); if (selected >= 0) renderTarget(); });
+function applyLang() {
+  const s = L(); document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  document.querySelectorAll("[data-i18n]").forEach((el) => { const v = s[el.dataset.i18n]; if (typeof v === "string") el.textContent = v; });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => (el.placeholder = s[el.dataset.i18nPh]));
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = s[el.dataset.i18nTitle]; el.setAttribute("aria-label", el.title); });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", s[el.dataset.i18nAria]));
+  document.getElementById("langLabel").textContent = lang === "zh" ? "EN" : "中文";
+  for (const link of languageLinks) link.el.href = lang === "zh" ? link.zh : link.en;
+  document.title = `Disc Neo · ${s.guideTitle}`;
+  deltaOut.textContent = delta.toFixed(2);
+  if (D) document.getElementById("status").textContent = s.status2(D.meta);
+  document.getElementById("legend").innerHTML = `<span><i style="background:var(--ink)"></i>${s.legendMeasured}</span>
+    <span><i style="background:linear-gradient(transparent 70%, var(--rule-strong) 70%)"></i>${s.legendTodo}</span>
+    <span><i style="background:color-mix(in srgb, var(--ink) 8%, transparent);border:1px solid var(--rule)"></i>${s.legendVisible}</span>`;
+  document.getElementById("mapHelpBody").innerHTML = s.mapHelpBody;
+  renderRange(); renderSheet(); draw();
+  if (D && document.activeElement === map) showCursor(); else { tip.style.display = "none"; hoverLine.style.display = "none"; }
+}
+const languageLinks = Array.from(document.querySelectorAll("[data-en-href]"), el => ({
+  el, zh: el.getAttribute("href"), en: el.dataset.enHref,
+}));
+document.getElementById("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; try { localStorage.setItem("neo-lang", lang); } catch (e) {} applyLang(); });
+const colourScheme = matchMedia("(prefers-color-scheme: dark)");
+const wordmark = document.getElementById("wordmark"), paperMark = wordmark.getAttribute("src");
+let theme;
+try { theme = localStorage.getItem("neo-theme"); } catch (e) {}
+function applyTheme() {
+  const dark = theme === "dark" || (theme !== "light" && colourScheme.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  wordmark.src = dark ? wordmark.dataset.ink : paperMark;
+  document.getElementById("theme").setAttribute("aria-pressed", String(dark));
+  draw();
+}
+document.getElementById("theme").addEventListener("click", () => {
+  theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("neo-theme", theme); } catch (e) {}
+  applyTheme();
+});
+colourScheme.addEventListener("change", applyTheme);
+function fromHash() {
+  const id = location.hash.slice(1);
+  const index = byId.get(id.toUpperCase());
+  if (index != null) { if (selected !== index) select(index, true); }
+  else if (id === "atlas" && backTo) { picked = backTo; backTo = null; selected = -1; renderPick(); draw(); }
+  else if (selected >= 0) { selected = -1; backTo = null; picked = null; renderEmpty(); draw(); }
+}
+window.addEventListener("hashchange", fromHash);
+window.addEventListener("popstate", fromHash);
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(draw, 80); });
+applyTheme();
+applyLang();
+load().catch((e) => { sheet().innerHTML = `<p class="loading">${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>

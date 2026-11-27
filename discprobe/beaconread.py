@@ -26,7 +26,7 @@ MIN_BIT = 0.35                  # |soft value| below which a bit counts as unrea
 
 def edge_map(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Edge strength of log colour, and the log colour image (float, H x W x 3)."""
-    from scipy.ndimage import gaussian_filter
+    from .numerics import gaussian_filter
     lg = np.log(rgb.astype(np.float32) + EPS)
     e = np.zeros(lg.shape[:2], np.float32)
     for c in range(3):
@@ -54,8 +54,8 @@ def _ring_kernel(radii_px, width=1.5, ring_gain=1.0):
 def find_bullseyes(edges: np.ndarray, px_per_mm: float, radii_mm=bd.FINDER_RADII_MM, min_score: float = 0.12,
                    max_peaks: int = 400) -> list[tuple[float, float, float]]:
     """(x, y, score) of candidate bullseyes, strongest first."""
-    from scipy.ndimage import maximum_filter
-    from scipy.signal import fftconvolve
+    from .numerics import maximum_filter
+    from .numerics import fftconvolve
     k = _ring_kernel([r * px_per_mm for r in radii_mm], width=max(1.2, 0.05 * px_per_mm))
     resp = fftconvolve(edges, k[::-1, ::-1], mode="same")
     near = int(1.5 * radii_mm[-1] * px_per_mm) | 1

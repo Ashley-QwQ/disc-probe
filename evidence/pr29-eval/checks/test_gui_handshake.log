@@ -1,0 +1,16 @@
+COMMAND: node tests/test_gui_handshake.mjs
+✔ current socket matches; old and new majors name the side to update (1.8392ms)
+✔ missing required capability stops startup; optional capability does not (1.195ms)
+✔ four-part public core version completes the GUI handshake (0.832ms)
+✔ optional entry is hidden and CSS covers entries mounted later (1.2095ms)
+✔ one translated sheet replaces the workflow, without technical errors (0.4339ms)
+✔ transient connection failure retries and restores the original page only after negotiation (4.2003ms)
+✔ required capability failure needs manual retry and cannot initialise early (0.8797ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16.7171

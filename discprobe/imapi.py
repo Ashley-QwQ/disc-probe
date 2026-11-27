@@ -284,6 +284,11 @@ def _recorders() -> tuple[list[tuple[str, list[str], _Dispatch]], list[str]]:
 
 
 class ImapiDevice:
+    def label_session_state(self):
+        """Read-only MMC NWA query over the non-admin IMAPI transport."""
+        from .labelsession import disc_state
+        return disc_state(self)
+
     def __init__(self, drive: str):
         letter = drive.rstrip(":\\/").upper()
         if len(letter) != 1 or letter not in string.ascii_uppercase:

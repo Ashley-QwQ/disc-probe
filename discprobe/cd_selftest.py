@@ -131,18 +131,20 @@ def _iso(c):
             c.check(True, f"invalid CD capacity {sectors} rejected")
 
 
-def _ladder(c):
-    print("CD timing ladder: four +/-1% geometries, 35 ms reread overhead")
+def _ladder(c, *, seed=7):
     b = cd.BIT_NM * 1e-6
     for su, sv in itertools.product((-0.01, 0.01), repeat=2):
         u, v = cd.R0_MM / b * (1 + su), cd.PITCH_UM * 1e-3 / b * (1 + sv)
-        sim = SimDrive(media="cd", seed=7, reread_delay_ms=35, cd_u=u, cd_v=v)
+        # Match the low-noise DVD geometry check. The late-tail check
+        # exercises the phase estimator under noisy CD audio timing.
+        sim = SimDrive(media="cd", seed=seed, reread_delay_ms=35, cd_u=u, cd_v=v,
+                       jitter_us=8.0, outlier_rate=0.0)
         lad = Ladder(sim, media="cd", speed_kbs=None, log=lambda *_: None)
         rep = lad.run()
-        n = np.linspace(0, 0.85 * cd.CAPACITY * cd.SECTOR_BITS, 400)
+        n = np.linspace(0, 0.98 * cd.CAPACITY * cd.SECTOR_BITS, 400)
         error = np.degrees(theta(n, lad.u, lad.v) - theta(n, u, v))
         span = float(np.ptp(error))
-        c.check(span < 1.5, f"u {su:+.0%}, v {sv:+.0%}: {len(lad.targets)} rungs, 0-85% error {span:.3f} deg")
+        c.check(span < 0.75, f"u {su:+.0%}, v {sv:+.0%}: {len(lad.targets)} rungs, 0-98% error {span:.3f} deg")
         c.check(rep["media"] == "cd" and lad.tp.summary["setup"]["read_method"] == "read12"
                 and lad.tp.strategy == "fua", "CD data READ(12)+FUA and media-tagged fit")
 
@@ -164,6 +166,7 @@ def _scan(c):
 def run(c):
     _mapping(c)
     _iso(c)
+    print("CD timing ladder: four +/-1% geometries, 35 ms reread overhead")
     _ladder(c)
     _scan(c)
     _efm(c)

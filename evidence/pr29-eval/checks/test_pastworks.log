@@ -1,0 +1,2 @@
+COMMAND: node tests/test_pastworks.mjs
+Past works sorting, depth, continuous fall, repeat timing and back order passed

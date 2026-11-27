@@ -102,7 +102,7 @@ def geometry(r0_mm: float = NOMINAL_R0_MM, pitch_um: float = NOMINAL_PITCH_UM,
 def write(path: str, *, sectors: int = BURNABLE_SECTORS, r0_mm: float = NOMINAL_R0_MM,
           pitch_um: float = NOMINAL_PITCH_UM, bit_nm: float = 74.5, rings=(26.0, 40.0, 55.0),
           line_deg: float = 90.0, split: bool = False, dark: str = "A5", light: str = "B9",
-          log=print, preview: str | None = None) -> dict:
+          log=print, preview: str | None = None, disc_id=False, disc_id_code=None) -> dict:
     """Write the calibration picture as a burnable image and say what it is.
 
     With `preview`, the same picture is also saved as a PNG: a disc image bakes in one scrambling
@@ -119,7 +119,11 @@ def write(path: str, *, sectors: int = BURNABLE_SECTORS, r0_mm: float = NOMINAL_
                      "that edge into arms you can count") if split else
                     "burned with the nominal numbers; the line's far end points at the twist"}
     spec = imagedisc.write_iso(path, pic, u, v, bit_nm, int(sectors), dark=dark, light=light,
-                               log=log, meta=meta, media="bd")
+                               log=log, meta={**meta, **({"identity_command": "calibdisc",
+                                   "identity_design": "split calibration" if split else "three-ring calibration"}
+                                   if disc_id or disc_id_code is not None else {})},
+                               media="bd", disc_id=disc_id, disc_id_code=disc_id_code,
+                               lead_lba=32 if split and (disc_id or disc_id_code is not None) else 0)
     return {"path": os.path.abspath(path), "spec": os.path.abspath(spec), "u": u, "v": v,
             "textures": textures,
             "preview": os.path.abspath(preview) if preview else None,

@@ -1,0 +1,168 @@
+{
+  "linux_card": {
+    "file": "F:\\dp-dev-tmp\\linuxpack\\rehearsal\\assets\\disc-probe-1.0.0.0-alpha-full.zip",
+    "sha256": "d970b4a4b86cc5871a529119ab58a5f0c675035fb09a39bd439f6255873c20ca",
+    "total_bytes": 350683995,
+    "breakdown": {
+      "source": 16696979,
+      "linux/python": 116555164,
+      "linux/pillow": 6917359,
+      "linux/opencv-python-headless": 61126515,
+      "linux/numpy": 14723736,
+      "linux/scipy": 30394524,
+      "windows/python": 10051174,
+      "windows/pillow": 7081440,
+      "windows/opencv-python-headless": 43820403,
+      "windows/numpy": 10471461,
+      "windows/scipy": 31675892,
+      "zip_headers": 1169348
+    }
+  },
+  "legacy": {
+    "file": "F:\\dp-dev-tmp\\linuxpack\\rehearsal-pinned-baseline\\disc-probe-1.0.0.0-alpha-full.zip",
+    "sha256": "990f2e09616d039a57d1495e9874cf8e13f8e00afaae77681ebdc48dd7439f06",
+    "total_bytes": 350706541,
+    "breakdown": {
+      "source": 16718170,
+      "linux/python": 116555164,
+      "linux/pillow": 6917359,
+      "linux/opencv-python-headless": 61126515,
+      "linux/numpy": 14723737,
+      "linux/scipy": 30394524,
+      "windows/python": 10051174,
+      "windows/pillow": 7081440,
+      "windows/opencv-python-headless": 43820403,
+      "windows/numpy": 10471461,
+      "windows/scipy": 31675892,
+      "zip_headers": 1170702
+    }
+  },
+  "pinned": {
+    "file": "F:\\dp-dev-tmp\\linuxpack\\rehearsal-pinned\\assets\\disc-probe-1.0.0.0-alpha-full.zip",
+    "sha256": "c552518c7d323585ba66ac742cfb359b03ee554946e2ecfe951663fe5d58b7fb",
+    "total_bytes": 350706167,
+    "breakdown": {
+      "source": 16720239,
+      "linux/python": 116555164,
+      "linux/pillow": 6917122,
+      "linux/opencv-python-headless": 61126272,
+      "linux/numpy": 14723500,
+      "linux/scipy": 30394291,
+      "windows/python": 10051174,
+      "windows/scipy": 31675894,
+      "windows/pillow": 7081440,
+      "windows/opencv-python-headless": 43820166,
+      "windows/numpy": 10471463,
+      "zip_headers": 1169442
+    }
+  },
+  "source_files": 603,
+  "source_manifest_sha256": "8f70b80e805ff6053a01754390f2294e455ee94eb1e9d9832284699e705b0f82",
+  "source_identical": true,
+  "site_packages": {
+    "windows": {
+      "identical": 1291,
+      "types": {
+        "RECORD": 2,
+        "direct_url.json": 1,
+        ".whl": 1
+      },
+      "diffs": [
+        {
+          "file": "numpy-2.5.1.dist-info/RECORD",
+          "type": "RECORD",
+          "before": "80ec897438187ddae887ad7f57838b5dd23e996e45634645e09a28f6436f728b",
+          "after": "dc43d27b8b39b7f2c72b204380bda79ae7451118b9653d561c981a3854393285"
+        },
+        {
+          "file": "opencv_python_headless-5.0.0.93.dist-info/RECORD",
+          "type": "RECORD",
+          "before": "afd40382184421381fe07ed9cf02d460a82156b5ad3376a731c0e91b042e8a30",
+          "after": "1f4956383d7793a8de3677288e9d2ff286fa9bf3d297e121aee10fe21be4d151"
+        },
+        {
+          "file": "opencv_python_headless-5.0.0.93.dist-info/direct_url.json",
+          "type": "direct_url.json",
+          "before": "c5593c80c3928245d9c060ab2804e6875c73397118bdfc42d1e00754aa510c91",
+          "after": null
+        },
+        {
+          "file": "scipy-1.18.1-cp313-cp313-win_amd64.whl",
+          "type": ".whl",
+          "before": null,
+          "after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "dependencies": {
+        "numpy": "2.5.1",
+        "opencv-python-headless": "5.0.0.93",
+        "pillow": "12.3.0",
+        "scipy": "1.18.1"
+      }
+    },
+    "linux": {
+      "identical": 1648,
+      "types": {
+        "RECORD": 4,
+        "direct_url.json": 4
+      },
+      "diffs": [
+        {
+          "file": "numpy-2.5.1.dist-info/RECORD",
+          "type": "RECORD",
+          "before": "80e3bd5dddf10546f92802025c1b2740803fa10b1abbd9fd8ffbc0ec9b7cfced",
+          "after": "51ee9bf36bc0bd142d11a8bd5ba6bf5a9f2b49cb795ea7dc58fe09627f58e3d2"
+        },
+        {
+          "file": "numpy-2.5.1.dist-info/direct_url.json",
+          "type": "direct_url.json",
+          "before": "842d6898c31b292e6f1979c169f3f80bd4c3624b7aa48010260d8f133233b3ad",
+          "after": null
+        },
+        {
+          "file": "opencv_python_headless-5.0.0.93.dist-info/RECORD",
+          "type": "RECORD",
+          "before": "b0f84d6ef8e58c86b59de91eae777257601da0f5a7afbc7f32db3fed0cd6e913",
+          "after": "0bc8b7b45a9d580c978c9f34dd0278b929222abcc3b062d8c9fe477acc8f2a56"
+        },
+        {
+          "file": "opencv_python_headless-5.0.0.93.dist-info/direct_url.json",
+          "type": "direct_url.json",
+          "before": "18c546a0fef3d7dad6d1cedfa670eca2b43ce8cb135b7d2b2d42a7a6af2e2329",
+          "after": null
+        },
+        {
+          "file": "pillow-12.3.0.dist-info/RECORD",
+          "type": "RECORD",
+          "before": "17b26265d6e11cec60e97c4ce203d37e8879f09ea0ea34b4600f4ec7fc21bd5b",
+          "after": "50e45b1c4f3d992b182db878fa796668d2a1c39527f91b9d09b939872722fd4e"
+        },
+        {
+          "file": "pillow-12.3.0.dist-info/direct_url.json",
+          "type": "direct_url.json",
+          "before": "7bae4db7506eb69594b67a81781203eabdb58a445d2cd2d80e4d4b74e8c8af85",
+          "after": null
+        },
+        {
+          "file": "scipy-1.18.1.dist-info/RECORD",
+          "type": "RECORD",
+          "before": "c8324d4b5b68ac01fef8830cc60a49d5f6de8f44bae8be5fd5ca2854848d3527",
+          "after": "dbb98852aa0bb84a989f64d3a27cc6be885d326cd30932c7e1a8cf265d1ace57"
+        },
+        {
+          "file": "scipy-1.18.1.dist-info/direct_url.json",
+          "type": "direct_url.json",
+          "before": "32e6ae8defcd2e7e00f981a7ba42c76b7a0619358592cf11f54e0ef22204b325",
+          "after": null
+        }
+      ],
+      "dependencies": {
+        "numpy": "2.5.1",
+        "opencv-python-headless": "5.0.0.93",
+        "pillow": "12.3.0",
+        "pip": "26.1.2",
+        "scipy": "1.18.1"
+      }
+    }
+  }
+}

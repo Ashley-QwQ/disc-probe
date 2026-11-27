@@ -1,0 +1,1228 @@
+[
+ {
+  "id": "PR_kwDOVh8rBM8AAAABM-Qtlg",
+  "updatedAt": "2026-11-05T05:07:22Z",
+  "number": 3,
+  "title": "docs: record GP90NB70 image burn validation at 8x",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/3",
+  "state": "CLOSED",
+  "createdAt": "2026-11-05T03:20:34Z",
+  "author": {
+   "login": "li-yifei"
+  },
+  "body": "The GP90NB70 entries still say the measured geometry has not been checked with a burn. The reporter subsequently confirmed that the timing-calibrated parameters produced a clear image, including at the drive's maximum 8x write speed:\n\n- [Calibration report and raw measurements](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410376)\n- [Follow-up confirming successful calibration](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410621)\n- [Follow-up confirming clear images at 8x](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410771)\n\nUpdate both Chinese and English compatibility tables and link the follow-up. This records the user's visual confirmation; the existing 0.38° timing-fit residual is unchanged, and no quantitative image-error measurement is claimed.\n\nValidation: reviewed both table rows and ran `git diff --check`. Documentation only; no additional disc was burned for this PR.\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAYxiaFA="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjGJoUA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/3#issuecomment-6650226768",
+     "updatedAt": "2026-11-05T05:07:22Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T05:07:22Z",
+     "body": "谢谢这个 PR！它和 `main` 上后来的改动冲突了，我就直接把你的内容合进去了，省得你再解一次冲突：回帖链接和\"尚无量化图像误差\"这句提醒都保留了，并和你在 #107 确认的 VHR12JP53SV4 / `CMC MAG. AM3`、二次拟合结果放在同一行。提交是 4ebb467，署名里带了你（Co-Authored-By）。这个 PR 就先关掉了，之后有想改的地方也欢迎再开。"
+    }
+   ]
+  },
+  "mergedAt": null,
+  "baseRefName": "main",
+  "headRefName": "docs/gp90nb70-burn-validation",
+  "headRefOid": "5e5513031f337cd3c55c8b22bfd34ebd55d4bd0b",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABM_U4KQ",
+  "updatedAt": "2026-11-05T06:53:07Z",
+  "number": 4,
+  "title": "Add an IMAPI2 transport that needs no administrator rights",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/4",
+  "state": "MERGED",
+  "createdAt": "2026-11-05T05:29:24Z",
+  "author": {
+   "login": "WindowsNoEditor"
+  },
+  "body": "## What\n\n`discprobe/imapi.py` adds `ImapiDevice`, a drop-in for `SptiDevice` that sends the same CDBs through Windows' own IMAPI2 recorder (`IDiscRecorder2Ex`). A standard user may call it, so no elevated terminal is needed.\n\n- New common option `--transport {auto,spti,imapi}`. `auto` (the default) keeps SPTI and falls back to IMAPI2 when SPTI is refused with access denied.\n- README, README.en and MANUAL mention it, and the SPTI access-denied hint points to it.\n\n## How\n\n- Standard library only (ctypes).\n- MsftDiscMaster2 and MsftDiscRecorder2 are reached through IDispatch (GetIDsOfNames + Invoke), so nothing depends on their vtable order. Only IDiscRecorder2Ex slots 3 (SendCommandNoData) and 5 (SendCommandGetDataFromDevice) are called directly.\n- Same contract as `SptiDevice`: the `scsi.py` allowlist is checked first, data-out is refused, and `perf_counter_ns()` is taken right around the COM call.\n- IMAPI2 reports a CHECK CONDITION as the success code S_IMAPI_COMMAND_HAS_SENSE_DATA (0x00AA0200), with the sense bytes in the caller's buffer. That becomes status 0x02 plus the parsed sense. A failing HRESULT raises OSError, as a failing DeviceIoControl does.\n- The recorder is held with AcquireExclusiveAccess and media-change notification is disabled for the run. Both are undone on close.\n\n## Tested\n\nHP BD-RE BU20N (USB, firmware 0403), Windows 11, standard user:\n- `list` and `info` give the same report through both transports, including the drive's sense codes for refused commands.\n- `timing` on a CD-DA disc at `--speed 1411`, run back to back over SPTI and IMAPI2 (together with the `readcd-usb-cache` PR, needed for CD-DA on this drive):\n  - both: CAV, period 48.3485 ms in all three zones;\n  - jitter: SPTI 55–62 µs, IMAPI2 43–63 µs;\n  - the 5 target phases differ by −0.31…+0.28° (χ² 10.0 for 5 dof), about the run-to-run scatter on this drive.\n- `selftest` passes (numpy parts skipped), also merged with current main.\n\nNot exercised: on this machine SPTI also opened the drive without elevation, so the automatic fallback was only reached with `--transport imapi`.\n\nThe two timing summaries are in [WindowsNoEditor/disc-probe@dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing/out/discprobe_spti_vs_imapi).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 3,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAYx57q8="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjGydMw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/4#issuecomment-6650895667",
+     "updatedAt": "2026-11-05T05:54:58Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T05:54:58Z",
+     "body": "Thanks! I read the code and tried it on our GH70N (SATA, CMC CD-R, `--speed 1411`).\n\nThe read-only guarantee holds. `execute()` calls `check_allowed` first, and I confirmed that WRITE(10), WRITE(12), CLOSE TRACK, FORMAT UNIT and a data-out direction are all refused. The write interface is never called.\n\nTiming matches SPTI within noise. Over two IMAPI runs and three SPTI runs, the five phases stayed within about 0.25° of each other on the same disc:\n\n| Target | SPTI (3 runs) | IMAPI (2 runs) |\n|---|---|---|\n| 0.15 | 201.96 to 202.05 | 202.00, 202.00 |\n| 0.35 | 60.23 to 60.31 | 60.31, 60.21 |\n| 0.55 | 182.00 to 182.06 | 182.09, 181.85 |\n| 0.75 | 107.89 to 107.90 | 107.83, 107.98 |\n| 0.95 | 235.11 to 235.23 | 235.05, 235.10 |\n\nSingle-shot scatter looked a little higher on IMAPI (0.30 to 0.53° against 0.19 to 0.40°). That's only a few runs, and they weren't all under the same pause setting, so I wouldn't read much into it.\n\nAfter a hard kill in the middle of a run, a new process could acquire the drive and read normally. I haven't checked yet whether media-change notification comes back by itself.\n\nOne thing didn't work here. I ran it with a restricted token (`runas /trustlevel:0x20000`, on Windows Server). The `auto` fallback did trigger, but `InitializeDiscRecorder` failed with 0x80070005, and the tool reported \"no IMAPI2 recorder at H:\". That token may be stricter than a normal standard user, so this doesn't contradict your result. Still, `_recorders()` swallows that error, which makes the message misleading.\n\nTwo small requests, if you have time:\n\n1. Keep the last `InitializeDiscRecorder` error and include it in the \"no IMAPI2 recorder\" message.\n2. `imapi.list_optical_drives` isn't used anywhere, since `list` still uses the one in `spti.py`, so it could go.\n\nIf you'd rather not, I can make these after merging. Also, the README says this works as a standard user. If anyone can confirm that on a second machine, that would help.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjHkUew",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/4#issuecomment-6651712635",
+     "updatedAt": "2026-11-05T06:49:23Z",
+     "author": {
+      "login": "WindowsNoEditor"
+     },
+     "createdAt": "2026-11-05T06:49:23Z",
+     "body": "Thanks for running it on the GH70N, and for the restricted-token test. Both requests are done in d60023b:\n\n1. `_recorders()` now also returns the errors of recorders that fail `InitializeDiscRecorder`. \"no IMAPI2 recorder at X:\" then says how many failed and gives the last error, for example:\n   `no IMAPI2 recorder at H: (1 recorder could not be initialised; last error: IMAPI2 InitializeDiscRecorder failed: 0x80070005 Access is denied.)`\n   A recorder that cannot be initialised has no known drive letter, so the message can't tell whether it was the one asked for.\n2. `imapi.list_optical_drives` is removed.\n\n`selftest` still passes.\n\nOn a second machine: our standalone C# probe sends all its commands through the same `IDiscRecorder2Ex` interface. On a Dell with a PLDS DU-8A5LH it ran without elevation (started by double-click, UAC at its default level) and completed a full timing calibration. That isn't disc-probe itself, and I didn't check whether SPTI would also have opened the drive there, so it doesn't exercise the `auto` fallback.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjHnurw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/4#issuecomment-6651768495",
+     "updatedAt": "2026-11-05T06:53:04Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T06:53:04Z",
+     "body": "Thanks, that's exactly what I had in mind. I re-ran it on d60023b: `selftest` passes, and the restricted-token run now shows the real reason (`1 recorder could not be initialised; last error: ... 0x80070005`). Writes are still refused.\n\nI can also close the open question from last time. After I hard-killed a run, swapping discs was still noticed: Windows picked up the new disc's label and size. That's one test on one machine, but it suggests nothing stays stuck.\n\nMerging. One thing we still haven't seen is `auto` falling back and succeeding, because SPTI opened the drive on your machine and IMAPI2 refused the restricted token on ours. If someone running as a normal user tries it, I'd like to hear how it goes. Thanks for the quick turnaround!\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-05T06:53:07Z",
+  "baseRefName": "main",
+  "headRefName": "imapi-transport",
+  "headRefOid": "d60023bde4173a9deca60838a14b1ad96c10eed1",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABM_U62w",
+  "updatedAt": "2026-11-05T05:54:55Z",
+  "number": 5,
+  "title": "timing: catch slow cache hits for READ CD, where there is no FUA",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/5",
+  "state": "MERGED",
+  "createdAt": "2026-11-05T05:29:28Z",
+  "author": {
+   "login": "WindowsNoEditor"
+  },
+  "body": "## Problem\n\nOn an HP BD-RE BU20N over USB, plain READ CD re-reads of one CD-DA sector come back from the drive's cache in about 9.8 ms, above `CACHE_HIT_US` (3 ms).\n\n- For READ(12) the FUA comparison catches slow cache hits. READ CD has no FUA, so that check never runs.\n- The cache test therefore chose `plain`, the period test timed cache hits (coherence about 0.4, \"Rotation: unknown\"), and the phase test was skipped.\n\n## Fix\n\n- For READ CD, the cache test also times reads that follow an eviction (`max(8, reads // 4)` of them). If those are at least `CACHE_RATIO` times slower than plain reads, plain reads count as cached.\n- The cache-hit threshold is then raised to the geometric mean of the two medians (`cache_hit_us`, also written to the cache summary).\n- The flush check and `_usable()` use that threshold, so 10 ms hits are neither taken as a working flush nor kept as samples.\n- Data discs, and drives whose cache hits are fast, behave as before.\n\n## Before and after\n\nSame disc and drive (HP BU20N, CD-DA, `--speed 1411`):\n- Before: strategy `plain`; the zone \"periods\" were 4.86, 3.35 and 9.67 ms with coherence about 0.4; Rotation unknown; phase test skipped.\n- After (`--evict-sectors 54 --reps 32`): plain p50 9.8 ms, after eviction 176 ms, so strategy `evict` (after a zero-length FUA flush still 9.8 ms, so flush is not used). CAV at 48.3485 ms in all three zones, jitter 55–62 µs, all 5 phase targets measured.\n- `selftest` passes (numpy parts skipped), also merged with current main.\n\nThe default `--evict-sectors 1024` should behave the same; I only timed 54.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAYxslk8="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjGyWTw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/5#issuecomment-6650893903",
+     "updatedAt": "2026-11-05T05:54:50Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T05:54:50Z",
+     "body": "Thanks, this looks right to me. The new branch only runs on the READ CD path, where there's no FUA, so DVD and READ(12) behave as before, and the threshold change follows through to `_usable()` and the flush check. `selftest` passes. I don't have a CD-DA disc or a BU20N here, so I'm relying on your before and after numbers for the case it fixes.\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-05T05:54:55Z",
+  "baseRefName": "main",
+  "headRefName": "readcd-usb-cache",
+  "headRefOid": "3e1c87ddf57201d58117274fbfba21eee758f2cb",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNPxMMA",
+  "updatedAt": "2026-11-07T15:12:58Z",
+  "number": 7,
+  "title": "geo: measure a CD picture burned by DiscImageStudio (CD-DA track)",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/7",
+  "state": "MERGED",
+  "createdAt": "2026-11-06T06:28:20Z",
+  "author": {
+   "login": "WindowsNoEditor"
+  },
+  "body": "First of the three PRs discussed in [DiscImageStudio #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107): `geo --media cd` can now measure the disc DiscImageStudio itself burned.\n\n## What\n\nDiscImageStudio burns a CD picture as one audio track (CD-DA). On such a disc, `geo --media cd` now:\n\n- reads with READ CD, and times each sector against DiscImageStudio's own origin: sector k ends at byte 2352 (k + 1) of the burned audio stream, 24.5 channel bits per byte. So `u` and `v` are directly the ri and pitch DiscImageStudio uses, and `summary.json` gives `dis_equivalent` (ri, ro for the disc's sector count). The 108-frame read tail and the 206-frame along-track constant of the Mode 2 path don't apply.\n- takes `--read-offset-bytes x`, the one constant left: where this drive's READ CD completes, x bytes before the end of the sector (HP BU20N 0, PLDS DU-8A5LH −603). It's written to `summary.json` with the origin and a note. Timing can't see it, so it needs one check per drive with a burned straight line, as you suggested.\n- defaults to 1.25–99 % of the recorded area, since a picture fills the disc.\n\nThe Mode 2 data path is unchanged, and so is `timing`: it still refuses an audio track. Only `geo` passes `cd_audio=True` to `TimingProbe`.\n\n## Cache\n\nREAD CD has no FUA, and READ(12) is illegal on audio, so there's no flush test. On an audio track, every timed read follows a read a third of the disc away (strategy `far`). This is also used when plain re-reads look uncached, because the read-ahead after one sector can cover a target only a fraction of a turn away.\n\n`_cache_test_audio` checks that reads after a far read really come from the disc. If they don't, it tries 2, then 4 far reads, each 5000 sectors apart. Only if 4 aren't enough does it fall back to the existing eviction. In the simulator, the 1024-sector eviction made each ladder block long enough for the reference period fit to alias, so it stays the last resort.\n\nOn the BU20N: plain re-reads took 9.8 ms (cache), reads after one far read took 271 ms, so `cache_hit_us` was 51.6 ms and one far read was enough. The 36-rung run took 21 minutes.\n\n## Simulator and selftest\n\n- `SimDrive(media=\"cd\", cd_audio=True, cd_read_offset_bytes=x)` models a CD-DA disc: an audio TOC entry, READ CD only (READ(10)/(12) get 5/64/00), and completion at the end of the sector minus x. It defaults to a single read-ahead segment (3 blocks).\n- The CLI gains `--sim cav-audio` (with `--media cd`).\n- New checks in `_ladder_cd_audio`, all passing:\n  - A banana-like spiral (ri 24.911653 mm, pitch 1.4926 µm) with a −603-byte offset: 24 rungs with far reads give ri +12 nm and ro −13 nm from the truth.\n  - Leaving the offset at 0 moves ri by +51 nm (expected +39 nm from `u² − v d / π`).\n  - A 6-block cache needs 2 far reads; ri is then +3 nm from the truth. A 40-block cache falls back to eviction.\n  - `timing --media cd` still refuses an audio track, and `--read-offset-bytes` is refused on a data CD.\n\n## Tested on hardware\n\nHP BD-RE BU20N over USB, Windows 11, `geo --drive E: --media cd` with defaults (1411 kB/s, 1241 rpm), 36 rungs, about 21 minutes each. Two probe discs burned by DiscImageStudio, both ATIP 97:27:18 and 359849 sectors. Each is compared with an independent C# ladder plus `calibrate_pitch.py` ([dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing)) on the same disc and drive:\n\n| disc | this `geo`: ri / ro (mm) | C# ladder: ri / ro (mm) | difference |\n|---|---|---|---|\n| banana CD-R | 24.911658547 / 57.931588268 | 24.911653498 / 57.931592419 | +5.0 / −4.2 nm |\n| Haicun POSO CD-R | 24.911758372 / 57.931710707 | 24.911761919 / 57.931708318 (two runs) | −3.5 / +2.4 nm |\n\n- The C# values have statistical errors of about 3 nm (banana) and 1.6 nm (POSO).\n- Discs burned with the C# values came out right: the banana verification disc has straight spokes, and pictures burned on a PLDS DU-8A5LH look undistorted.\n- The two disc types share an ATIP code but not a geometry. This `geo` finds banana −100 nm (ri) and −122 nm (ro) from POSO; the C# ladder finds −108 and −116 nm.\n\n## Not covered\n\n- `selftest` here: I ran it with Blender's bundled Python (numpy 2.3, no scipy or Pillow). Everything up to the end of `cd_selftest`'s ladder checks passes, including the existing CD data-path ladder tests. The `disexport` checks (scipy) and the CD ring-scan and scan checks (Pillow) couldn't run here; this branch doesn't touch them. The plain-Python run (no numpy) passes everything it reaches.\n- Other drives: only the BU20N was run through this path. The PLDS offset of −603 comes from my C# ladder, not from this code.\n- `disexport` isn't changed here. That's PR 2.\n\n## Something I noticed, for a separate PR if you want it\n\nOn the BU20N single reads scatter by about 3–4° (standard deviation) in both programs. Two things in `measure` let that through: `analysis.phase_offsets` subtracts the interpolated residual of the neighbouring reference reads from every target, and `robust_circular_mean` clips only the targets, at 5×MAD. So reference outliers reach the targets. My C# ladder clips the references and the targets at 4×MAD around the median and fits only a linear drift over the block. On the same disc it gets a per-rung σ of 0.20° and a residual rms of 0.19°, against 0.46° and 1.24° here. That changes results on every drive, DVD included, so I left it out. Happy to send it separately with before/after numbers.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAY_gDcA="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjo4nDA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/7#issuecomment-6686648076",
+     "updatedAt": "2026-11-06T14:02:46Z",
+     "author": {
+      "login": "WindowsNoEditor"
+     },
+     "createdAt": "2026-11-06T14:02:46Z",
+     "body": "Rebased on current main: the Chinese interface and the geo verdict change landed after I opened this.\n\nOn the new main, `selftest` failed five of the new interface checks, because this branch's new and changed help text had no Chinese. That covered geo's description, `--sim cav-audio`, `--read-offset-bytes` and the geo help paragraph. 004e228 adds the Chinese, plus the audio path's log messages, so `--lang zh` shows them too.\n\n`selftest` passes again:\n- plain Python, no numpy: all checks pass;\n- with numpy (no scipy or Pillow here): all checks pass up to the Pillow-only ones, including the six CD audio checks.\n\nThe hardware results above are unchanged; the rebase touched no measurement code.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABj-ANwA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/7#issuecomment-6708792768",
+     "updatedAt": "2026-11-07T15:12:58Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T15:12:58Z",
+     "body": "Thanks, this is merged. I kept `--sectors` and the identity record from main next to your read path (7d670ff). I also ran `selftest` with scipy and Pillow, so the `disexport` and scan checks you couldn't run pass here too. In the simulator, DVD and data CD runs give the same fit and targets as before the merge.\n\nI added one commit on top (3854e95), because an audio fit could reach commands that assume the Mode 2 origin:\n\n- `image --media cd` and `tiles --media cd` now refuse an audio fit. Before this, `image` accepted it and its check passed, with the picture placed from the wrong origin.\n- `disexport` no longer warns about the along-track constant on an audio fit, and refuses `--along-track-frames` there. The preset's description and source record the read offset.\n- After `geo` on an audio track, the next steps point at the preset, and the retry commands keep `--read-offset-bytes`.\n- A `--sectors` far too small for the span now gets a reason from `disexport` instead of a traceback.\n\nThat touches `disexport.py`, so PR 2 may need a small rebase, sorry. If your plan there is different, feel free to replace my part.\n\nWe haven't run this path on hardware here, so your BU20N numbers are still the only real ones.\n\nYes please to the reference clipping PR, with the before and after numbers. It changes results on every drive, so I'd like to compare it on a DVD here before it goes in.\n\nI haven't gone through #8 yet.\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-07T15:11:41Z",
+  "baseRefName": "main",
+  "headRefName": "cd-audio-geo",
+  "headRefOid": "004e22874d8fbe3f4024b762124105232f58fbad",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNUwKPA",
+  "updatedAt": "2026-11-09T14:16:09Z",
+  "number": 8,
+  "title": "cdprobe: write a DiscImageStudio project and pattern for a CD probe disc",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/8",
+  "state": "MERGED",
+  "createdAt": "2026-11-06T14:13:01Z",
+  "author": {
+   "login": "WindowsNoEditor"
+  },
+  "body": "Third of the three PRs from [DiscImageStudio #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107): a small command that writes what to burn for a CD probe disc. It's independent of #7: it only writes files, and doesn't touch `geo`.\n\n## What\n\n```\npython -m discprobe cdprobe --sectors 359849\npython -m discprobe cdprobe --sectors 359849 --radii 24.9118 57.9317\n```\n\nThis writes `dis/cd-probe-<sectors>.discproj` and the pattern next to it as `.png`.\n\n- **Project:** DiscImageStudio's `.discproj`, schema 2, field for field as v1.4.0–v1.5.0 read it (their `ProjectJsonStore` rejects unknown fields; v1.5.0's optional `usableSectors` is left out).\n  - CD, with the radii and the sector count. The pitch terms are 0: a probe disc doesn't need them (v1.5.0 uses them for CD; earlier releases ignore them).\n  - One layer: the pattern, at 100 %, with no offset or rotation.\n  - 2 tone levels without dither, interleave on, output `<stem>.wav` next to the project.\n- **Burn values:** inner radius 24.92 mm, and the outer radius that gives a 1.4865 µm pitch over the given sector count (typical of the 80-minute CD-Rs measured so far). `--radii` takes a similar disc type's values. These values only affect how readable the pattern is: the measurement is of the burned disc.\n- **Pattern:** a greyscale PNG drawn for the project's band, since a layer at 100 % spans ±ro (`DesignLayerViewModel.LoadImage`). Black on white, data side, unmirrored:\n  - 12 spokes;\n  - a ring every 5 mm and at each edge, with a tick at 10° on each ring, so spoke 0 can be followed ring by ring on a twisted disc;\n  - a polar \"F\" that reads normally from the data side, so a mirrored photo shows at once;\n  - the half band from 105° to 285° inverted, as a twist gauge. Spokes fade once the burn values are about 1 µm off; the gauge's edges then wind into a two-start spiral, visible up to about 100 µm off.\n  - The feature list is stored as JSON in a tEXt chunk (`DiscImageStudio-probe-pattern`), for tools that predict or check the burned disc.\n\nIt's pure standard library. The pattern code is the one behind the banana and POSO probe discs: for the same band the PNG is byte-identical.\n\n## Also in this PR\n\n- `cdprobe` sits under \"Use elsewhere\" next to `disexport`, with Chinese for the description, the options, the messages and the help paragraph.\n- A `guide.after_cdprobe` hint, and a MANUAL section in the CD part.\n- `selftest`, in a new `_cdprobe` that needs no numpy:\n  - the project has exactly DiscImageStudio's CD project fields;\n  - the generic values are right (ri 24.92 mm, pitch 1.4865 µm);\n  - the PNG header and its feature list match the project's band;\n  - pixels are correct on a spoke, on the background, and in the inverted half;\n  - a bad sector count, non-CD radii and an existing project are refused.\n\n## Tested\n\n- `selftest` on current main (Blender's Python with numpy, no scipy or Pillow here): every check up to the first scipy-only one passes, including the five `cdprobe` checks; `_chinese` and `_completion` pass when run directly.\n- DiscImageStudio v1.4.0 and v1.5.0 open the generated project: `ui-snapshot --project … --tab 1` renders the design page with the layer at 100 %, offset 0, rotation 0, and no loader complaint.\n- Earlier probe discs made from the same pattern code (banana, POSO) were burned on an HP BU20N, and `geo --media cd` measured them (see #7).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZFpAc4="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkBfANA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/8#issuecomment-6712442932",
+     "updatedAt": "2026-11-07T20:11:48Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T20:11:48Z",
+     "body": "@WindowsNoEditor Thanks for this, and sorry it sat for a day. Being able to make a probe disc with one command is really useful (๑•̀ㅂ•́)و✧\n\n`main` has moved on since you opened it, so here's what I found when I applied the diff to current `main` in a temporary copy:\n\n- Only `discprobe/zh.py` conflicts, in 3 places. Everything else applied. With those Chinese entries left out, `selftest` fails on just 2 checks, and both are about the missing Chinese.\n- `cdprobe --sectors 359849` ran and wrote the project and the PNG.\n- `docs/MANUAL.en.md` didn't exist when you wrote this, so the new section is only in the Chinese manual. It needs the English side too.\n- DiscImageStudio is at v1.5.0 now and you tested on v1.4.0. I read its `ProjectJsonStore.cs`: it's still schema 2, and the new `usableSectors` is optional, so your project looks fine to me. I haven't opened one in v1.5.0 though. If you have it to hand, a quick try would settle that.\n\nCould you rebase and add the English section? If you'd rather not, say so and we can do it on top of your branch. No rush.\n\nI haven't gone through the pattern drawing in `cdprobe.py` closely yet, so I may have more to say about that after the rebase.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkWkBzg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/8#issuecomment-6734545358",
+     "updatedAt": "2026-11-09T07:20:55Z",
+     "author": {
+      "login": "WindowsNoEditor"
+     },
+     "createdAt": "2026-11-09T07:20:55Z",
+     "body": "Thanks for trying it on current main. Done:\n\n- **Rebased** on main. The three `zh.py` conflicts are resolved by keeping main's wording and adding only the `cdprobe` entries.\n- **English manual**: 7260219 adds the section to `docs/MANUAL.en.md`. Both manuals now have it right after the CD audio-path paragraph, which ends with \"a probe disc burned with nominal parameters is enough\".\n- **v1.5.0**: it opens the generated project. `ui-snapshot --project … --tab 1` renders the design page with the layer at 100 %, offset 0, rotation 0, and the loader doesn't complain. The new `usableSectors` is optional, so it's left out.\n- **Two corrections** from reading v1.5.0's source:\n  - It draws a CD picture over the whole band: `CanvasOuterRadiusMm` is now the outer radius, and the burn samples to the last usable sector.\n  - It uses CD pitch terms (`CdPitchLinear` and the others).\n\n  So the 57.5 mm note and the \"CD uses only the radii\" wording now say v1.4.2 and earlier, in the docstring, the message and both manuals.\n\n`selftest` here (Blender's Python with numpy, no scipy or Pillow): every check up to the first scipy-only one passes, including the five `cdprobe` checks. `_chinese` and `_completion` also pass when run directly, so the help-coverage checks from your temporary copy are fine now.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-09T14:16:08Z",
+  "baseRefName": "main",
+  "headRefName": "cd-probe-project",
+  "headRefOid": "7260219a93403f9551338ef1a0fa2591e7dca282",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNibnfQ",
+  "updatedAt": "2026-11-09T14:16:05Z",
+  "number": 10,
+  "title": "feat(geo_polyfit): joint analysis of repeated geo runs of one disc",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/10",
+  "state": "MERGED",
+  "createdAt": "2026-11-07T16:12:11Z",
+  "author": {
+   "login": "dhao2001"
+  },
+  "body": "## What\r\n\r\n`tools/geo_polyfit.py` 现在可以把同一张盘的多次 `geo` 测量合在一起分析。\r\n\r\n- **联合拟合**：各次测量共用 u、v 和轨距系数，每次测量有自己的相位常数。\r\n- **模型选择**：用加权嵌套模型 F 检验比较恒定、二次、三次轨距。phi 的留一法表格基于合并后的数据，每一折都重新拟合各次测量的偏移。\r\n- **判定**：针对实际使用的模型给出。修正值得做时是所选修正，否则是恒定轨距。\r\n  - `run consistency`：比较\"所有测量共用一次拟合\"和\"每次测量各自拟合\"的 F 检验。只给出 `conflict`（有冲突）或 `no conflict found`（未发现冲突），从不断言测量一致。\r\n  - `agreement`：每两次测量各自的修正，在共同测量范围内取最差半径处的切向差，用 2σ 上下界与 `--tolerance-mm` 比较（默认 0.3 mm，粗略经验值）。结果为 `within`（在容差内）、`beyond`（超出容差）或 `inconclusive`（证据不足）。\r\n  - `suggest another run`（建议再测一次）：有冲突时，或合并后的 2σ 误差带超出容差时给出。\r\n  - 使用 `--phi-degree` 时，检验对象是 phi 多项式本身。\r\n- **`--write-summary`**：写出合并后的恒定轨距 summary，供 `disexport` / `image --geo` 使用。多次测量时，`--write-correction` 必须搭配它，修正文件记录合并后的 `geo_fit`。\r\n- **防护**：\r\n  - 同一个测量文件夹给两次，或两次测量的 `targets.csv` 内容相同，会被拒绝。\r\n  - 会覆盖某次测量的 `targets.csv`、`summary.json`、`events.csv` 的输出，以及两个输出指向同一文件，都会被拒绝。\r\n  - 合并 summary 保留 `\"simulated\": true`。\r\n  - 某次来源测量中途停止或未完成时，这个状态会带进合并 summary，`disexport --install` 会像拒绝那次测量一样拒绝它。\r\n\r\n只给一个文件夹时，输出和修正文件与 `main` 逐字节相同。\r\n\r\n## Why\r\n\r\n要判断盘的轨距是真的弯曲还是测量噪声，需要重复测量。此前只能手动比较。\r\n\r\n单一的\"reproducible: yes/no\"标签容易误导：\r\n- F 检验没有拒绝，不等于测量一致；\r\n- 固定的 twist 门槛没有考虑噪声。\r\n\r\n现在的判定把\"测量之间是否冲突\"和\"是否在容差内一致\"分开，并允许\"证据不足\"。\r\n\r\n## Tested\r\n\r\n我在 HL-DT-ST GHB0N（Linux）上的真实数据：\r\n\r\n| 数据 | 一致性 p | Agreement（0.3 mm） | 建议再测 |\r\n|---|---|---|---|\r\n| RITEK DVD-R，2 次，三次轨距 | 0.259 | 证据不足（54 mm 处最差 0.23 mm，1σ 0.18 mm） | 否 |\r\n| RITEK DVD+RW，8x 下 2 次，三次轨距 | 0.461 | 证据不足（0.27 / 0.19 mm） | 是：误差带只在 56.8 mm 以内达标，全长到 57.2 mm |\r\n| 同一张 DVD+RW，3 次，含一次停在第 9 级的 | 0.563 | 证据不足 | 否 |\r\n| 同一张 DVD+RW，4x 对 8x | 0.922 | 证据不足（0.12 / 0.21 mm） | 否 |\r\n| 两张不同的盘 | 6e-134 | 超出容差 | 是 |\r\n\r\n- 用合并后的 DVD+RW 拟合导出预设，在 DiscImageStudio 中刻出的线是直的。不加修正时，偏差约 2 mm。\r\n- 单次测量：默认、`--order cubic`、`--phi-degree 4` 三种情况，输出和修正文件都与 `main` 逐字节相同。\r\n- 变基到最新 `main` 前后，多次测量的输出不变，只是修正文件多了新的 `geo_fit` 字段。\r\n- `image` 的 `correction_other_run` 接受合并修正文件与对应的合并 summary 搭配使用。\r\n- 来源测量为中途停止或 `candidates_exhausted` 时，`install_blocker` 会拒绝合并 summary。\r\n- 在本地运行的固定种子统计检查：\r\n  - 同一条恒定螺旋的冲突率接近名义水平（α=0.01 时 60 对中最多 3 对）；\r\n  - 弯曲螺旋用它自己的阶数检验时不报冲突；\r\n  - 不同的盘报冲突，并判为超出容差；\r\n  - 精确的测量判为在容差内，噪声大的测量判为证据不足；\r\n  - phi 路径能区分一张盘和两张盘；\r\n  - 重复、复制和会覆盖文件的输入都被拒绝。\r\n\r\n## Not Covered\r\n\r\n- **本 PR 不含测试文件**：`tools/` 没有测试框架。\r\n- **外圈边缘**：真实数据两两比较，在 0.3 mm 下都判为证据不足，原因是单次测量在最外几级（约 54 mm）附近不确定度最大。这可能需要从测量流程改进，比如在外圈多测几级，而不是放宽阈值。\r\n- **0.3 mm 容差**：依据只有一台光驱、两张盘和一次刻录对比。\r\n- **来源测量的 chi2 上限**：不继承，合并 summary 按自身的联合拟合判断。\r\n- **未实测**：\r\n  - 多次测量的 CD 数据，代码已支持，但没用真实光盘测过；\r\n  - `image --geo` 搭配合并 summary；\r\n  - Windows 平台实际表现。\r\n\r\n---\r\n\r\n## What\r\n\r\n`tools/geo_polyfit.py` can analyse several `geo` runs of the same disc together.\r\n\r\n- **Joint fit.** All runs share u, v and the pitch coefficients, with one phase constant per run.\r\n- **Model choice.** Constant, quadratic and cubic pitch are compared with a weighted nested-model F-test. The phi leave-one-out table is pooled, with per-run offsets refitted in every fold.\r\n- **Verdicts.** They are reported for the model in use: the chosen correction if it is worthwhile, otherwise the constant pitch.\r\n  - `run consistency`: an F-test of one shared fit against one fit per run. It reports `conflict` or `no conflict found`, never that the runs agree.\r\n  - `agreement`: each pair of runs' own corrections, compared tangentially at the worst radius of their common span, using a 2-sigma bound against `--tolerance-mm` (default 0.3 mm, a rough empirical value). The result is `within`, `beyond` or `inconclusive`.\r\n  - `suggest another run`: on a conflict, or where the merged 2-sigma band exceeds the tolerance.\r\n  - With `--phi-degree`, the tests use the phi polynomial itself.\r\n- **`--write-summary`** writes a merged constant-pitch summary for `disexport` / `image --geo`. With several runs, `--write-correction` requires it, and the correction records the merged `geo_fit`.\r\n- **Guards.**\r\n  - A run folder given twice, or two runs with identical `targets.csv`, is refused.\r\n  - Outputs that would overwrite a run's `targets.csv`, `summary.json` or `events.csv`, or that name the same file twice, are refused.\r\n  - The merged summary keeps `\"simulated\": true`.\r\n  - It also carries over a stopped or partial source run, so `disexport --install` refuses it as it would that run.\r\n\r\nWith one folder, output and correction files are byte-identical to `main`.\r\n\r\n## Why\r\n\r\nTelling whether a disc's pitch really curves, rather than measurement noise, needs repeated runs. Until now they could only be compared by hand.\r\n\r\nA single \"reproducible: yes/no\" label was misleading:\r\n- a non-rejected F-test is not evidence of agreement;\r\n- a fixed twist threshold ignores noise.\r\n\r\nThe verdicts now keep \"do the runs conflict\" apart from \"do they agree within a tolerance\", and allow \"inconclusive\".\r\n\r\n## Tested\r\n\r\nOn real data from my HL-DT-ST GHB0N (Linux):\r\n\r\n| Data | Consistency p | Agreement (0.3 mm) | Suggest another run |\r\n|---|---|---|---|\r\n| RITEK DVD-R, 2 runs, cubic | 0.259 | inconclusive (worst 0.23 mm, 1 sigma 0.18 mm at 54 mm) | no |\r\n| RITEK DVD+RW, 2 runs at 8x, cubic | 0.461 | inconclusive (0.27 / 0.19 mm) | yes: band within 0.3 mm only up to 56.8 of 57.2 mm |\r\n| Same DVD+RW, 3 runs incl. one stopped at 9 rungs | 0.563 | inconclusive | no |\r\n| Same DVD+RW, 4x vs 8x | 0.922 | inconclusive (0.12 / 0.21 mm) | no |\r\n| Two different discs | 6e-134 | beyond | yes |\r\n\r\n- A preset exported from the merged DVD+RW fit burned straight in DiscImageStudio. Without the correction, the lines would be off by about 2 mm.\r\n- Single run: default, `--order cubic` and `--phi-degree 4` match `main` byte for byte, outputs and correction files alike.\r\n- The merged multi-run output did not change across the rebase onto the latest `main`, except for the new `geo_fit` in correction files.\r\n- `image`'s `correction_other_run` accepts a merged correction together with its merged summary.\r\n- `install_blocker` refuses a merged summary whose source run is stopped or `candidates_exhausted`.\r\n- Fixed-seed statistical checks, run locally:\r\n  - one constant spiral conflicts at about the nominal rate (at most 3 of 60 pairs at alpha 0.01);\r\n  - a curved spiral does not conflict in its own order;\r\n  - different discs conflict and fall `beyond`;\r\n  - precise runs fall `within`, and noisy runs fall `inconclusive`;\r\n  - the phi path tells one disc from two;\r\n  - repeated, copied and overwriting inputs are refused.\r\n\r\n## Not Covered\r\n\r\n- **No test file in this PR.** `tools/` has no test harness.\r\n- **Outer edge.** On real pairs, `agreement` is `inconclusive` at 0.3 mm, because single runs are least certain near their outermost rungs, around 54 mm. This probably needs work on the measurement side, such as more outer rungs, rather than a looser threshold.\r\n- **The 0.3 mm tolerance** rests on one drive, two discs and one burned comparison.\r\n- **Chi2 limit of source runs.** It is not inherited: the merged summary is judged by its own joint fit.\r\n- **Not exercised:**\r\n  - multi-run CD data, which is handled in code but untested on a real disc;\r\n  - `image --geo` with a merged summary;\r\n  - Windows.",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZFOTW4="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABj_7GiA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/10#issuecomment-6710806152",
+     "updatedAt": "2026-11-07T17:41:05Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T17:41:05Z",
+     "body": "@dhao2001 谢谢这个 PR！同一张盘多测几次，到底是盘弯还是噪声，我们之前只能手动比，这正是缺的工具。每次测量保留自己的相位常数、共用 u、v 和轨距系数，这个设计很干净 ξ( ✿＞◡❛)\n\n我们试合并到了最新的 main，没有冲突，`selftest` 全过。单次测量的路径也很稳：我们用模拟数据跑了默认、`--order cubic` 和 `--phi-degree 4`，输出和修正文件都和 main 逐字节相同。留一法也和逐点重拟合对得上（差约 1.8e-15°），F 检验在我们试的几组里，明显不同的曲线都能拒绝。\n\n合并前有几处想请你一起看看，都是用临时文件复现的：\n\n1. **“可复现”这个判定容易误导，这是最主要的一处。** 我们用同一条恒定螺旋生成两次独立加噪的数据，每次 18 点，每点噪声 0.2°、0.6°、1.0° 时，分别有 2/8、8/8、7/8 次被判为不可复现。原因应该是恒定模型分支的 0.3° 峰峰门槛没有考虑噪声。反过来，曲线模型分支把 `p >= 0.01` 直接写成 `reproducible: yes`，但没拒绝不等于证实一致，噪声大或范围窄时尤其如此。每格只跑了 8 次，比例不能当准确的误判率，不过方向是清楚的。我们的想法是分成“有差异”“差异在可接受范围内”“证据不足”三种，把预先定好的可接受差异和不确定度放进判断。如果这部分太费事，也可以先只打印数字和 p 值，不下结论，判定以后再加。\n\n2. **同一次测量传两遍，会得到虚假的把握。** `geo_polyfit.py X X` 输出 `reproducible: yes`（p = 1）、合并噪声 0.000°，还建议不必再测。至少应该拒绝路径相同的输入，内容相同的 `targets.csv` 最好也拒绝或者警告。\n\n3. **`--write-summary` 能覆盖原始数据。** 指向输入目录里的 `summary.json` 时，程序正常退出，原记录被换成只有 `fit` 和 `source_runs` 的文件，下次分析会因为 `c_deg` 是 `None` 报 `TypeError`。两个输出指向同一文件时，最后也只剩一个。写之前比较一下规范路径就能挡住。\n\n4. **`--phi-degree` 判的和写的不是同一个模型。** 写出的是 phi 多项式，显著性和一致性却来自 `--order` 的轨距模型。程序有打印这一点，但结论还是容易被误读。\n\n5. **合并结果丢了“这是模拟数据”的提示。** `image` 现在靠路径名判断模拟结果，合并到别处的 summary 就不再警告了，所以建议在 summary 里保留来源信息。另外，它没有 `targets.csv`，不会被 `--geo latest` 选中。这可能正好是想要的行为，定下来写进说明就行。\n\n修了 1 到 3 就可以合，4、5 也可以放在后续 PR。另外，要是能加几个固定种子的统计测试，以后改起来会放心很多。有你 GHB0N 上的真实数据撑着，这个工具会很有用 (๑•̀ㅂ•́)و✧\n\n这些都只在模拟和合成数据上试过，你表格里的真实数据我们没有重跑。如果你觉得哪条不对，或者想换个做法，直接说就好 (*´ω`)人(´ω`*)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkU5Nbg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/10#issuecomment-6732795246",
+     "updatedAt": "2026-11-09T05:13:20Z",
+     "author": {
+      "login": "dhao2001"
+     },
+     "createdAt": "2026-11-09T05:13:20Z",
+     "body": "感谢您细致的 review。已变基到最新的 `main`，五点都已处理。\r\n\r\n1. **判定**：去掉了 `reproducible`。\r\n   - `run consistency` 只给出 `conflict` 或 `no conflict found`。\r\n   - `agreement` 分三种（`within` / `beyond` / `inconclusive`）：在最差半径处，用 2σ 上下界与 `--tolerance-mm` 比较。默认值 0.3mm，并注明是经验值。\r\n   - `suggest another run` 改为看合并误差带，因为再多测几次会让合并误差带变窄，但不会缩小已有几次测量之间的差。\r\n2. **重复输入**：同一个文件夹给两次，或 `targets.csv` 内容相同，会被拒绝。\r\n3. **覆盖文件**：会覆盖某次测量文件的输出，或两个输出指向同一文件，都会被拒绝。单次测量模式同样适用。\r\n4. **`--phi-degree`**：显著性和一致性现在检验 phi 多项式本身。\r\n5. **来源信息**：\r\n   - 合并 summary 保留 `\"simulated\": true`，依据来自文件夹标记或测量自己的 summary。\r\n   - 合并修正文件记录 `geo_fit`，\"来自另一次测量\"的警告能正确识别它。\r\n   - 合并结果不会被 `--geo latest` 选中，这是有意的设计，已写进说明。\r\n   - 变基时我发现，合并 summary 会绕过较新的 `install_blocker`。现在来源测量中途停止或未完成的状态会带进合并 summary，`disexport --install` 会像拒绝那次测量一样拒绝它。\r\n\r\n固定种子统计检查我在本地跑过，但没放进 PR，因为 `tools/` 没有测试框架。如有需要可待项目的测试框架覆盖后加入更合适的地方。\r\n\r\n在我的实测数据上，由于最外几级的影响，两两比较在 0.3 mm 下都是 `inconclusive`。我更倾向于从测量流程改进，而不是放宽阈值，这或许可以作为未来进一步工作的方向。"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-09T14:16:04Z",
+  "baseRefName": "main",
+  "headRefName": "main",
+  "headRefOid": "55a52fc992582fb48146c44378422eb2a9c29944",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNih5LA",
+  "updatedAt": "2026-11-07T18:28:13Z",
+  "number": 11,
+  "title": "disexport: 直接把导出的预设写进 DiscImageStudio",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/11",
+  "state": "MERGED",
+  "createdAt": "2026-11-07T16:23:25Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "## 做了什么\n\n- `disexport` 新增 `--install`：把导出的 preset 直接合并进 DiscImageStudio 的用户预设文件 `%LOCALAPPDATA%\\DiscImageStudio\\disc-presets.json`（可用 `--dis-presets PATH` 指定路径），写完打印重启 DiscImageStudio 的提示。\n- 读取时兼容 DIS 允许的 `//`、`/* */` 注释和尾逗号；旧的 schemaVersion 2/3 会升级到 4；同一个 id 且取值完全相同时不改文件，取值不同则拒绝，需要 `--replace`。\n- 写前把原文件备份为 `.bak`，然后用同目录临时文件加原子替换写入；文件不存在时新建一个 schema 4 的空文档。\n- 预设先按 DIS 的规则校验（id、半径、扇区数、三个轨距项；轨距多项式必须在 [0, 1] 上保持为正），避免写进一个 DIS 打不开的文件。\n- `--dis-presets` / `--replace` 单独使用会报错；`--install` 是显式选项，脚本和管道里不会自动触发。\n- README（中英）、docs/MANUAL.md、中文输出和帮助文本同步更新。\n\n## 为什么\n\n目前预设要手动填进 DIS，或者自己改 `disc-presets.json`（MANUAL 里写了这个办法，但我们没试过）。这个选项把最后一步接上，CD 路线导出后可以马上在 DIS 里精细标定。\n\n## 验证\n\n- `python -m discprobe selftest` 的 `DiscImageStudio preset install` 8 项、`preset export` 5 项全部通过。\n- `ui_selftest` 除仓库原有的 `colour: it goes back to the terminal's colour` 失败外全部通过；该失败在干净的 5159148 上同样出现。\n- 完整 `selftest` 仍会在原有的 CD ladder 处中止（`RuntimeError: no room for a rung 1.5 turns from the reference`），干净 5159148 上也能复现，与本改动无关。\n- 用真实 `disc-presets.json` 的副本试装了示例预设：升级到 schema 4、生成 `.bak`，真实文件的 SHA256 保持不变。\n\n示例：\n\n```powershell\npython -m discprobe disexport --geo latest --sectors 2295104 --install\n```\n\n重启 DiscImageStudio 后即可在预设列表里选到。没有修改 DiscImageStudio 仓库。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 6,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAG4yM="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABj_7IEQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/11#issuecomment-6710806545",
+     "updatedAt": "2026-11-07T17:41:07Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T17:41:07Z",
+     "body": "@domerawind 谢谢这个 PR！手动填预设是新手最容易卡住的一步，这个选项正好把它接上了。你考虑得也很周到：`//` 注释和尾逗号都能读，写前有备份，用同目录临时文件做原子替换，同 id 不同值要 `--replace` ξ( ✿＞◡❛)\n\n我们试合并到了最新的 main，没有冲突，`selftest` 全过。我们用临时文件试了无效 JSON、未知 schema、只读文件和替换失败，原文件都没受影响。\n\n不过这个选项会写用户自己的配置文件，所以合并前有几处想请你改一下，都是用临时文件复现的：\n\n1. **同一路径会丢数据，这个最要紧。** `--output` 和 `--dis-presets` 指向同一文件时，导出先把用户的预设文件覆盖掉，之后才走安装，而且没有 `.bak`。写任何东西之前先比较两个目标就行：已有文件用 `os.path.samefile`，不存在的比较规范化后的绝对路径，相同就拒绝。\n\n2. **模拟结果也能装进去。** `geo --sim` 的结果可以直接 `--install`，没有任何提示，判定为噪声太大的结果也一样。工具在别处都告诉用户不要用这些结果刻盘，这里最好也拦住：安装前看完整的 summary，拒绝模拟、中途停下和 too noisy 的结果，并说明原因。CD 音轨的结果是给 DIS 用的，不用禁，走同样的质量检查就好。\n\n3. **备份只有一份。** 第二次安装会把 `.bak` 覆盖成第一次安装后的文件，最初的版本就没了。可以给备份加时间戳或序号，不覆盖已有的。\n\n4. **注释和尾逗号会被悄悄去掉。** 读得懂这些内容很好，但保存后它们就没了，用户也不知道。至少在改写前提示一句，文档里也写一下。\n\n5. **没闭合的块注释会被当成合法内容。** 合法对象后面跟一个 `/* unterminated`，现在会被接受并写回。扫到文件末尾还没有 `*/` 时，应该报错并保持原文件不动。\n\n还有一个不确定的地方：我们这次没能核对 DIS 的源码，所以 schema 2/3 升到 4 的规则、预设校验和 DIS 是否一致，都还没确认。DIS 1.5.0 新加了可选的 `usableSectors`，不知道你测试时用的是哪个版本？旧预设带这个字段时，相同值的判断也可能受影响。如果你手边有 1.5.0，能实际导入确认一下就最好了。\n\n另外，谢谢你报告那两处自检失败，我们这边都没有复现：\n\n- `colour: it goes back to the terminal's colour` 看起来是测试本身的边界问题：测试正好减 0.4 秒，代码用 `< 0.4` 比较，浮点误差可能让它失败。这个我们来修。\n- `no room for a rung 1.5 turns from the reference` 我们还没找到原因。方便告诉我们你的系统、Python 和 numpy 版本吗？如果是真 bug，新用户第一步就可能碰到，所以很想查清楚 (๑•̀ㅂ•́)و✧\n\n改好 1 到 3 和 5 就可以合，4 补一句提示就够。如果你觉得哪条不对，直接说就好 (*´ω`)人(´ω`*)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkAHG3g",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/11#issuecomment-6711002846",
+     "updatedAt": "2026-11-07T17:58:24Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-07T17:58:24Z",
+     "body": "Pushed a rework of the install path; all five points are addressed, and the two selftest failures are now explained.\n\n**1. `--output` and `--dis-presets` naming one file.** `cmd_disexport` now compares the two targets before the export writes anything (`disinstall.same_file`: `os.path.samefile` when both exist, `normcase(realpath())` when one does not), and exits before `export()` runs. Checked on a copy of a real file: the refusal prints and the file's sha1 is unchanged.\n\n**2. Results that should not become a preset.** `guide.install_blocker()` runs between reading the geo result and the export, so `--install` refuses three kinds of run and says why: a simulated one (the `SIM` result folder), one that stopped before the fit (`stopped` in summary.json), and one `results` already calls unusable (fewer than 8 rungs, chi2/dof above 25, or angles known to worse than 0.6°). CD-DA results are not refused — they go through the same checks and install normally, since that is what DiscImageStudio's audio path consumes.\n\n**3. Backups.** `disc-presets.json.<YYYYmmdd-HHMMSS>.bak`, and a name already taken gets `-1`, `-2`, … So the first backup is always the file as it was before the first install; later installs no longer overwrite it. Tested by installing twice.\n\n**4. Comments and trailing commas.** The rewrite is still plain JSON, but the install now says what it dropped: `Rewrote the file as plain JSON, so its comments and trailing commas are not kept.` Both READMEs and `docs/MANUAL.md` say the same, and the messages have Chinese translations.\n\n**5. Unclosed `/*`.** `_strip_comments` now looks for the closing `*/` with `str.find` and raises when there is none; the install fails with `has a /* comment with no closing */; the file was left alone`, and a selftest case asserts the bytes are untouched.\n\n**6. Schema and validation, checked against your source.** I read `DiscPresetJsonStore.cs`: schema 2 predates the BD catalog, schema 3 dropped `linearVelocityMmPerSecond` and `channelBitLengthNm`, schema 4 adds `bluRayPresets`. Our migration does the same thing (fill the missing lists, keep every other field, bump to 4) and keeps schema 3's presets readable. `UsableSectors` is `long?`/`uint?` with `JsonIgnoreCondition.WhenWritingNull` on your side, so I made the same-values test compare only the fields this tool writes, and `--replace` now merges into the existing preset instead of replacing it whole. That keeps `usableSectors`, `contributor`, `displayNameResourceKey` and the pitch polynomial intact. I have not run DIS 1.5.0 (the only file here is schema 4 from an earlier version and has no `usableSectors`), so this is by inspection, not by test.\n\n**7. The `no room for a rung 1.5 turns from the reference` failure.** It reproduces here and it is a Windows bug, not a ladder-geometry one: `cd.read_end_bits()` builds `np.asarray(...)` without a dtype, numpy's default integer is int32 on Windows, and `(352000+1)*98+108)*588` ≈ 2.03e10 overflows. `read_end_bits(352000)` returns `-1191067352` where the true value is `20283769128` (`cd.py:158` also emits `RuntimeWarning: overflow encountered in scalar multiply` first). Fix is `dtype=np.int64` plus a regression case; I left it out of this PR since it belongs to the CD work, and I can open a separate one — say the word.\n\nThe `colour` failure no longer reproduces here, which matches your float-boundary theory.\n\nEnvironment: Windows 11 (10.0.26300), Python 3.12.2, numpy 1.26.4. `selftest` reaches 144 `ok` with no FAIL and then hits the int32 crash above; `ui_selftest` passes.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkALmUw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/11#issuecomment-6711076435",
+     "updatedAt": "2026-11-07T18:05:06Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T18:05:06Z",
+     "body": "@domerawind 这么快就改完了，而且还读了 DIS 的源码，太感谢了 ξ( ✿＞◡❛)\n\n我们又试合并了一次。只有两处小冲突，都是 main 刚加了 `docs/MANUAL.en.md` 引起的，你 rebase 时留 `.en.md` 就好。这几项我们也跑过，都没问题：同一路径（含不同写法和硬链接）在写任何东西之前就拒绝，连续安装时第一份备份一直是原文件，没闭合的 `/*` 不动原文件，字符串里的 `/*` 和 URL 里的 `//` 也都保留了。\n\n还有几处想请你看看：\n\n1. **`--replace` 留下的 `usableSectors` 可能让 DIS 读不了整个文件，这个最要紧。** 旧预设的 `usableSectors` 是 1984、新的 `totalSectors` 是 1008 时，合并后照样写入。DIS 1.5.0 的 `ValidateUsableSectors` 要求它大于 0、不超过总扇区数、并且对齐（`DiscPresetJsonStore.cs:424`），不符合就抛异常。按 `DiscParametersState.cs` 的说明，启动时加载失败会退回只用内置预设，所以用户自己的预设可能全部不见（这是读代码得出的，没有实际跑 DIS）。建议合并后再校验完整对象，不合规就拒绝并说明原因，或者删掉这个字段并告诉用户。\n\n2. **`selftest` 在合并后的代码上会中途停下。** `ui_selftest.py` 第 1615 行起的安装测试只建了 `cd_ok.json`，没有 `targets.csv`，`install_blocker()` 现在会拒绝它，接着打开预设文件时报 `FileNotFoundError`。给测试补上足够的目标点和质量字段，并先断言命令成功再读文件就行。\n\n3. **模拟结果改个文件夹名就能通过。** 现在靠文件夹名里的 `SIM` 判断，所以 `geo-SIM-...` 改名后可以安装。质量字段缺失时也能安装，而且没有提示，缺失的 chi2 不应该当成 0。来源的问题，summary 里其实没有记录，这部分算我们的缺口，我们可以在 `geo` 里加一个字段，你读它就行。质量字段缺失时，请拒绝或者明确提示。\n\n4. **没写文件时也说注释被去掉了。** 同样的预设带注释时，文件字节没变，却打印了 `Rewrote the file as plain JSON...`。只在真正写入时提示就好。\n\n5. **`docs/MANUAL.en.md` 还没有新选项。** 中文手册写的内容也放一份到这里吧，英文手册是你开这个 PR 之后才加的。\n\n另外谢谢你查出了 int32 溢出！`read_end_bits(352000)` 我们用 int32 算出了同样的 `-1191067352`，确实是真 bug，只是我们这边 numpy 2 碰不到。欢迎单独开一个 PR (๑•̀ㅂ•́)و✧ 方便的话也帮忙看看 `cd.py` 之外有没有同类的默认整数。\n\n第 3 条的来源字段我们这边来加，其余改好就可以合。有不同想法直接说就好 (*´ω`)人(´ω`*)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkAPnOA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/11#issuecomment-6711142200",
+     "updatedAt": "2026-11-07T18:10:53Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-07T18:10:53Z",
+     "body": "CD和BD方面的一些小问题这边也着手在agent辅助下去探索了，上述五个问题在改了，稍后给出！感谢开发discprobe，我们会努力帮助补齐一些微小的功能性不足，完善使用体验，希望这些PR不会造成困扰。另：恭喜今天正式发布了0.1.0的release"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkAT0KA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/11#issuecomment-6711211048",
+     "updatedAt": "2026-11-07T18:17:03Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-07T18:17:03Z",
+     "body": "上次的回复用了英文，抱歉——这次改用中文。\n\n五条都改好了，在 `adc800a` 里。第 2 条是我的锅：安装测试是我加的，加了质量检查之后我没再跑过它。\n\n**1. `usableSectors`。** 合并后的预设现在会先校验再写：不是整数、≤0、大于预设自己的 `sectors`/`totalSectors`、或者不是对齐倍数（CD 是 1，其余 16，按 `ValidateUsableSectors` 的调用）的 `usableSectors` 会被删掉，并在输出里点名：「删掉了它原有的 usableSectors，否则 DiscImageStudio 会拒绝整个文件。」空的 `displayNameResourceKey`/`descriptionResourceKey`/`contributor` 也照同样处理。我选删除而不是拒绝安装，是因为这个字段不是我们写的，而预设本身还是这次测量的结果；你要是更希望直接拒绝，我改。你说的 1984 对 1008 已经进 selftest，另外还测了超过总数、不对齐、以及刚好合法三种。\n\n**2. selftest。** 安装测试现在建的是 `geo-test-20260101-000000/summary.json`，配一份 12 个点的 `targets.csv`，以及 `chi2_per_dof`、`angle_sigma_measured_span_deg`；先断言退出码是 0，再去开文件。另外补了 SIM 文件夹被拒、以及缺质量数字时仍安装并给出提示两个用例。本机 `selftest` 是 165 ok、没有 FAIL；它最后仍停在 CD timing ladder 那个 int32 溢出上（见下），所以 UI 那部分我是单独跑的，0 failure。\n\n**3. 模拟盘与缺质量数字。** `install_blocker` 现在从 summary 里读 `simulated`，依次看 summary 本身、`summary[\"setup\"]`、`summary[\"identity\"]`，文件夹名保留作兜底，消息里会说明用的是哪个信号——你们在 geo 里一写上这个字段，改过名的文件夹就拦得住了。缺 `chi2_per_dof` 或 `angle_sigma_measured_span_deg` 不再当 0：照常安装，但会打印「注意：这份 summary 里没有 …，那项质量检查没能进行：它是由旧版 geo 测出来的。预设仍会写入；用之前请先用 `results` 判断这次跑得怎么样。」`targets.csv` 缺失也不算拒绝，只是那项检查做不了。\n\n**4. 注释的提示**改成按实际有没有写盘来定：文件没动就不报（`dropped` 清空）。加了一个用例：带注释的文件安装后内容不变，`dropped` 为空、字节一致。\n\n**5. `docs/MANUAL.en.md`** 补上了 `--install` 那段。中英两本手册和两个 README 也都写了「本工具不写的字段会保留，但值已经不适用时会删掉并说明」。\n\n关于 int32：谢谢你用 int32 复现。同一个文件里的 `channel_position` 也有同样的问题——本机 numpy 1.26 下 `cd.channel_position(34_000_000, 10)` 给 -1482836259，正确值是 19992000221；只有传纯 Python int 时才出现，`user_positions` 走的是 int64。`cd.py` 里「接收 int 直接乘、没写 dtype」的就这两个函数，其余在入口都转了 `np.int64`。这个我另开一个 PR，带一个回归检查。\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkAbjIw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/11#issuecomment-6711337763",
+     "updatedAt": "2026-11-07T18:28:13Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T18:28:13Z",
+     "body": "@domerawind 合并了，谢谢！三轮都改得又快又细，第二轮还读了 DIS 源码，帮了大忙 ξ( ✿＞◡❛) 这些 PR 完全不会造成困扰，非常欢迎，CD 和蓝光方面也很期待。\n\n`usableSectors` 那条，删除并说明就很好，不用改成拒绝。\n\n合并后我们在上面补了一个提交，主要是再一轮复审发现的几个边角，都不算你的大问题：\n\n- `geo` 模拟运行时，`summary.json` 现在会写 `\"simulated\": true`，你的 `install_blocker` 直接就读到了，改过名的文件夹也拦得住。\n- 只写 `--install`、不写 `--output` 时，不再生成 `dis_preset.json`，也就不会覆盖当前文件夹里已有的文件。这是我们自己的旧默认值带来的问题。写了 `--output` 还是照常生成，不带 `--install` 时默认文件也和以前一样。\n- 质量数字是 `NaN` 或无穷时按缺失处理，走你写的那条提示。\n- 旧预设同时带 `sectors` 和 `totalSectors` 时，按这次导出的类型判断总数，另一种字段删掉并说明。\n- 英文手册的第 2 步也补上了 `--install` 的分支。\n\n这些都只在临时文件和模拟数据上测过，我们还没在真的 DIS 1.5.0 上试过导入。如果你手边有，试完告诉我们一声就太好了。\n\nint32 的 PR 等你开 (๑•̀ㅂ•́)و✧\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-07T18:28:12Z",
+  "baseRefName": "main",
+  "headRefName": "feature/dis-preset-install",
+  "headRefOid": "adc800ac114344caed85c96d3e03b72d154cf8ab",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNjhOWQ",
+  "updatedAt": "2026-11-07T20:11:47Z",
+  "number": 12,
+  "title": "cd: keep bit positions past 2**31 exact on 32-bit NumPy",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/12",
+  "state": "MERGED",
+  "createdAt": "2026-11-07T18:26:22Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "上次说的 int32 溢出，单独开在这里，顺便把同类的地方一起查了。\n\n## 问题是这两处\n\n`cd.py` 里只有两个函数接收纯 Python int 然后直接乘、没写 dtype：\n\n- `read_end_bits()`（`cd.py:158`）：`(lba + 1) * 98 * 588`。最后一张 CD 扇区的末位是 2.03e10 位，`read_end_bits(352000)` 返回 **-1191067352**，正确值 20283769128。\n- `channel_position()`（`cd.py:132`）：`frame * 588`。`channel_position(34_000_000, 10)` 返回 **-1482836259**，正确值 19992000221。它只在传纯 int 时出错，`user_positions()` 走的是 `int64`，所以平时看不出来。\n\n两个都改成进门先转 `np.int64`，和模块里其他函数一致。\n\n## 顺带查了同类\n\n按「整数数组由 Python int 推断、再乘位常量」这个形状筛了一遍：`calib.py:176` 和 `imagedisc.py:137` 已经 `astype(float64)`，`cd.py:106/116/119` 显式 `np.int64`，`np.arange()` 用的是 `intp`，其余位运算都在 float64 上。所以包内只有上面两个函数符合，`np.zeros(..., int)` 之类也没有。\n\n另外 `python -W error::RuntimeWarning -m discprobe selftest` 现在整个跑通（939 项），把剩下的整数溢出警告都变成失败也过了。\n\n## 附带\n\n修好之后本机 `selftest` 从「144 ok 后停在 CD timing ladder」变成 **939 ok、0 FAIL、all checks passed** —— 那条 `RuntimeError: no room for a rung 1.5 turns from the reference` 就是这个溢出造成的，不是独立 bug。`cd_selftest.py` 里加了三个断言，把两个函数在 2**31 以上的取值钉住。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAXv44="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkBe_jg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/12#issuecomment-6712442766",
+     "updatedAt": "2026-11-07T20:11:47Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T20:11:47Z",
+     "body": "@domerawind 合并了，谢谢！没想到你顺手把同类的地方也都筛了一遍，这样我们就放心了 ξ( ✿＞◡❛)\n\n我们这边用 NumPy 2.5.1 跑，所以复现不了这个溢出。我们试的是：在最新 main 上打这个 PR，`selftest` 通过，加 `-W error::RuntimeWarning` 也通过，两个大数结果也和手算一致。真正修好旧版 NumPy 的证据，是你那边从停在 144 项到全部通过的结果，这个帮了大忙。\n\n那条 `no room for a rung` 的报错原来是同一个原因，也一起解决了 (๑•̀ㅂ•́)و✧\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-07T20:03:56Z",
+  "baseRefName": "main",
+  "headRefName": "fix/cd-int32-overflow",
+  "headRefOid": "a58baef019eac9818f0cc1cfb3fd1008fd4aa3f7",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNk3b_w",
+  "updatedAt": "2026-11-07T21:56:13Z",
+  "number": 14,
+  "title": "docs: 用图解、公式与实盘证据解释自动标定",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/14",
+  "state": "MERGED",
+  "createdAt": "2026-11-07T21:34:51Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "## 这篇文章讲什么\n\n新增 [《让光驱当量角器：disc-probe 自动标定的图解与推导》](https://github.com/Ashley-QwQ/disc-probe/blob/docs/auto-calibration-explained-20261107/docs/AUTO_CALIBRATION_EXPLAINED.md)，并在 README 文档表添加入口。\n\n正文先讲直觉，主要公式跟在例子后面，较长推导和实现细节放进折叠区：\n\n- 为什么“读取完成的时刻”包含角度信息，整圈等待为什么能被取模消掉。\n- 怎样用相干幅度估计周期，随机等待解决什么、不能保证什么。\n- 从薄圆环推导螺旋的地址—角度公式，以及稳定计算形式和解析导数。\n- 阶梯如何逐级恢复整数圈；给出半圈误差条件的证明，并区分真实误差界与 25° 标准差门限。\n- 带先验的 Gauss–Newton 拟合、协方差驱动的选点，以及秩一方差更新推导。\n- 可选的变轨距固定点迭代、尺度和沿轨原点的不可观测性，以及地址相关延迟造成的混淆。\n\n## 配图与证据\n\n包含 6 张仓库内自包含 SVG：时间与相位、周期歧义、螺旋几何、整圈阶梯、可观测性限制、实盘验证。\n\n前 5 张明确是示意图。第 6 张从仓库保存的 grid1/grid2/grid3 扫描角度数据重新汇总绘制，缺失分箱不连线，并区分：\n- grid1：初次计时；\n- grid2：加入扫描修正；\n- grid3：重新计时后刻出的新盘，生成时不使用扫描修正。\n\n图中扫描是历史实验记录，不是本 PR 新做的硬件实验。正文说明测量范围、扫描次数、统计定义及预先登记判据的修订记录，不把约 0.032° 的径向残差 RMS 当成每个字节的绝对定位精度。\n\n## 核对\n\n- `python tools/check_autocalibration_math.py`：**10/10 通过**。只做离线数值回归，不访问光驱。\n- 六张 SVG 已解析、渲染并逐张检查；文章的本地链接目标均存在。\n- `git diff --cached --check`：通过。\n- `python -m discprobe selftest`：本 Linux 环境 **1006 通过、1 项失败**。同一失败已在未修改的 `813c581` 独立基线上复现：\n  `a marker left by a killed run: guide says make it again`。\n  原有测试要求 `random --output`，但非 Windows 的正常提示为 `timing --sim cav`；不是本次文档改动造成。这里只记录，不顺带修改实现或原有测试。\n- 未进行真实光驱、刻录或真实 Windows 环境验证。\n\n## 范围\n\n文章按 `813c5817c5bb4d2cd7fced0d918182c0161e6578` 的实现编写，链接到对应代码与证据。区分模型内证明、算法启发式与独立实测；明确 DVD 的适用条件、CD 沿轨偏移的限制及蓝光不在 `geo` 范围内。保留前人工作入口，不宣称计时测角原理为本项目首创。\n\n本 PR 只新增文章、配图、一个独立数学检查脚本，以及 README 入口；**不修改标定算法或设备操作**。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "mergedAt": "2026-11-07T21:56:12Z",
+  "baseRefName": "main",
+  "headRefName": "docs/auto-calibration-explained-20261107",
+  "headRefOid": "2e7fd27a103c0d410872230f36bf58c4e9b8d9a7",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNrq7Dw",
+  "updatedAt": "2026-11-09T14:40:32Z",
+  "number": 25,
+  "title": "蓝光：只靠光驱计时解出盘片几何（实验性），并导出 DiscImageStudio 预设",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/25",
+  "state": "MERGED",
+  "createdAt": "2026-11-08T16:49:36Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "## 做了什么\n\n蓝光是 CLV：读一个已知扇区所花的时间随它的半径增长。把这件事放到**周期空间**里拟合，\n线速度就自己消掉了：\n\n```\nT(n)^2 = b + a*n          =>      b/a = pi * r0^2 / (p * S)\n```\n\n`r0` 是扇区 0 所在半径，`p` 是轨距，`S` 是每扇区字节数。右边没有速度项，所以驱动器的速度\n准到 1% 也无所谓。把轨距锚在标准的 0.3200 µm 上，这个比值直接给出 `r0`，外径由扇区总数\n推出。全程不拍照、不扫描、不手动选圆心：一条命令、约两分钟，数字直接写成\nDiscImageStudio 预设。\n\n- `discprobe/clv.py`：周期空间的 T² 拟合。Gauss-Newton，方差模型带两个系数的协方差，\n  MAD 剔除坏区，加锁相谐波滤波。CAV 盘交给原来的角度梯子，而不是被一个不适用的拟合毁掉。\n- `discprobe/timing.py`：分区采样（FUA 读）、plain/FUA 缓存对比、三处转速判定。\n- `discprobe/geo.py`：蓝光路径先判模式和速度，CAV 盘在测 25 个区之前就被拦下。\n- `discprobe/bdexport.py`：导出 DiscImageStudio 预设，含格式化 BD-RE 的 ISA0 备用区回推，\n  以及压印 BD-ROM 的\"这是个小盘、不是备用区\"分支。\n- `discprobe/calibdisc.py`：一张既能量自己、又能看出自己扭了多少的盘。\n- 测试：`tests/test_bd_clv_solver.py` 27 项、`tests/test_bd_preset.py` 20 项、\n  `python -m discprobe selftest` 全绿，都不碰图像匹配。\n\n## 实测（这台光驱里的盘）\n\n| 盘 | 扇区 | r0 | 1σ | R² | 区数 |\n|---|---|---|---|---|---|\n| 压印 BD-ROM | 12,218,368 | 24.0490 mm | 16.0 µm | 0.999996 | 23/25 |\n| 刻录 BD-R 25 GB | 12,200,000 | 24.0655 mm | 20.4 µm | 0.999993 | 23/25 |\n| 格式化 BD-RE | 12,088,320 | 24.6427 mm | -- | -- | -- |\n| 同一张 BD-RE，扣除 ISA0 | 12,219,392 | 24.0485 mm | -- | -- | -- |\n\n最后两行差 0.61 mm，正好是 131,072 扇区 = 4096 簇的内圈备用区，也就是格式化 BD-RE 藏起来\n的那部分。扣回去之后和压印盘只差 0.5 µm，两者都落在格式允许的 24.00 ± 0.05 mm 里。\n导出成预设时，压印盘的外径算出来是 58.0203 mm，DiscImageStudio 自带的 BD-25 预设是 58.0232 mm。\n\n## 还没解决的（这条路线为什么标成实验性）\n\n**轨距是先验，不是测量值。** 不给 `--linear-mm-s` 时它就是名义的 0.3200 µm，只负责把斜率\n换成半径。\n\n**内径挂在一个拟合看不见的固定计时偏置上。** `r0` 对读取开销的灵敏度是 1.43 µm/µs：\n同一台光驱两种都说得通的读法之间差 54 µs，`r0` 就动 77 µm，而 R² 只在小数点后第五位变化。\n拟合里没有任何统计量能分辨它们。\n\n这不是纸上谈兵。同一张刻录 BD-R，计时给 24.0655 mm @ 0.3200 µm；同型号盘 burn-verified 的\n预设是 23.9880 mm @ 0.32037 µm。两者在盘缘的半径只差 4 µm，角度却分道扬镳：50 万扇区处差\n+20 圈，最后一个扇区差 **+106 圈**。拿计时预设去刻图案，出来就是二十几臂的螺旋——这正是\n`calibdisc` 让人一眼看到的东西，也是为什么最后两个数必须来自盘本身，而不是来自这个拟合。\n\n局限、三行预设对照表、以及\"内径错/外径错/两者反向错\"分别长什么样，写在\n`docs/research/BD_CLV_GEOMETRY_SOLVER.md` §12 和 `docs/MANUAL.md` 里。\n\n## 复现\n\n```\npython -m discprobe random --media bd --output iso/bd-random.iso     # 刻到 BD-R\npython -m discprobe geo --drive G: --media bd --bd-zones 25\npython -m discprobe disexport --geo latest --sectors <扇区数> --output dis_preset.json\n```\n\n---\n\n## English summary\n\nBlu-ray is CLV, so `T(n)^2 = b + a*n` in period space and `b/a = pi*r0^2/(p*S)` —\nthe linear speed cancels entirely. Anchoring the pitch at the 0.3200 um standard\nturns the fit into an absolute inner radius; the sector count gives the rim. No\nphoto, no scanner, about two minutes, and `disexport` writes the result as a\nDiscImageStudio preset.\n\nMeasured in this drive: a pressed BD-ROM comes out at r0 24.0490 mm (1 sigma\n16.0 um, R^2 0.999996, 23 of 25 zones) with a rim at 58.0203 mm against the\n58.0232 mm of the shipped preset; a formatted BD-RE reads 24.6427 mm, and pulling\nback its 4096-cluster ISA0 spare area lands at 24.0485 mm, 0.5 um from the pressed\ndisc.\n\nBoth numbers that this cannot settle are stated in the docs rather than left to be\ndiscovered: the pitch is an anchor, not a measurement, and r0 rides on a fixed\ntiming offset of 1.43 um per microsecond of read overhead, which no statistic in\nthe fit can see. On a burned BD-R the timing says 24.0655 mm at 0.3200 um where a\nburn-verified preset for the same media says 23.9880 mm at 0.32037 um — the radii\nagree to 4 um at the rim, the angles differ by 106 turns, and that is why the route\nis marked experimental. `docs/research/BD_CLV_GEOMETRY_SOLVER.md` section 12 has\nthe tables; `docs/MANUAL.md` has the three edge shapes that say which radius is\nwrong.\n\nTests: 27 in tests/test_bd_clv_solver.py, 20 in tests/test_bd_preset.py, plus\n`python -m discprobe selftest`, none of which touch picture matching.\n\n---\n\n## 评审后变更（rebase 到 `6318db3` 之后）\n\n- `OVERNIGHT_BD_SUMMARY.md` → `docs/research/BD_FIRST_DISC_NOTES.md`，并在开头纠正：24.677 mm 是格式化 BD-RE 的 4096 簇 ISA0 备用区，扣回后扇区 0 在 24.0485 mm（压印 BD-ROM 实测 24.0490 mm）。\n- `iso/gen2-design.png`、`tools/experimental/`、`BD_SPOKE_SHEAR_REPORT.md` 移出本 PR，留在分支 `bd/gen2-photo-hold`（拍照路线单独提）。\n- `python -m discprobe selftest` 现在会加载并运行 `tests/test_*.py`，每个文件报一行结果；全量 selftest 约 1 分 48 秒。\n- 蓝光路径在 `-h` epilog、`guide`、两个 README 里都标为实验性，并写明：计时给的是螺旋的**形状**，不是**尺度**；比例要从盘上定，不能直接拿计时预设刻图（实测同盘半径差 4 µm、角度差 106 圈、图案会变成二三十条臂）。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZHlM6s="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkd72EA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/25#issuecomment-6742275600",
+     "updatedAt": "2026-11-09T14:17:09Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T14:17:09Z",
+     "body": "@domerawind 谢谢这个 PR！把蓝光放到周期空间里，线速度自己约掉，这个思路很漂亮。更难得的是你把局限也写清楚了：轨距是先验，内半径挂着一个拟合看不见的计时偏置，纯计时的预设到盘缘会差 106 圈。这个我们很欣赏 (๑•̀ㅂ•́)و✧\n\n我们先确认了它不影响 DVD 和 CD：\n\n- `geo` 里 DVD 的默认值还是 24.0 mm、0.74 µm、133.3 nm；`verify_iso` 改成按 media 选扰码表后，DVD 的去扰码和原来的 `dvd.recorded` 逐字节相同。\n- 和当时的 main 合并后 `selftest` 1154 项全过；`tests/test_bd_clv_solver.py` 和 `tests/test_bd_preset.py` 单独运行也都过了。\n\n合并前想请你整理几处：\n\n1. **根目录的 `OVERNIGHT_BD_SUMMARY.md`**：内容有用，但放在根目录不合适。挪到 `docs/research/`，或者并进已有的几篇 BD 文档就好。\n2. **`iso/gen2-design.png`**：这是生成出来的文件，`iso/` 里的东西我们一直不进仓库，请去掉；需要的话在文档里写怎么生成。\n3. **`tests/`**：项目一直靠 `python -m discprobe selftest`，大家平时只跑它，`tests/` 里的检查就不会被执行到。能不能让 `selftest` 调用它们（或者把关键的几项搬进去）？\n4. **标成实验性，并把 106 圈写在显眼处**：README 和 `guide` 里蓝光那条路，请明确说它只给出“曲线形状”，最后的比例还要靠校准盘从盘上定，不能直接拿计时预设刻图。不然用户很容易照着刻出你说的二十几臂螺旋。\n5. **可选：拆分。** `tools/experimental/bd_gen2.py` 和 Gen-2 图案如果还在迭代，可以单独开一个 PR，这样核心部分能先合进来。\n\n另外 #8 刚合并，`zh.py` 现在会冲突，整理时顺便变基一下就好。不急，有问题随时说 (*´ω`)人(´ω`*)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkeUzqw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/25#issuecomment-6742684587",
+     "updatedAt": "2026-11-09T14:35:05Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-09T14:35:05Z",
+     "body": "谢谢评审，也谢谢你们先验证了 DVD/CD 没被碰到——那正是我最担心的部分。`verify_iso` 按 media 选扰码表这条改动，我这边只验到 DVD 那条与旧的 `dvd.recorded` 逐字节一致，你们在合并 main 之后跑 1154 项，比我自己跑一遍有说服力。\n\n六点逐条回：\n\n1. **`OVERNIGHT_BD_SUMMARY.md`** → 移到 `docs/research/BD_FIRST_DISC_NOTES.md`。顺便在开头加了一段纠正：那份笔记里的 24.677 mm 是格式化 BD-RE 的 4096 簇 ISA0 备用区，扣回去之后扇区 0 在 24.0485 mm，和压印 BD-ROM 实测的 24.0490 mm 只差 0.5 µm。这是那份笔记里最该留下的一条，也是最容易看错的一条。\n\n2. **`iso/gen2-design.png`** → 删了。它属于拍照那条路，画它的 `bd_gen2.py` 也一起移出了这个 PR（见第 5 点），所以正文里没有留生成命令——那部分在另一个 PR 里更有意义。\n\n3. **`tests/` 没人跑** → 现在 selftest 会跑了。`discprobe/selftest.py` 加了 `_tests_folder()`：用 `importlib` 逐个加载 `tests/test_*.py`，跑所有 `test_*` 函数，每个文件两行（`has checks to run` / `passes (N checks)`），失败时把前三条异常带进消息。全量 selftest 从约 1 分 28 秒变成约 1 分 48 秒——20 秒换\"大家真的会跑到\"，我觉得值。\n\n4. **实验性 + 106 圈写显眼** → 三处都改了：\n   - `-h` 的 epilog 蓝光段第一句：*\"The Blu-ray path is experimental: it gives the SHAPE of the spiral, not its scale.\"* 后面写清\"形状、容量、线速度是测出来的；轨距仍是 0.3200 µm 先验，内径挂在一个拟合看不见的计时偏置上（1.43 µm/µs），所以刻图之前比例必须从盘上定\"。\n   - `guide` 在把 `disexport` 命令递出去的那一刻，无条件多打两行：*\"This preset gives the shape of the spiral, not its scale\"* / *\"Do not burn a picture with it: on one real BD the angle was off by 106 turns.\"*\n   - 两个 README 的同段重写，明确\"不能直接拿计时预设刻图\"。\n\n5. **拆分** → 同意，拆了。本 PR 现在不含 `tools/experimental/bd_gen2.py`、`BD_SPOKE_SHEAR_REPORT.md` 和那张 PNG；它们留在 `bd/gen2-photo-hold` 分支上，需要的话我单独开一个 PR。核心就只剩\"周期空间拟合 + 预设导出 + 一个标定盘图样\"。\n\n6. **变基** → 已 `git rebase upstream/main`（6318db3）。`zh.py` 冲了两次，都是两侧各加词条，两次都保留双方，#8 的中文条目一条没丢。\n\n顺带一提：#213 那张 RITEK 盘的 burn-verified 预设给了我很好的对照。他们的 (23.988030, 58.023142) 隐含轨距 0.32037 µm，我们的 (24.065504, 57.988982) 是 0.32000；同一 LBA 下半径只差 4 µm，**角度差 106 圈**。这也解释了\"环看得见、细线变成二三十条臂\"的画面：半径对、角度不对，正好长这样。这张对照表和推导一起写进了研究文档 §12。\n\nselftest 全绿，`tests/test_bd_clv_solver.py` 27 项、`tests/test_bd_preset.py` 20 项全过。分支已经强推（变基改写了历史）。\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-09T14:40:32Z",
+  "baseRefName": "main",
+  "headRefName": "feat/bd-clv-geometry-solver",
+  "headRefOid": "907c3d250f7ce61f29985e74ecf9be2e25a410a1",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNrrg3A",
+  "updatedAt": "2026-11-09T14:16:01Z",
+  "number": 26,
+  "title": "tools: 离线验证 CD 沿轨常数不可测的三个脚本",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/26",
+  "state": "MERGED",
+  "createdAt": "2026-11-08T16:50:43Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "issue #13 里的第二个 PR：三个验证脚本。@Ashley-QwQ 在 [#13 (comment)](https://github.com/Ashley-QwQ/disc-probe/issues/13#issuecomment-6724002170) 里说放 `tools/`、开头写用法、依赖只用 numpy/scipy、结果尽量可重复。这个 PR 只加这三个文件。\n\n## 做了什么\n\n- `tools/cd_along_track_observability.py`：在合成相位上比较「数据整体平移 d 帧」和「换一个 r0」的拟合，打印拟合 r0、残差、每帧的 r0 位移，以及 `--along-track-frames` 的导出方向。`--noise-deg` 默认 0，`--seed` 默认 0。\n- `tools/cd_refit_along_offset.py`：读一个完成的 `geo` `summary.json`，把每个 n 平移 d 帧后按同样的 fit 重拟合；打印 r0 斜率和残差是否变化。\n- `tools/cd_along_track_speeds.py`：读两个或更多不同转速的 `summary.json`，拟合 `r0_eff^2 = r0^2 + k*(W+R0) + k*tau*v/b`，给出 slope、`tau` 和显著性。默认排除 `chi2/dof > 3` 的梯子（`--max-chi2-nu` 可调，0 关闭），表后打印排除了哪次、为什么；其余测量进入拟合前，r0 误差乘以 `sqrt(max(1, chi2/dof))`。只有两个转速时，结论后明说 sigma 只是形式值。\n- 三个脚本开头都有 usage 和符号约定；只直接 import numpy（`discprobe` 自己的依赖不算新增）；唯一带噪声的检查默认固定种子。\n\n## 为什么\n\n#13 的结论是 C 与 r0 简并。这三个脚本把这句话变成可重跑的数：\n\n- 合成：任何还能展开的 d 都拟合同样的 rms，r0 按 1.663 nm/帧移动；默认 8 个 offset 里，除 ±2000 帧（丢圈数，rms 89.8°）外 rms 都是 0，拟合斜率 +1.6630 nm/帧（解析 +1.6630）。\n- 保存的 24 级梯子：±200 帧让 r0 移 0.314 µm，rms 仍是 0.310°。\n- 两个转速（1241.1 / 2482.2 rpm）：`r0_eff` 差 5.7 帧，slope 0.8σ，`tau = -0.3 ± 0.4 µs`（误差按各梯子的 chi2/dof 放大）。这是 null，但正是想要的 null：C 是一个要写进预设的数，不是梯子能测的数。\n\n## 验证\n\n```powershell\npython tools/cd_along_track_observability.py\npython tools/cd_refit_along_offset.py results/geo-G-20261108-033459/summary.json --frames -200 200 9\npython tools/cd_along_track_speeds.py results/geo-G-20261108-033459/summary.json results/geo-G-20261108-033747/summary.json\npython tools/cd_along_track_speeds.py evidence/cd-geo-20261104/full-2080rpm/summary.json evidence/cd-geo-20261104/full/summary.json\n```\n\n前三条在本机 Python 3.12 / numpy 1.26 上跑通。第四条用仓库里的两次 CD 测量：3224 rpm 那次 `chi2/dof 38.4`，默认被排除，只剩一个转速；加 `--max-chi2-nu 0` 保留它时，slope 的显著性从 3.3σ 降到 0.5σ——3.3σ 来自坏数据，不是 C 的时间项。从当前 `main` + 这三个文件跑过，`py_compile` 通过。\n\n文档（简并性证明 + 一张烧录盘的实测）在 #27（已合并）。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZDOBd8="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkMy-7g",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/26#issuecomment-6724304622",
+     "updatedAt": "2026-11-08T16:54:16Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-08T16:54:16Z",
+     "body": "@domerawind 谢谢！#27 已经合并了。\n\n这三个脚本我都用仓库里的数据跑过：`cd_along_track_observability.py` 和 `cd_refit_along_offset.py` 都复现了你的结论。用我们 2080 rpm 那次 CD 实测，平移 −200 到 +200 帧，残差 rms 一直是 0.233°，只有 r0 线性移动。\n\n`cd_along_track_speeds.py` 有一处想请你改一下再合并：它不看每次测量的质量。我拿 `evidence/cd-geo-20261104/` 里的两次 CD 测量去跑：\n\n```\nfull-2080rpm   2078 rpm   rms 0.233°   chi2/dof  1.48\nfull           3224 rpm   rms 1.210°   chi2/dof 38.42\n```\n\n脚本报告“斜率偏离 0 有 3.3σ，C 随读取速度变化”。但 3224 rpm 那次正是 README 里写着不能用的那次（49.8 mm 以外完成时刻晚约 0.2 ms），chi2/dof 38，它的 r0 误差也就严重偏小了。所以这个 3.3σ 来自坏数据，而不是来自 C。\n\n建议二选一，或者都做：\n\n- chi2/dof 明显大于 1（比如大于 3）的测量默认排除，并在输出里说明排除了哪次、为什么；\n- 用每次的 r0 误差之前先乘上 √(chi2/dof)，再算斜率的显著性。\n\n另外，结论那句如果只有两次测量，最好说明“两点只能给出斜率，给不出误差的可靠估计”，免得读者把两点的结果当成定论。\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkM4F3w",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/26#issuecomment-6724388319",
+     "updatedAt": "2026-11-08T17:01:54Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-08T17:01:54Z",
+     "body": "谢谢实测，3.3σ 确实是 3224 rpm 那次的 chi2/dof 38.4 撑出来的。已按建议改了两处，并加了第三点：\n\n- 默认排除 `chi2/dof > 3` 的测量，表里标 `(excluded: ...)`，表后说明排除了哪次、为什么；`--max-chi2-nu N` 可调，`0` 关闭。\n- 其余测量进入拟合前，r0 误差乘以 `sqrt(max(1, chi2/dof))`。\n- 只有两个转速时，结论后明确写：两点只定义斜率，sigma 是形式值，不能检验两次测量是否一致；第三次测量才能给出可靠误差。\n\n用 `evidence/cd-geo-20261104/` 的两次测量验证：\n\n- 默认：`full`（3224 rpm）被排除，只剩 `full-2080rpm`；输出说明单转速无法分离 r0 与 C。\n- `--max-chi2-nu 0`：保留两次，slope 从 3.3σ 降到 **0.5σ**，`tau = +0.002 ± 0.004 ms`。\n- 我们 11-08 的两次（chi2/dof 2.66 / 0.50）仍在拟合内，slope 1.2σ → **0.8σ**，结论不变。\n\nPR 已 rebase 到当前 `main` 并更新（`98fea10`）。\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-09T14:16:00Z",
+  "baseRefName": "main",
+  "headRefName": "pr/cd-tools",
+  "headRefOid": "98fea10da4d555ea3af0dafe27a2ead65199ba81",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNrrh-Q",
+  "updatedAt": "2026-11-08T16:56:21Z",
+  "number": 27,
+  "title": "docs: CD 沿轨常数为什么测不到（简并性证明 + 一张烧录盘的实测）",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/27",
+  "state": "MERGED",
+  "createdAt": "2026-11-08T16:50:45Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "issue #13 的第 6 节问过文档要不要收；@Ashley-QwQ 在 [#13 (comment)](https://github.com/Ashley-QwQ/disc-probe/issues/13#issuecomment-6724002170) 里说文档放 `docs/research/CD_GEOMETRY_INVESTIGATION.md`。这个 PR 只按那个位置放文档，不改代码。\n\n## 做了什么\n\n- `docs/research/CD_GEOMETRY_INVESTIGATION.md`：证明把读结束位置整体平移 C 帧，与把内半径换成 `sqrt(r0^2 + p*L*C/pi)`（`L` = 一帧的轨道长度 0.1633 mm）是**同一个拟合**。30 级梯子（LBA 5000..150000）、p = 1.6 µm、C = 206 帧，两边最大差 8.3e-10 度；在 25 mm 处每帧只动 1.663 nm 的 r0，206 帧是 0.343 µm。所以 `geo` 只能测到 `r0 + C`。文档还写了 ATIP 的 ±0.15 mm ≈ 9 万帧、DVD 为什么没有这个参数，以及哪些路线还能给出绝对数。\n- `docs/research/CD_ALONG_TRACK_CALIBRATION.md`：11-08 烧的一张 348,634 扇区网格盘（`iso/cd-grid.iso`，sha256 见文档）上的后续实验。一张盘、两种转速、各 24 级梯子：`r0_eff` 差 **5.7 ± 4.7 帧**，与 0 一致；并论证任何数据布局都带不出 C，只能做差或给上下界。光学那一步这次没拍到（§5a），下一张盘要换 `--cd-sector mode1` + 8x。\n- 按回复补了一段：C = W + R，所以光驱偏移表要按「刻录机 + 刻录模式 + 读取光驱」组合记，不能只按读取光驱型号。\n- `--along-track-frames` 按现状写：它是外部输入，`geo` 不拟合它，只有 `image` 和 `disexport` 接收。\n- 开头有中文摘要；正文保留英文推导、命令和实测输出。\n\n## 验证\n\n- 等式在本地重算：30 级 LBA 5000..150000、p = 1.6 µm、C = 206 帧 → 最大差 8.3e-10 度；r0 位移 0.343 µm = 1.663 nm/帧。\n- 文档里的命令都用仓库现有代码跑过。\n- `python -m discprobe selftest` 在 `a449e22` 上通过（all checks passed）。\n\n三个验证脚本在另一个 PR：#26。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZDNFxc="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkM0XFw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/27#issuecomment-6724327191",
+     "updatedAt": "2026-11-08T16:56:21Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-08T16:56:21Z",
+     "body": "非常感谢！辛苦了"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-08T16:54:14Z",
+  "baseRefName": "main",
+  "headRefName": "pr/cd-docs",
+  "headRefOid": "3d976d3761a27ee0b46425e9a3121e011035a602",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABNykR5w",
+  "updatedAt": "2026-11-10T14:09:33Z",
+  "number": 29,
+  "title": "geo: clip rung targets about their median; a replay tool for finished runs",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/29",
+  "state": "OPEN",
+  "createdAt": "2026-11-09T07:38:47Z",
+  "author": {
+   "login": "WindowsNoEditor"
+  },
+  "body": "Narrowed as suggested in the comments below: the median-centred clip for `geo`'s rung phase, and `tools/geo_reanalyse.py` with its period fix. The line drift and the sem change are no longer in `geo`.\n\n## A correction to #7\n\nIn #7 I wrote that `robust_circular_mean` \"clips only the targets\", so reference outliers reach the targets. That was wrong: `estimate_period` already clips the reference reads at 5×MAD about their median. The real cause is in how the targets are clipped.\n\nOn the BU20N, about 10–12 % of target reads come back late by 4–60°, mostly 10–20° (1.3–2.7 ms at 48 ms per turn). Early ones are rare. Here are the target reads by their offset from the rung's median, on the two CD audio runs from #7:\n\n| | below −4° | ±4° | +4…+20° | above +20° |\n|---|---|---|---|---|\n| banana | 17 | 993 | 124 | 18 |\n| POSO | 1 | 1028 | 110 | 13 |\n\nThe circular mean follows that tail: per rung it sits 1.2–1.3° (median) after the median, up to 5.3°. The MAD about that shifted mean is wider, so the 5×MAD window keeps part of the tail. How much it keeps varies from rung to rung, and that becomes rung-to-rung noise in the fit.\n\n## What changes\n\n- **`geo`:** `Ladder.measure` calls the new `analysis.robust_median_mean` on the same `phase_offsets` as before. The targets are clipped at 4×MAD (at least 1.5°) about their median, then averaged on the circle. The sem is σ/√N, as before.\n- **Unchanged:** `timing`'s phase step, `robust_circular_mean` and `phase_offsets`.\n- **`tools/geo_reanalyse.py`:** recomputes a finished run's rungs from `events.csv` and refits, without a new measurement. It prints three rows:\n  - **interp:** what `geo` did before.\n  - **median:** what `geo` does now.\n  - **line:** not in `geo`. It takes the reference drift from a line through the block's reference reads and adds the line's uncertainty to the sem. I kept it in the tool only, so more runs can be compared against an independent reference.\n\n## The replay tool's period fix\n\nThe tool gave every block the summary's final period as the prior. A run whose period changes partway couldn't be rebuilt (Ashley's WH14NS40 run, 158.6° off). Now:\n\n- Each block's prior is its rung's own `period_ms` from `targets.csv`.\n- A sector read in more than one block (a retry, or a check point that is also a rung) uses the block whose period is the recorded one.\n- The rebuild check names the estimator the run was made with: `interp` for runs made before this change, `median` for runs made since.\n\nI don't have a run whose period changes, so I tested it this way: on a simulated run made with this branch (check points on), I multiplied the summary's period by 1.57. The old tool comes out 179.8° off; this one rebuilds to 0.000°.\n\n## Numbers\n\nBoth runs are BU20N CD audio ladders from #7. `d ri`/`d ro` are against the C# probe's independent calibration of the same disc.\n\n| run | estimator | median σ (°) | χ²/dof | rms (°) | d ri (nm) | d ro (nm) |\n|---|---|---|---|---|---|---|\n| banana | interp (before) | 0.464 | 3.01 | 1.238 | +5.0 | −4.2 |\n| | **median (after)** | 0.238 | 2.06 | **0.479** | −2.0 | −0.3 |\n| | line (tool only) | 0.254 | 1.55 | 0.490 | −3.4 | −0.1 |\n| POSO | interp (before) | 0.379 | 2.80 | 1.078 | −3.5 | +2.4 |\n| | **median (after)** | 0.202 | 2.23 | **0.341** | −2.5 | +1.9 |\n| | line (tool only) | 0.224 | 1.46 | 0.311 | −2.6 | +0.9 |\n\n- **The median clip gives the gain:** the rms drops 2.5–3×, and ri and ro move by a few nm.\n- **The line only improves χ²:** it doesn't bring ri and ro closer to the C# values. That matches the DVD runs in the comments below, so it stays out.\n\nOn the simulator the median clip changes nothing within the seed-to-seed scatter. Its outliers are 1 % of reads spread over 0.3–3 ms, so it has no tail like the BU20N's. Over seeds 7–42 of the two `_ladder` scenarios (run on the previous base, db322e3), the median peak-to-peak error is:\n\n| scenario | before | after |\n|---|---|---|\n| plain | 1.40° | 1.55° |\n| texture rings | 1.24° | 1.41° |\n\n## Selftest\n\nOne new check, `_phase_tail`, which needs no numpy. It builds 20 synthetic rungs like the BU20N's: 32 pairs, 100/140 µs scatter, and 12 % of targets 4–20° late. Clipped about the median, the mean error is +0.10° and the rms 0.30°; about the circular mean they are +0.81° and 1.21°. No existing check changes.\n\n`docs/AUTO_CALIBRATION_EXPLAINED.md` says how `geo` clips.\n\n## Tested\n\n- `selftest` with Blender's Python (numpy, no scipy or Pillow), on current main (1353f14): every check up to the first scipy-only one (`_pitch_fit`) passes, including the new one.\n- I then called the later numpy-section checks one by one. Every one that can run without scipy or Pillow passes. Those that go through `geo`:\n  - `_ladder`: plain 1.279°, the check points, texture rings 0.266°;\n  - `_ladder_safe_unwrap` and `_ladder_abort`;\n  - the `_ladder_cd_audio` rungs: ri +1 nm, ro −1 nm, χ² 1.20;\n  - `_geo_rotation`;\n  - `cd_selftest`'s timing ladder: four geometries, 0.15–0.19°.\n- Not run here: what imports scipy or Pillow. A full `selftest` on your side would cover it:\n  - `disexport`, which also stops the end of `_ladder_cd_audio`, `_install_details` and `_correction_run`;\n  - two `tests/` files and `_tiles`;\n  - the scan, ring and cal selftests;\n  - part of `ui_selftest`.\n- `tools/geo_reanalyse.py`:\n  - the two #7 runs, made before this change: `interp` rebuilds to 0.000°;\n  - a simulated run made with this branch, check points on: `median` rebuilds to 0.000°;\n  - the tampered-period test above.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 4,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZN-SLE="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkd70Yw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/29#issuecomment-6742275171",
+     "updatedAt": "2026-11-09T14:17:07Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T14:17:07Z",
+     "body": "@WindowsNoEditor Thanks for this, and for writing up the correction about #7 so clearly. You asked us to check it on our DVD runs before deciding, so we did. `tools/geo_reanalyse.py` reproduced every recorded run exactly (rebuild check 0.000°), which made this easy.\n\nWe ran it on five GH70N runs of two RITEKF1 DVD-R discs. Two are clean. The other three are of one disc on an evening when the drive was in an odd state (single-shot scatter about three times its usual, cause still unknown), so they're a stress test rather than a typical run:\n\n| run | before: χ²/dof, rms | median | line (this PR) |\n|---|---|---|---|\n| clean A | 0.31, 0.103° | 0.27, 0.096° | 0.26, 0.098° |\n| clean B | 0.23, 0.116° | 0.19, 0.080° | 0.22, 0.088° |\n| noisy 1 | 1.69, 0.501° | 1.46, 0.262° | 0.73, 0.306° |\n| noisy 2 | 1.57, 0.401° | 1.38, 0.272° | 0.99, 0.327° |\n| noisy 3 | 1.82, 0.421° | 1.73, 0.346° | 1.03, 0.343° |\n\nSo the fit looks better everywhere, and χ² comes to about 1 on the noisy runs, as on your BU20N. But the three noisy runs are of the same disc as clean A, so we can also ask whether they land closer to clean A's geometry. Peak-to-peak angle difference from clean A over 24.5–58 mm:\n\n| run | before | median | line |\n|---|---|---|---|\n| noisy 1 | 0.637° | 0.532° | 0.550° |\n| noisy 2 | 0.771° | 0.827° | 0.960° |\n| noisy 3 | 0.503° | 0.500° | 0.741° |\n| clean B (other disc, same pack) | 0.124° | — | 0.085° |\n\nOn these, the median clip alone is about neutral, and the line drift moves two of the three further from the clean answer by about 0.2°. We don't think this shows the line is wrong. Those runs have their own trouble, and their differences from clean A are larger than anything here. But it's the only DVD evidence we have, and it doesn't show the gain your CD runs do.\n\nWould you be open to one of these?\n\n- Split it: take the median-centred clip and the honest sem now, and keep the line drift for when there's more data on CAV DVD drives.\n- Or keep the line, but use it only when the reference residuals actually show a trend in the block (a slope test), and fall back to the neighbours otherwise.\n\nIf you see something in these numbers we're missing, say so. Your read of the BU20N tail was a clear catch, and we'd like to keep that part either way.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkgJf8A",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/29#issuecomment-6744596464",
+     "updatedAt": "2026-11-09T15:56:46Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T15:56:46Z",
+     "body": "@WindowsNoEditor One more thing, found while replaying a different run: a WH14NS40 DVD run whose spindle period changed partway through.\n\n`tools/geo_reanalyse.py` gives every block the same period prior, the summary's final period, with a ±2 % window (lines 96–104):\n\n```python\nperiod = (fit0.get(\"period_ms\") or float(targets[0][\"period_ms\"])) / 1e3\n...\nfit = analysis.estimate_period(ref_t, prior_s=period, prior_window=0.02)\n```\n\nThat run's first three accepted rungs were at 6.47 ms and the summary says 10.15 ms. So those blocks couldn't be fitted, and the `interp` rebuild came out 158.6° off instead of 0. The five GH70N runs above didn't hit this because the period stayed put within each run. With each rung's own `period_ms` from `targets.csv` as the prior, all 22 rungs rebuild to 0.000°.\n\nWith that change, the three estimators on that run:\n\n| | χ²/dof | rms |\n|---|---|---|\n| interp (as recorded) | 2.41 | 0.288° |\n| median | 2.42 | 0.289° |\n| line | 2.62 | 0.304° |\n\nThere's no optical truth for this disc, so this only says the line model gave no gain on that run either, not that it made the picture worse.\n\nWhat I'd suggest:\n1. The replay fix (prior from each rung's `period_ms`) and the median clip as one PR. The clip looks neutral to slightly helpful everywhere so far, and it's easy to review.\n2. The line reference and the SEM change kept apart until there's a case where they move a run closer to an independent reference, not only a better χ². The SEM change is a real improvement in what it reports. We'd just call it a conditional SEM in the docs: it still leaves out time-correlated errors and shared biases.\n\nHappy to help with either. Thanks again for the replay tool, it made all of this cheap to check (◍•ᴗ•◍)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk1Ll6A",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/29#issuecomment-6766650856",
+     "updatedAt": "2026-11-10T11:55:34Z",
+     "author": {
+      "login": "WindowsNoEditor"
+     },
+     "createdAt": "2026-11-10T11:55:34Z",
+     "body": "@Ashley-QwQ Thanks for running it on the DVD runs, and for the replay bug. I agree with the split in your second comment, and I've pushed it: one commit on current main, replacing the old one.\n\n**In the PR now**\n\n- `geo` clips the targets about their median (`robust_median_mean`), on the same neighbour-interpolated `phase_offsets` as before. The sem is σ/√N, as before.\n- The replay fix: each block's prior is its rung's own `period_ms` from `targets.csv`.\n  - Since main now reads check points with the same labels, a sector with more than one block uses the block whose period is the recorded one.\n  - The rebuild check names the estimator the run was made with (`interp` for older runs, `median` for new ones).\n  - I don't have a run whose period changes. On a simulated run with the summary's period multiplied by 1.57, the old tool is 179.8° off and this one rebuilds to 0.000°. If your WH14NS40 run still gives 0.000° with this version, that would confirm it.\n\n**Out of `geo`**\n\n- The line reference and the sem change. The existing texture-ring check keeps its 1.5°, so the selftest change I'd made for the line is gone too.\n- I kept `line` as a third row in `tools/geo_reanalyse.py` only, so more runs can be checked against an independent reference. Say if you'd rather not have it in the tool either.\n\n**Your numbers**\n\nI don't see anything you're missing. My two CD runs say the same once I compare against the C# probe's calibration instead of χ². All of the rms gain is the median clip, and the line doesn't move ri/ro closer:\n\n| | median, d ri / d ro | line, d ri / d ro |\n|---|---|---|\n| banana | −2.0 / −0.3 nm | −3.4 / −0.1 nm |\n| POSO | −2.5 / +1.9 nm | −2.6 / +0.9 nm |\n\nSo I have no case yet where the line helps against an independent reference. If the sem change comes back later, I'll describe it as a conditional sem, as you suggest.\n\nThe PR description is rewritten to match.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk35IsQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/29#issuecomment-6769494193",
+     "updatedAt": "2026-11-10T14:09:33Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T14:09:33Z",
+     "body": "@WindowsNoEditor Thanks for the quick and tidy split. I checked the new commit (81b00b7) on our data, and it works.\n\n**The run whose speed changed.** This is sanitysama's WH14NS40 run from DiscImageStudio #171. The first three rungs are at 6.47 ms and the rest at 10.15 ms. With this version, all 22 rungs rebuild to 0.000°. That run also covers the multi-block case you mentioned: one sector was read twice, once while the spindle was still changing speed (that attempt failed) and once after it settled. The tool picked the second read, the one whose period matches the recorded 10.14647 ms. The three rows match what I posted earlier:\n\n| | χ²/dof | rms |\n|---|---|---|\n| interp (as recorded) | 2.41 | 0.288° |\n| median | 2.42 | 0.289° |\n| line | 2.62 | 0.304° |\n\n**The five GH70N runs** from my first comment: all rebuild to 0.000°, and every number is the same as before. I also tried two newer GH70N runs that read their check points twice. They rebuild to 0.000° as well.\n\n**Checks:** `python -m discprobe selftest` passes (the new late-reads check gives +0.10° mean error and 0.30° rms, against +0.81° and 1.21° for the old clip), and the 49 tests pass.\n\nKeeping `line` as a third row in the tool is fine with us. It makes it easy to look again when there's a run with an independent reference.\n\nFrom our side this is ready to merge. Thanks again for the BU20N catch and the replay tool (◍•ᴗ•◍)\n"
+    }
+   ]
+  },
+  "mergedAt": null,
+  "baseRefName": "main",
+  "headRefName": "geo-median-clip",
+  "headRefOid": "81b00b76ee7739aaef7cfb9bc19707e8594fda6f",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABN2bqgA",
+  "updatedAt": "2026-11-10T04:25:26Z",
+  "number": 30,
+  "title": "feat(linux): merge support for Linux platform from bczhc/disc-probe",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/30",
+  "state": "MERGED",
+  "createdAt": "2026-11-09T13:14:39Z",
+  "author": {
+   "login": "dhao2001"
+  },
+  "body": "## 概要\n\n本 PR 基于 [@bczhc](https://github.com/bczhc) 的 Linux 适配移植工作，将 [bczhc/disc-probe](https://github.com/bczhc/disc-probe) 的更改合入主仓库。合入后，同一份代码可以在 Windows（SPTI / IMAPI2）和 Linux（SG_IO）上驱动真实光驱。\n\n本 PR 的第一个提交标注了 bczhc 为原始作者，注明了出处和冲突处理方式。在此感谢 @bczhc 的工作与贡献。\n\n## 改动\n\n- **后端**：新增 `discprobe/sg.py`（经 `ioctl(SG_IO)` 访问 `/dev/srN`，内核报 `EBUSY` 时改用对应的 `/dev/sgN`）和 `discprobe/device.py`（按平台选择后端）。Linux 上提权使用 `SCHED_FIFO` 并绑定一个 CPU，失败时退回 `nice -20`。\n- **sg 修复**：检查 host/driver status；driver sense 按 CHECK CONDITION 上报，未就绪和取盘的处理能正常触发；按 `resid` 截断返回数据；CDB 长度限制在 1–16 字节。新增 `sg_selftest`，用 mock 的 ioctl 测试，不需要光驱。\n- **CLI / guide**：`list`、`info`、`timing`、`geo` 统一检查平台；`--drive` 接受 `/dev/sr0`、`sr0`、`/dev/sg0`；Linux 上拒绝 `--transport spti|imapi`；guide 在 Linux 上给出 growisofs / xorriso 刻录命令；timer-tick 诊断只在 Windows 上输 出。\n- **文档**：README 和 MANUAL（中英文）加入 Linux 说明，并整合了原 `README-linux.md` 的内容。\n- **Windows 行为不变**：SPTI 被拒时回退 IMAPI2 的逻辑保持原样。\n\n## 测试\n\n- Linux：`python -m discprobe selftest` 全部通过（1167 项，含 `sg_selftest`）。\n- Linux 实机（SATA 光驱，DVD-R）：\n  - `cdrom` 组普通用户：`list`、`info`、`timing`、`geo` 正常。\n  - root 下 `SCHED_FIFO` 提权成功。\n  - 盘被挂载时可以直接打开 `/dev/sr0`。\n  - `--drive /dev/sgN` 可用。\n  - `timing` 运行中按弹出键，程序报未就绪后干净退出。\n- Windows 实机：`info`、`timing` 等命令输出正常。\n\n## 未测试\n\n- Linux 刻 CD 图案的流程（`--cd-sector` 与 cdrecord / xorriso 写入格式是否匹配），文档中已注明。\n- Linux 上的 USB 光驱：只有 bczhc 原有的数据。\n\n## 已知小问题\n\nLinux 上给 `timing` 传错 `--transport` 时，会先打印一行无关的 \"could not raise process priority\"，然后才报参数错误。但不影响程序主要结果。\n\n---\n\n## Summary\n\nMerges the Linux port by [@bczhc](https://github.com/bczhc) from [bczhc/disc-probe](https://github.com/bczhc/disc-probe), so the same code drives real optical drives on Windows (SPTI / IMAPI2) and Linux (SG_IO). The first commit keeps bczhc as author and notes where the work came from and how conflicts were resolved. Thanks for @bczhc's original contributions.\n\n## Changes\n\n- **Backend**: adds `discprobe/sg.py` (`ioctl(SG_IO)` on `/dev/srN`, switching to the matching `/dev/sgN` when the kernel returns `EBUSY`) and `discprobe/device.py` (picks the backend for the platform). On Linux, priority is raised with `SCHED_FIFO` pinned to one CPU, falling back to `nice -20`.\n- **sg fixes**: checks host/driver status; reports driver sense as CHECK CONDITION, so not-ready and media-removal handling fires; truncates returned data to `resid`; limits CDBs to 1–16 bytes. Adds `sg_selftest`, which uses a mocked ioctl and needs no drive.\n- **CLI / guide**: one platform check for `list`, `info`, `timing`, `geo`; `--drive` accepts `/dev/sr0`, `sr0`, `/dev/sg0`; `--transport spti|imapi` is refused on Linux; on Linux, guide gives growisofs / xorriso burn commands; the timer-tick diagnosis only shows on Windows.\n- **Docs**: README and MANUAL (zh/en) cover Linux and take in the content of the former `README-linux.md`.\n- **Windows behaviour unchanged**: the fallback from SPTI to IMAPI2 when SPTI is refused works as before.\n\n## Testing\n\n- Linux: `python -m discprobe selftest` passes (1167 checks, including `sg_selftest`).\n- Linux, real hardware (SATA drive, DVD-R):\n  - As a regular user in the `cdrom` group: `list`, `info`, `timing`, `geo` work.\n  - As root, raising priority with `SCHED_FIFO` works.\n  - `/dev/sr0` opens while the disc is mounted.\n  - `--drive /dev/sgN` works.\n  - Pressing eject during `timing` makes it report not-ready and exit cleanly.\n- Windows, real hardware: `info`, `timing` and other commands produce the expected output.\n\n## Not tested\n\n- Burning CD pictures from Linux (whether `--cd-sector` matches what cdrecord / xorriso write); the docs say so.\n- USB drives on Linux: only bczhc's earlier measurements.\n\n## Known nit\n\nOn Linux, passing a wrong `--transport` to `timing` first prints an unrelated \"could not raise process priority\" line before the argument error. It doesn't affect the main results.",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 6,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZLdaeI="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkd7yWg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/30#issuecomment-6742274650",
+     "updatedAt": "2026-11-09T14:17:06Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T14:17:06Z",
+     "body": "@dhao2001 谢谢这个 PR，也谢谢 @bczhc 的移植！合进主线以后 Linux 和 Windows 就是同一个工具了 (๑•̀ㅂ•́)و✧\n\n我们在 Windows 上试了：和当时的 main 合并后 `selftest` 1139 项全过（Linux 的 SG_IO 检查按预期跳过），`list` 正常，用真光驱（GH70N，SPTI）跑 `info` 也正常。打开设备、选光驱、提优先级的 Windows 路径都没变，这部分看着很放心。\n\n合并前有两处想请你看看：\n\n1. **`rings` 和 `calib` 的刻录提示。** 原来写的是“用 Windows 自带的光盘映像刻录就行”，现在两个平台都成了“用任何刻录软件”。对 CD 来说用什么刻、按什么扇区格式刻，决定了盘上有没有图（#107 里 FanJZSS 刚遇到：用别的软件按 Mode 1 写，纹理变成噪声，盘上什么都看不到）。能不能让这里也走 `guide.burn_steps`，按平台给具体做法？\n\n2. **Linux 上刻 CD 图案的命令。** `burn_steps` 给 CD 的是 `xorriso -as cdrecord -v dev=... -dao 镜像`，下面一行提醒说 cdrecord 类软件不加 `-xa` 一般写 Mode 1，可命令本身没有 `-xa`。照着刻，CD 图案就会看不见（测量用的随机盘不受影响）。xorriso 的 cdrecord 模拟是否支持 `-xa`，我们没有试过。FanJZSS 在 Windows 上验证过的是 cdrdao 加一个 toc：\n\n   ```\n   CD_ROM_XA\n\n   TRACK MODE2_FORM1\n   DATAFILE \"cd-grid.iso\"\n   ```\n\n   再 `cdrdao write --device ... cd-grid.toc`。Linux 上也有 cdrdao，或许可以把它作为 CD 图案的推荐写法；或者命令里明确写出哪种组合能得到 Mode 2 Form 1。拿不准的话，写成“未验证”也行。\n\n另外 #8 刚合并，在 `zh.py` 里加了 `cdprobe` 的条目，所以现在 `zh.py` 会冲突，麻烦再变基一次。改完我们就合 ξ( ✿＞◡❛)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkhOfPQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/30#issuecomment-6745726781",
+     "updatedAt": "2026-11-09T16:44:08Z",
+     "author": {
+      "login": "dhao2001"
+     },
+     "createdAt": "2026-11-09T16:44:08Z",
+     "body": "@Ashley-QwQ 谢谢测试和反馈，两处都改了，也已变基到最新的 main（`14e1390`），`zh.py` 的冲突已解决。\r\n\r\n1. **`rings` / `calib` 的刻录提示**：这是我上一版改出来的问题。现在两条命令都输出 `guide.burn_steps`，Windows 上又会给出“右键 .iso，刻录光盘映像”和刻录机检查的提示。`random` 在非终端下输出的那句也改成了一样的写法。\r\n\r\n2. **Linux 上刻 CD**：确认了 xorriso 的 cdrecord 模拟只有 `-data`（Mode 1），没有 `-xa`，按原命令刻图案一定会变成噪声。现在改为 cdrdao：\r\n   - Linux 上 `random` / `image` / `tiles` / `rings` 加 `--media cd` 时，会在 ISO 旁边写一个 `.toc`，格式和 FanJZSS 用的一样（`CD_ROM_XA` / `TRACK MODE2_FORM1` / `DATAFILE`，路径为绝对路径）。\r\n   - 扇区格式跟着 `--cd-sector` 走，传 `mode1` 时写 `CD_ROM` / `TRACK MODE1`。测量盘固定用 Mode 2 Form 1，和图案盘走同一条刻录路径，免得沿轨道常数因刻录方式不同而对不上。\r\n   - `burn_steps` 给出的命令是 `cdrdao write --device /dev/sr0 iso/xxx.toc`，并注明 xorriso 只能写 Mode 1，以及这种刻法只在 Windows 上实盘验证过、Linux 上还没有。README 中英文的 CD 路线同步更新。\r\n   - DVD / BD 和 Windows 的行为不变。\r\n\r\n另外，selftest 里 `test_bd_clv_solver` 的 `test_a_disc_that_is_not_clv_is_refused` 在我这里会失败，干净的 `14e1390` 也一样，和这个 PR 无关：周期恒定时 `T²` 的拟合斜率在我的 numpy 2.5.4 上是 `2.69e-21`，略大于 0，所以 `<= 0` 的判断没拦住。可能需要给斜率判断留一点浮点余量，这里只是提一下，没在本 PR 里改。\r\n\r\n---\r\n\r\n@Ashley-QwQ Thanks for testing and for the review. Both points are fixed, and the branch is rebased onto the latest main (`14e1390`) with the `zh.py` conflict resolved.\r\n\r\n1. **Burn hint for `rings` / `calib`**: my previous revision caused this. Both commands now print `guide.burn_steps`, so Windows gets \"right-click the .iso, Burn disc image\" and the burner check back. The line `random` prints outside a terminal now goes the same way.\r\n\r\n2. **Burning CDs on Linux**: I confirmed that xorriso's cdrecord emulation only has `-data` (Mode 1) and no `-xa`, so pictures burned with the old command would always come out as noise. It now uses cdrdao:\r\n   - On Linux, `random` / `image` / `tiles` / `rings` with `--media cd` write a `.toc` next to the ISO, in the same form FanJZSS used (`CD_ROM_XA` / `TRACK MODE2_FORM1` / `DATAFILE`, with an absolute path).\r\n   - The sector layout follows `--cd-sector`; `mode1` gives `CD_ROM` / `TRACK MODE1`. The measuring disc is always Mode 2 Form 1, so it goes through the same burning path as the picture discs and the along-track constant isn't thrown off by a different burner.\r\n   - `burn_steps` prints `cdrdao write --device /dev/sr0 iso/xxx.toc`, notes that xorriso only writes Mode 1, and says this has been checked on a real disc on Windows but not yet on Linux. The CD route in both READMEs is updated.\r\n   - DVD / BD and Windows behaviour are unchanged.\r\n\r\nSeparately, `test_a_disc_that_is_not_clv_is_refused` in `test_bd_clv_solver` fails here, and it fails on a clean `14e1390` too, so it's unrelated to this PR: with a constant period, the fitted `T²` slope comes out as `2.69e-21` on my numpy 2.5.4, slightly above 0, so the `<= 0` check lets it through. The slope check may need some floating-point tolerance. I'm just flagging it; it isn't changed in this PR."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkno3Qw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/30#issuecomment-6752450371",
+     "updatedAt": "2026-11-09T21:53:10Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T21:53:10Z",
+     "body": "@dhao2001 谢谢，两处都改得很到位！`rings` / `calib` 回到了按平台给步骤，Linux 上刻 CD 换成 cdrdao 加 toc，也写清了只在 Windows 上实刻验证过，这样很稳妥 (๑•̀ㅂ•́)و✧\n\n我们把这个分支和现在的 main（`5933a76`，比 `14e1390` 多了几个提交）合起来，在 Windows 上跑了 `selftest`。合并没有冲突，但自测跑到 `_first_steps` 里会直接中断：\n\n```\nerror: [WinError 183] 当文件已存在时，无法创建该文件。: 'iso'\n```\n\n原因在新加的测试里：`cli.main([\"random\", \"--media\", \"cd\", ..., \"--output\", \"iso/cd-random.iso\"])` 会在同一个临时目录里建出 `iso/`，往下几十行原有的 `os.makedirs(\"iso\")`（“no picture ISO yet” 那段）没有 `exist_ok`，就报错了。这和平台无关，Linux 上应该也一样，后面的检查都没跑到。\n\n另外一个小地方：测试里 `cd.set_sector_layout(\"mode1\")` 之后没有改回去，扇区格式是全局的，会带到同一进程里后面的 CD 检查。\n\n我们在本地这样改了一下，合并后 1184 项全过：\n\n```python\n            finally:\n                ui._term = quiet\n                cd.set_sector_layout(\"mode2form1\")\n            ...\n            shutil.rmtree(\"iso\")\n            os.makedirs(\"iso\")\n            c.check(guide.picture_iso() is None, \"no picture ISO yet\")\n```\n\n（文件开头加 `import shutil`。）你也可以换成别的写法，比如把新测试放进自己的临时目录。麻烦改一下，顺便变基到最新的 main，我们就合 ξ( ✿＞◡❛)\n\n`test_bd_clv_solver` 那个浮点问题谢谢提醒，确实是 main 上的问题，斜率应该和它的误差比，而不是和 0 比。我们在 main 上单独修，不用放进这个 PR。\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABksm2PQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/30#issuecomment-6757660221",
+     "updatedAt": "2026-11-10T02:55:51Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T02:55:51Z",
+     "body": "@dhao2001 合进去了，谢谢！(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 测试放进自己的文件夹、再把扇区格式还原成原来的值，比我们建议的写法更干净。变基后在 Windows 上跑了一遍，1197 项全过。\n\n也谢谢 @bczhc 最初的移植。从现在起 Linux 和 Windows 用的是同一份 disc-probe 了。Linux 上用 cdrdao 刻 CD 这条路还没有实盘验证过，以后谁先在 Linux 上刻了 CD，结果欢迎贴在这里 (๑•̀ㅂ•́)و✧\n\nBD 那个浮点问题已经在 main 上修好了（`29e04ad`）：现在要求 T² 在测量范围内至少升高自身的千分之一，不再只看斜率是不是大于 0。\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABktuGhg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/30#issuecomment-6758827654",
+     "updatedAt": "2026-11-10T04:16:42Z",
+     "author": {
+      "login": "bczhc"
+     },
+     "createdAt": "2026-11-10T04:16:42Z",
+     "body": "感谢你们的工作，把我的版本合入上游并且做了详细检查。那么我这边的fork那就不用留了。有关刻cd cdrdao linux倒是有的。但我从没用来刻录过，只在以前cd抓轨时用的cdrdao。对于DIS的CD盘产出的wav我直接用的`cdrecord -v -audio xx.wav`刻录的，没用到过toc表。"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkt1p4g",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/30#issuecomment-6758951394",
+     "updatedAt": "2026-11-10T04:25:26Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T04:25:26Z",
+     "body": "@bczhc 应该是我们谢谢你才对 (｡･ω･｡)ﾉ♡ 这次能合进来，靠的是你先把 Linux 这条路走通了：最底层的 SG_IO 读取后端是你写的，dhao2001 在你的版本上继续整理，我们这边只是检查。没有你这个移植，disc-probe 现在大概还只能在 Windows 上跑。\r\n\r\nfork 删不删看你方便。你写的那个提交（`86720d1`，SG_IO 后端）已经在主仓库的历史里了，会一直留着。\r\n\r\n`cdrecord -v -audio` 刻 DIS 的 wav 这条信息很有用，谢谢！音轨盘跟数据盘不一样，本来就不需要 toc。有一点可以留意一下：cdrecord 默认是 TAO（逐轨写），DAO（`-dao`）和它在轨道前后留的间隔可能不同。DIS 音轨路径的沿轨道常数（开着延迟交织时约 −105 帧）是在 Windows 上的刻录路径测出来的，换成 Linux 上的 cdrecord，这个常数会不会变，我们还不知道。以后你要是用 disc-probe 的预设在 Linux 上刻过 DIS 音轨盘，径向线直不直、歪了多少，都欢迎贴出来，这会是很好的第二个数据点 (๑•̀ㅂ•́)و✧\r\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-10T02:55:39Z",
+  "baseRefName": "main",
+  "headRefName": "feat/linux-sg",
+  "headRefOid": "a08ca3153ca700f8823bb6558bc29d0885ff88ab",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABN4FZuA",
+  "updatedAt": "2026-11-11T19:10:23Z",
+  "number": 31,
+  "title": "disexport --install：可自定义 DiscImageStudio 预设的 id 与显示名称",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/31",
+  "state": "MERGED",
+  "createdAt": "2026-11-09T15:14:19Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "## 背景\n\n`disexport --install` 之前只能装成固定的预设 id 和名称（如 `discprobe-bd-re` / `BD-RE (drive-timing calibration)`）。`--id` / `--name` 两个选项从最初的 `disexport` 就存在，也会写进 CD/DVD 与蓝光两类预设，但 `--help` 里只有两个光秃秃的 `--id ID` / `--name NAME`，手册里没有提，也没有写入前的校验和测试。\n\nDiscImageStudio 用 id 区分预设：同一个 id 会命中已有预设（要改取值得加 `--replace`）；与内置预设同 id 会整条覆盖那条内置预设。显示名称则是预设列表里展示的文字。两者都应该能显式指定。\n\n## 改动\n\n- **写入前校验**：新增 `disinstall.check_identity()`，去掉 id/名称首尾空白，拒绝空 id、空名称和保留 id `__manual__`。此前仅导出（`--output`）时这些值会原样写进 JSON，DiscImageStudio 会因此拒绝整个预设文件；现在会在写任何文件之前报错。安装路径原本由 `_validate_preset` 兜底，这里补上首尾空白处理并让错误更早出现。\n- **帮助与中文**：补全 `--id` / `--name` 的帮助文案和 `zh.py` 翻译；安装输出改为 `'id' (\"显示名\")`，装完就能看到预设列表里会显示什么，中文界面下同样翻译（如 `已把预设 'my-bd-re'（“BD-RE 威宝 25G”）加入 …`）。\n- **文档**：`docs/MANUAL.md`、`docs/MANUAL.en.md`、`README.md`、`README.en.md` 补上默认值、改名方式（同 id + `--replace`）以及“与内置预设同 id 会整条覆盖内置项”的警告；蓝光部分还说明不加 `--install` 时文件名按 `--name` 取，因为 DIS 导入时拿文件名当预设名。\n- **测试**：`selftest.py` 覆盖 id/名称校验；`ui_selftest.py` 覆盖自定义 id + 中文名称安装、首尾空白裁剪、仅导出路径、中文安装行，以及空值 / `__manual__` 被拒且不落盘。\n\n## 用法\n\n```sh\npython -m discprobe disexport --geo results/geo-G-20261108-052047 --sectors 12088320 \\\n  --install --id my-bd-re --name \"BD-RE 威宝 25G\"\n```\n\n输出：\n\n```\nAdded preset 'my-bd-re' (\"BD-RE 威宝 25G\") to .../disc-presets.json\n```\n\n同一个 id 再次安装并加 `--replace` 即可更新取值或改名；换一个新 id 则并列新增一条预设。默认值保持不变。\n\n## 验证\n\n- `python -m discprobe selftest`：all checks passed\n- 用真实 BD-RE 结果安装实测，id 与名称首尾空白被去掉\n- `--id __manual__`、空 `--name` 均以退出码 1 拒绝且不写文件\n- `python -m discprobe disexport -h --lang zh` 中文帮助与中文安装输出正常\n\n## 兼容性\n\n默认值保持不变，现有命令行为不变；只有显式给出 `--id` / `--name` 时才使用新值。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 3,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZWac1s="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk35Ubg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/31#issuecomment-6769497198",
+     "updatedAt": "2026-11-10T14:09:41Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T14:09:41Z",
+     "body": "谢谢！这个功能原来就有但谁都找不到，现在帮助、手册、校验和测试都补齐了，输出里还直接显示预设名，用起来清楚多了。\n\n我在本地跑了 `selftest`（全部通过）和 `pytest tests`（47 项通过），跟现在的 main 合并也没有冲突。还对照了 DIS 的 `DISC_PRESETS.md`：同 id 盖过内置预设、id 只需在同组内唯一、`__manual__` 保留，这几点和你写的一致。\n\n有两处小地方想请你改一下：\n\n1. `--id` 的帮助（中英文）写的是\"文件里已有的 id 会更新那条预设\"。实际上取值不同时，不加 `--replace` 会被拒绝。手册里这句写对了（\"值不同要加 `--replace`\"），帮助里也补上吧，比如：\n   `an id already in the file is updated only with --replace when its values differ`\n   `文件里已有这个 id 时，取值不同要加 --replace 才会更新那一条`\n2. `zh.py` 里两条报错把选项名丢了：「id 是空的」「名称是空的」。用户是在命令行里打的 `--id` / `--name`，保留选项名更好对上，比如「--id 是空的：……」「--name 是空的：……」。\n\n另外两点可做可不做：`README.en.md` 那段可以像中文版一样带一句\"same id with different values needs `--replace`\"；拒绝空值的测试现在只走了 CD，蓝光也可以补一条。\n\n改完就可以合，辛苦了！\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk6fkpw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/31#issuecomment-6772221095",
+     "updatedAt": "2026-11-10T15:59:17Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-10T15:59:17Z",
+     "body": "已按意见改好并强推（新 head `af543a7`）：\n\n- `--id` 帮助（中英文）改为 “an id already in the file is updated only with --replace when its values differ” / “文件里已有这个 id 时，取值不同要加 `--replace` 才会更新那一条”，`zh.py` 对应词条同步，`-h --lang zh` 已核对。\n- `zh.py` 两条报错补上选项名：`--id 是空的：…`、`--name 是空的：…`。\n- `README.en.md` 补了 “an id already in the file needs `--replace` once its values differ”，与中文版对齐。\n- 可选项也做了：`tests/test_bd_preset.py` 新增蓝光路径空 id / `__manual__` / 空名称的拒绝测试，断言不写预设文件。\n\n验证：两个测试文件单独运行全过（`test_bd_preset.py` 21 项、`test_bd_clv_solver.py` 27 项）；`python -m discprobe selftest` all checks passed；中英文帮助和中文报错手工核对。"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlZpzWw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/31#issuecomment-6804894555",
+     "updatedAt": "2026-11-11T19:10:20Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-11T19:10:20Z",
+     "body": "复查了 `af543a7`：四处都改对了，可选的两项也补上了，蓝光那条拒绝测试写得很到位。`selftest` 和 `pytest` 全过，和 main 合并没有冲突，现在合并。\n\n这个功能原本藏得谁都找不到，现在帮助、手册、报错和测试都齐了，用户自己起预设名也不怕把内置的盖掉。谢谢你这么细致地改完 (๑•̀ㅂ•́)و✧\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-11T19:10:23Z",
+  "baseRefName": "main",
+  "headRefName": "feat/dis-preset-id-name",
+  "headRefOid": "af543a73f7dbad935047aba4fce16bbbde4d0a0d",
+  "reviews": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABN4xoUQ",
+  "updatedAt": "2026-11-12T13:16:50Z",
+  "number": 32,
+  "title": "feat(console): guided console for the disc workflow",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32",
+  "state": "MERGED",
+  "createdAt": "2026-11-09T16:02:45Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "## What this adds\n\n`python -m discprobe menu` opens a full-screen guided console for the DVD/CD/BD workflow; a bare `python -m discprobe` at a terminal opens it too. `guide` and piped/scripted output are unchanged.\n\n- one place for each step: what it is for, how long it takes, the exact command; `r` runs it, `e` edits it, `c` copies it\n- `:` fuzzy command palette built from the real argparse parser, with help; `?` keys; `m` disc type; `l` language\n- picture form with drag-and-drop path cleanup and Tab completion\n- selected-row/keycap backgrounds and clickable results-folder/manual links (OSC 8); reverse-video fallback, plain output when colour or ANSI is off\n- numbered fallback when the terminal cannot deliver keys; the console leaves the alternate screen before running a command, so progress animations and games still work\n\n## Implementation notes\n\n- zero new dependencies: pure stdlib escape sequences, no prompt_toolkit/rich\n- `guide.py` now exposes structured `Task`/`Plan`; `guide_lines` stays byte-identical for scripts\n- `menu` is added next to `guide`; no-arg interactive start switches to it\n- the opening disc animation still plays before the console opens\n- Windows: keyboard and links; SGR mouse/wheel where the terminal delivers mouse events\n\n## Verification\n\n- `python -m discprobe selftest`: all checks passed, including the new `guided console` checks\n- `python -m discprobe menu -h` and top-level `-h` work; `menu` in a pipe prints the plain guide lines",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 6,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZbIKiw="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk35g3g",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6769500382",
+     "updatedAt": "2026-11-10T14:09:49Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T14:09:49Z",
+     "body": "Thanks for this, it's a lot of careful work. The console is pleasant to use, and keeping it stdlib-only with a numbered fallback is exactly right for the offline Windows pack. I ran it on 4053529: `selftest` passes (including your console checks), `tests/` passes, and piped `guide` output is byte-identical to before. It sends nothing to the drive itself and the burn steps stay text-only, which is what we need.\n\nA few things I'd like changed before merging:\n\n1. **Five Chinese strings never show.** In `zh.py`, `\"Press Enter to return to the guided console. \"`, `\"Picture file: \"`, `\"Output ISO [iso/picture.iso]: \"`, `\"Geometry [latest]: \"` and `\"Step number to open (Enter for {n}, q to quit): \"` have a trailing space in the key. `i18n._zh` strips the text before looking it up, so these stay English in Chinese mode. The \"Press Enter\" one appears after every command. Dropping the trailing space from the keys fixes it, since `tr` keeps the caller's trailing whitespace.\n2. **The Blu-ray caution is missing.** `guide` warns that the BD preset gives the shape but not the scale, and that one real BD was off by 106 turns. The console doesn't show that, and the picture step offers `image --media bd` on Enter. Please show the warning on the BD picture and burn steps.\n3. **Please rebase on main.** It conflicts now (`guide.py`, `zh.py`) after the Linux support landed. Main's guide uses `guide.burn_steps(iso, media)` for platform-specific burn instructions (the cdrdao toc on Linux matters for CDs). The console's burn screens use `burner_hint()`, which is empty on Linux, so they should switch to `burn_steps`.\n4. **The pack's Start.bat loses a couple of things.** Opening `menu` instead of `guide` skips the first-time \"Walk through the steps?\" offer, the greeting and the tab-completion hint. After `q` the window is empty apart from the two echo lines. Could the console keep the tutorial offer for first-timers, and print the progress lines on exit so the window still shows where you are?\n\nSmaller: the \"Next:\" notes from `guide` (like the DiscImageStudio export route) don't appear anywhere in the console. That's fine to leave for later if you prefer.\n\nThanks again!\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk6qFIA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6772393248",
+     "updatedAt": "2026-11-10T16:06:23Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-10T16:06:23Z",
+     "body": "Thanks for the review — all five points are addressed in 5572aea:\n\n- Dropped the trailing spaces from the five Chinese prompt keys (plus the older picker prompt with the same problem), so those prompts now render in Chinese.\n- The console burn screens now call `guide.burn_steps()`, so Linux gets the cdrdao toc / growisofs instructions instead of an empty `burner_hint()`.\n- The Blu-ray picture and burn steps repeat the shape-vs-scale caution, including the 106-turn observation, before the picture form offers `image --media bd`.\n- `menu` now keeps `guide`'s greeting, one-time walkthrough offer and completion hint, and prints `progress_lines` after `q` so the Start.bat window still shows the checklist.\n- Rebased on `1353f14`; full `python -m discprobe selftest` passes, including the new console checks.\n\nThe `Next:` notes are still left for a follow-up as you suggested."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlp3aTQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6821894733",
+     "updatedAt": "2026-11-12T11:06:36Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-12T11:06:36Z",
+     "body": "已按 review 改完并推到 `36ab873`，PR 现在 mergeable clean。\n\n**两项必改**\n- `zh.py` 里 drive 步骤的 key 已改成 `...and the name each one uses.`，中文模式不再漏这一行英文。\n- 新手回答“要看教程”后，教程打印完会停在 `按 Enter 继续。`，按 Enter 才进全屏，不会一闪而过。\n\n**顺手的小项**\n- 刻录页不再重复打印 `How to look at it` 标题。\n- 终端能显示但不能读键时，不再打印两遍步骤清单。\n- Start.bat 的注释已改成窗口会保留。\n\n**README 致谢** 已加：实验性 BD/CD 几何算法与 `--install` 由 domerawind 与 DeepSeek-v41F 共同完成，相关 PR 见仓库历史。\n\n**Windows Terminal 鼠标**：新增 `_WindowsVtKeys`，在 `WT_SESSION` 下打开 `ENABLE_VIRTUAL_TERMINAL_INPUT` / `ENABLE_MOUSE_INPUT` 并解析 SGR mouse；旧 conhost 仍走键盘，不影响原有行为。我这边没有交互式 Windows Terminal，鼠标点击需要你在 WT 里实际点一下确认；如果不行我再调。\n\n`python -m discprobe selftest` 全量通过（`all checks passed`）。后续回复我会用中文。"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlqEjAQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6822109953",
+     "updatedAt": "2026-11-12T11:16:58Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-12T11:16:58Z",
+     "body": "这一轮已更新到 `a66fccd`，主要改了两件事：\n\n1. **命令可以直接点，不必按顺序执行。** 主界面和步骤页现在有 `Run/Open`、`Copy`、`Edit`、`Back` 按钮；底部的按键提示（`Enter/r`、`e`、`c`、`: `、`?`、`q` 等）也是可点击的。点击按钮和按对应快捷键走同一个动作，所以任意一步都能直接运行或编辑，不必先从上一步顺序走下来。\n2. **补上经典 Windows 控制台的鼠标支持。** Windows Terminal 继续走原来的 VT/SGR 鼠标路径；`cmd.exe`/conhost 现在通过 `ReadConsoleInputW` 读取鼠标记录，并把缓冲区坐标换算成当前窗口坐标。滚轮、左键点击步骤/按钮/底部按键都能用；没有鼠标支持的终端仍然保持纯键盘和数字回退。\n\n`python -m discprobe selftest` 已全部通过（包含新增的点击区域测试）。README 和中英文手册也补了按钮、底部按键和 `cmd.exe` 鼠标的说明。\n\n一点限制：我这边没有可交互的控制台，无法实际在 `cmd.exe` 窗口里点一次；代码是基于 conhost 的 `ReadConsoleInput` 输入记录实现的。方便的话请在 `cmd.exe` 里试一下点击；如果坐标有偏差，我再按真实窗口调整。Windows Terminal 和键盘路径不受影响。\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlqIJ9Q",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6822169077",
+     "updatedAt": "2026-11-12T11:19:49Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-12T11:19:49Z",
+     "body": "补了一条滚动时的小修复：步骤页内容超过窗口、滚动后，按钮的点击区域会跟着可见行重新对齐。最新提交 `f0e3384`，`python -m discprobe selftest` 仍然全部通过。"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlsgqLA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#issuecomment-6824667692",
+     "updatedAt": "2026-11-12T13:16:50Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-12T13:16:50Z",
+     "body": "合并了，谢谢！两项必改都到位，可点击的命令和经典控制台的鼠标支持也是很实在的改进。我在 `f0e3384` 上跑过 selftest 和 pytest，全部通过。Windows Terminal 和 cmd 里的鼠标点击还要在真机上试，有问题我再开 issue。\n"
+    }
+   ]
+  },
+  "mergedAt": "2026-11-12T13:16:47Z",
+  "baseRefName": "main",
+  "headRefName": "feat/guided-console",
+  "headRefOid": "f0e33847d7c20dd5ae29978deaef3af0fd438974",
+  "reviews": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMS0xMVQxOToxMDozN1q0MjAyNi0xMS0xMVQxOToxMDozN1rPAAAAAV2HGYw="
+   },
+   "nodes": [
+    {
+     "id": "PRR_kwDOVh8rBM8AAAABXYcZjA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/32#pullrequestreview-5864102284",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "submittedAt": "2026-11-11T19:10:37Z",
+     "state": "COMMENTED",
+     "body": "Thanks for the quick round, all four points are in and they work. On `5572aea`: merges cleanly with main, `selftest` passes (1282 checks, including your new BD warning, burn-step and greeting checks), `pytest` passes, and piped `guide --media dvd|cd` is byte-identical to main in both languages. The zh keys, the Linux burn steps via `guide.burn_steps()`, the BD shape-vs-scale caution and the restored greeting all check out.\n\nTwo small things left before merging, one line each:\n\n1. **The drive step still shows in English in Chinese mode.** After the rebase, `guide.py` says \"...and the **name** each one uses.\", but the key in `zh.py` still says \"...and the **letter** each one uses.\", so the lookup misses. Updating the key to \"name\" fixes it. I rendered every screen in zh mode and this was the only English left.\n2. **The walkthrough is covered right away.** When a new user answers yes to the one-time walkthrough offer, it prints and the console switches to the full screen at once, so they only see it after pressing q. A \"Press Enter to continue\" between the walkthrough and the full screen would fix it.\n\nOptional, only if you're touching it anyway:\n\n- The burn page prints a \"how to check the disc\" heading and then `AFTER_BURN`'s own heading right below it.\n- When the terminal can display but not take input, the guide checklist is printed before the fallback and the progress checklist again after it.\n- A comment says Start.bat closes the console window afterwards, but the window is opened with `cmd /k`, so it stays open.\n\nOnce 1 and 2 are in, I'll merge. Thanks again, this is a really nice addition.\n"
+    }
+   ]
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ },
+ {
+  "id": "PR_kwDOVh8rBM8AAAABOp8P7w",
+  "updatedAt": "2026-11-12T17:30:16Z",
+  "number": 34,
+  "title": "feat(guide): read the blank disc's available sectors",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34",
+  "state": "OPEN",
+  "createdAt": "2026-11-12T13:41:56Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "## 为什么\n\n默认流程漏掉了空盘 `info` 这一步，但标定和 `disexport --sectors` 都需要空盘报告的可用扇区数。原来 `guide` 和引导控制台从 `list` 直接走到随机数据盘。\n\n## 改了什么\n\n- 在 `list` 之后、随机数据盘之前加入 **Blank disc (info)** 步骤；`guide`、清单、编号回退和 TUI 控制台同时生效。\n- 步骤上显示读到的数量（如 `2,295,104 sectors available`），并带进下一条随机盘提示。\n- 只有**同盘型的空盘**报告才会打勾：刻过的盘读回来的数可能偏大；`incomplete`（写了一半、未封盘）不算空盘；CD 的 ATIP 导出口、以及没有 track 空闲块的空 BD 容量仍算空盘容量。\n- 已经做过随机盘或 `timing` 的用户不会被拉回这一步：清单里它保持未做，但不挡后面的步骤，也不标“现在到这里”，下一条命令直接做图片 ISO。\n- `info` 结果按 CD/DVD/BD 盘型筛选，不会拿另一种盘的报告打勾。\n- 教程改为 6 步；README 中英文和两份手册同步更新。\n- 非交互脚本现在看到 6 个默认步骤（多出空盘检查这一行），这是有意的。\n\n## 验证\n\n- `python -m discprobe selftest` -> `all checks passed`\n- 新增测试覆盖：DVD 报告不勾 BD 步骤、`incomplete` 盘不算空盘、已做 timing/geo 的用户不回到 info、空 BD 容量回退。\n- `python -m discprobe guide` 第一条命令现在是 `python -m discprobe info --drive ...`。\n- `python -m discprobe menu` 从新的空盘步骤开始。\n\n基于 #32 合并后的最新 `main`。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZcRYzo="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABltzpXQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34#issuecomment-6826027357",
+     "updatedAt": "2026-11-12T14:15:21Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-12T14:15:21Z",
+     "body": "补充一下：上面的审阅是在 `b605c77` 上看的，发出时你已经推了 `8ac08e8`。我又看了新提交：\n\n- 第 289 行的空格已经改好了，谢谢。\n- 第 1–3 项在 `8ac08e8` 上还在。\n- 新加的分支把 `disc_status` 为 `incomplete` 的盘也当成空盘。`incomplete` 是写了一部分、还没封盘的盘（比如追加刻录时故意保持开放的盘），这时 `capacity.last_lba` 已经不是空盘的容量了。建议只认 `empty`。如果这些蓝光盘确实报 `incomplete`，能不能贴一下它们的 info.json？\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlxFjOg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34#issuecomment-6829466426",
+     "updatedAt": "2026-11-12T16:29:39Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-12T16:29:39Z",
+     "body": "对应处理：\r\n\r\n不再把已经走到后面的用户拉回 info\r\n\r\nPlan.current() 现在只在随机盘和 timing 都还没做时，才把 info 当作当前步骤。\r\n已经有 timing/geo 时，info 仍显示为未做，但不挡后续命令，也不带“现在到这里”标记；下一条命令直接做图片 ISO。\r\n用复制进来的 timing/geo 结果测过：清单显示 info 未打勾，当前标记落在 Picture ISO，Next 是 image ...。\r\n统一“偏大”方向\r\n\r\n代码注释改为 “can be larger than the blank's capacity / can be too high”。\r\nREADME、手册、PR 描述统一为“从刻过的盘读回来的数可能偏大”。\r\n按盘型筛选 info 报告\r\n\r\ninfo_runs 现在只取 r.media == media 的报告。\r\n补了测试：只有 DVD 报告时，BD 流程的空盘步骤不会打勾。\r\n同时修正 incomplete：只有 disc_status == \"empty\" 的盘才用 capacity 回退，写了一半未封盘的盘不再算空盘；补了对应测试。\r\n小项\r\n\r\nui_selftest 的说明改为 scripts 现在看到 6 个默认步骤，并已在 PR 描述里注明这是有意的：多出来的一行就是空盘检查。\r\nguide.py 注释同步更新；之前那处 or 后的长空格已在 8ac08e8 修掉。\r\n验证：python -m discprobe selftest 全部通过；新增测试覆盖了“已做 timing/geo 的用户”“DVD 报告不勾 BD”“incomplete 不算空盘”“空 BD 容量回退”。"
+    }
+   ]
+  },
+  "mergedAt": null,
+  "baseRefName": "main",
+  "headRefName": "feat/info-step",
+  "headRefOid": "6b740f6751f730fefe7121630f4416a900b9db5f",
+  "reviews": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMS0xMlQxNDoxNDo1OVq0MjAyNi0xMS0xMlQxNDoxNDo1OVrPAAAAAV47dVE="
+   },
+   "nodes": [
+    {
+     "id": "PRR_kwDOVh8rBM8AAAABXjt1UQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/pull/34#pullrequestreview-5875922257",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "submittedAt": "2026-11-12T14:14:59Z",
+     "state": "CHANGES_REQUESTED",
+     "body": "谢谢！先读空盘再刻随机盘，这个顺序是对的，`sectors_from_info` 也终于有了自然的入口。我在 `b605c77` 上跑了 selftest（全部通过）和 pytest（50 通过），另外有几处想请你改一下：\n\n**1. 已经走到后面的用户会被拉回这一步（必改）**\n把一份真实的 `timing` 和 `geo` 结果文件夹复制到空的 `results` 里，再跑 `guide`：清单是 `info ✗, disc ✓, timing ✓, geo ✓`，下一条命令给的却是 `info --drive H:`，而不是做图片 ISO。因为 `elif info_sectors is None:` 排在所有后续分支前面，没读过空盘的老用户会一直卡在这里。\n建议：只有随机盘和 `timing` 都还没做时，才把 `info` 当作下一步；之后它只显示成未做的一项，不挡后面的步骤，也不标\"you are here\"。\n\n**2. 偏大还是偏小，三处说法不一样（必改）**\nREADME 和手册写的是从刻过的盘上读回来的数\"可能偏大\"，PR 描述写\"too short\"，代码注释写\"short of the blank's capacity\"。我们之前在 `after_info` 里记的是一位用户在刻过的盘上读到的数偏大。请统一成同一个方向；如果你那边见过偏小的例子，把两种情况都写上。\n\n**3. 读空盘的结果没有按盘型筛选（必改）**\n`info_runs` 取的是所有 info 结果，所以 DVD 的流程会拿 CD 或 BD 的空盘报告来打勾，反过来也一样。测试里 `workflow(\"bd\")` 能通过，是因为同一个文件夹里还有一份 DVD 报告。建议按 `r.media == media` 筛选，再加一条测试：文件夹里只有 DVD 报告时，BD 流程的这一步不应打勾。\n\n**4. 小项**\n- `guide.py` 第 289 行的 `or` 后面有一长串空格，像是删掉续行符时留下的，改成正常换行就好。\n- `ui_selftest` 里 \"scripts keep the five steps they always saw\" 改成了 6 步，非交互模式下脚本看到的输出会多一行。如果这是有意的，请在 PR 描述里说一句。\n"
+    }
+   ]
+  },
+  "reviewThreads": {
+   "totalCount": 0,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   },
+   "nodes": []
+  }
+ }
+]

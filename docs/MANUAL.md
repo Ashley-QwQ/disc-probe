@@ -2,6 +2,8 @@
 
 各命令的原理、参数、输出和自检结果。项目介绍和快速开始见 [README](../README.md)，实验记录见 [KNOWLEDGE.md](KNOWLEDGE.md)。
 
+打开网页大厅时，Windows 完整包双击 `Start (Windows).bat`，Linux 完整包运行 `./start-linux.sh` 或 `bash start-linux.sh`。
+
 ## 安全
 
 - 只发送读类命令。`discprobe/scsi.py` 里有一份白名单，白名单之外的操作码在到达设备前就被拒绝，任何写入、封盘、格式化命令都发不出去。self-test 会验证 WRITE、CLOSE TRACK、FORMAT UNIT 确实被拒。
@@ -79,7 +81,7 @@ python -m discprobe menu
 - `:` 搜索全部命令：输入几个字母过滤，Enter 看参数，`r` 运行，`c` 复制。`?` 看所有按键。
 - `image` 步骤是一个表单：把图片拖进窗口或输入路径，Tab 补全；目标 ISO 和 `--geo` 也可以改。
 - `m` 在 DVD、CD 和蓝光之间切换，`l` 切换中英文；切换后的语言也会传给之后运行的命令。`--media` 指定起始盘型，`--out` 指定结果文件夹。
-- 第一次在终端里运行时，问候显示在控制台首页；只问一次要不要看教程，回答要后会先停一下再进全屏。按 `q` 退出后，步骤清单、进度和补全提示会留在屏幕上，打包的 Start.bat 窗口也不会只剩两行提示。
+- 第一次在终端里运行时，问候显示在控制台首页；只问一次要不要看教程，回答要后会先停一下再进全屏。按 `q` 退出后，步骤清单、进度和补全提示会留在屏幕上。
 - 刻录说明按系统给出：Windows 右键 ISO，Linux 用 `cdrdao`/`growisofs` 和对应的 toc。蓝光的图片和刻录步骤会先重复 `guide` 里关于「形状不等于尺度」的提醒，再给出 `image --media bd`。
 - 终端不支持按键时退回编号菜单；`menu` 在管道、重定向或 `DISCPROBE_PLAIN=1` 下只打印文字步骤。不带参数的非终端调用仍是原来的缺少子命令错误，脚本请显式写 `guide` 或 `menu`。
 
@@ -206,7 +208,7 @@ python -m discprobe --lang zh guide
 
 标准输出不是终端或 `TERM=dumb` 时什么都不画。
 
-**常见报错。**缺 numpy、scipy、Pillow 时会打印安装命令。`--geo` 的文件不存在，或者不是 `geo` 的结果，`--ranges` 格式不对，`--drive` 打不开，都改成了一行说明，退出码仍是 1；参数错误的退出码仍是 2。
+**常见报错。**缺 numpy、Pillow 时会打印安装命令。`--geo` 的文件不存在，或者不是 `geo` 的结果，`--ranges` 格式不对，`--drive` 打不开，都改成了一行说明，退出码仍是 1；参数错误的退出码仍是 2。
 
 ## `info` 读了什么
 
@@ -471,7 +473,7 @@ DVD 刻录时，光驱会先把每个扇区的 2048 字节用户数据和一个�
 
 ## 计时测几何："梯子"测量（`geo`）
 
-不用扫描，直接让光驱测出一张已刻录盘的螺旋几何。
+不用扫描，直接让光驱测出一张已刻录盘的螺旋几何。每级用前后参考读取修正目标相位，再从以中位数为中心的窗口取样求圆均值。窗口半宽为 4 倍经 1.4826 缩放的中位绝对偏差，最小 1.5°，减少少数晚到读取的影响。WindowsNoEditor 在 PR #29 中贡献了剪切方法和离线重放工具，可用 `python tools/geo_reanalyse.py <结果目录>` 对照已有测量的新旧拟合。
 
 ### 原理
 
@@ -513,10 +515,26 @@ python -m discprobe geo --drive H:
 - **整圈问题。** 加 FUA 时，每次重读都固定耗费整数圈，所以必须在每次读取前随机等待 0–25 ms（`--host-delay-ms`），否则只能测出"几圈"的总时长。模拟器已加入这种行为（`reread_delay_ms`）。
 - **转速。** 读速固定 4x、稳定约 30 s 后，转速为 2831 rpm（一圈 21.195 ms），26–47 mm 范围内不变。
 - **精度。** 随机数据区单次相位标准差 0.43–0.55°，40 次平均后 ±0.07–0.09°。
-- **自检。** 模拟器上，14 级梯子在盘面 0–85% 范围内的角度误差约 1°，与报告的 1σ 一致。
+- **自检。** 在低噪声模拟中检查普通盘和纹理环盘的角度误差、整块 ECC 读取的一致性，以及各级相位的偏差。另用合成晚到读数检查剪切后的相位误差。
 - **实盘。** 在纹理环盘的 3 个随机数据环（33.6–45.8 mm）上跑了 21 级：残差 rms 0.096°，常数 c = −0.009°，测量范围内 1σ 为 0.13°。详见 [KNOWLEDGE.md](KNOWLEDGE.md)。
 
 ## 刻图、纹理与颜色
+
+网页的「彩色图」和 `colour-design` 都适合用轮廓清楚、色块较大的 PNG 或 JPEG。导出 Display P3、Adobe RGB 或 Rec.2020 图片时，保留内嵌的 ICC 配置文件。导入会按该配置文件转换为 sRGB，并显示用到的配置文件名称。带 RGB 矩阵及色调曲线或灰度色调曲线配置的 16 位 PNG 会保留原精度到转换完成。配置文件读不了或不受支持时，会提示并按 sRGB 读取。没有内嵌配置的图片也按 sRGB 读取。详见[彩色 DVD 刻图](colour.zh.md)。
+
+在编辑器展开「下载模板」，选择 5、10 或 20 µm。压缩包里有透明底稿和按当前批次、机位生成的独立引导图。打开底稿，把引导图原尺寸叠在上方，另建图层作画。导出透明 PNG 前隐藏引导层，保留完整的正方形和原分辨率。绘图软件若清除了 DPI，回编辑器时用「导入模板作品」。
+
+| 格距 | 底稿尺寸 | DPI |
+| --- | ---: | ---: |
+| 5 µm | 24,000 × 24,000 px | 5,080 |
+| 10 µm | 12,000 × 12,000 px | 2,540 |
+| 20 µm | 6,000 × 6,000 px | 1,270 |
+
+5 µm 的一层 RGBA 打开后约占 2.15 GiB，另计软件开销。有该批次的几何文件或预设时，也可从命令行导出：
+
+```powershell
+python -m discprobe template --geo <summary.json> --grid 10 --batch <MID> --out disc-template
+```
 
 计时测得几何以后，可以直接按这套几何生成可刻录的 ISO（Windows 光盘映像刻录机就能刻），不需要拍照描点。作品照片见 [`showcase/`](showcase/README.md)。
 
@@ -656,3 +674,32 @@ CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用�
 
 
 `python -m discprobe simulate --picture my_picture.png --sheet sheet.png` makes a CPU prediction of the data-side view at several rotations. It is a model, not a photo: brightness and contrast are uncertain, and grooves and camera effects are missing. It accepts single-byte DVD textures; use `--output` for one view.
+
+
+### DVD ????????
+
+`geo` ?? INQUIRY ????????? `presets/drives.json`??????????
+GH70N NYA2 ? 0?GUE0N T.02 ? 16????? #33 ??????????
+??????? 0??????????? `--completion-sectors N` ??????
+????????? ECC ??????????????????????????
+
+???????????????????
+
+```powershell
+python -m discprobe geo --reapply results/geo-run --completion-sectors 16 --out results/geo-run-offset16
+python -m discprobe disexport --geo results/geo-run --completion-sectors 16 --sectors 2297888 --output offset16-preset.json
+```
+
+`geo --reapply` ????????`--out` ??????????????????????? summary ???
+???????????????????????????????????????????
+???????????????????? SHA-256?????????????? 16 ???????
+
+?????? `summary.json` ? `fit.completion_sectors`??????? 0??????????????????
+?????? summary?????????????????`calibrate --preset` ????????????
+`calibrate` ????? API ?? `completion_sectors` ????CD ????????/??????
+`tools/geo_polyfit.py` ?????????????????????????
+
+??????????????? 0 ? 16????? `u` ?????? ECC ??????
+????????????????????????????????????????
+?????? MCC 02RG20 ??? 2,297,888 ??????? 2,295,104 ??????
+???[issue #33](https://github.com/Ashley-QwQ/disc-probe/issues/33)?

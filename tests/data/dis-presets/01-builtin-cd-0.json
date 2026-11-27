@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [
+    {
+      "id": "cd-80",
+      "displayName": "标准 80min CD",
+      "description": "ECMA-130／ISO/IEC 10149 标准速度 1200 mm/s；120 mm 盘、约 80 分钟，359,849 扇区（24.5–56.8 mm）。",
+      "sectors": 359849,
+      "usableSectors": 359847,
+      "innerRadiusMm": 24.5,
+      "outerRadiusMm": 56.8,
+      "linearVelocityMmPerSecond": 1200,
+      "displayNameResourceKey": "DiscPreset_Cd80_DisplayName",
+      "descriptionResourceKey": "DiscPreset_Cd80_Description"
+    }
+  ],
+  "dvdPresets": [],
+  "bluRayPresets": []
+}

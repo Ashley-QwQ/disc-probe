@@ -1,0 +1,572 @@
+[
+ {
+  "thread": "D107",
+  "title": "不用拍照的读取计时标定，你的光驱能用吗？征集实测 / Calibrating without photos using read timing: does it work on your drive? Reports wanted",
+  "where": "c61",
+  "login": "Sptanmok",
+  "date": "2026-11-12T02:36:35Z",
+  "edited": false,
+  "body": "HL-DT-ST DVD+-RW GHB0N (A1B1)\r\n对被随机数据填满的的Sony CD-R 700MB进行测试，看起来结果不错\r\n[results.zip](https://github.com/user-attachments/files/34723644/results.zip)\r\n结果如下：\r\nC:\\Users\\x\\Downloads\\disc-probe-main>py -m discprobe info --drive D:\r\n光驱：HL-DT-ST DVD+-RW GHB0N，固件 A1B1\r\n当前盘型：CD-ROM (0x0008)\r\n光盘状态：complete，会话数 1，可擦写 False\r\n可读容量：最后扇区号 359351，每扇区 2048 字节\r\nATIP：CD-R，导入区起点 97:27:18（厂商代码），最后导出区起点 79:59:74 = 扇区号 359849\r\n读取速度：扇区 0..359351  735 -> 1764 kB/s（比值 2.4）\r\n写入速度：扇区 0..359351  3505 -> 8467 kB/s（比值 2.4157）\r\n写入速度档：读 1764 / 写 8467 kB/s，到扇区 359849\r\n写入速度档：读 1764 / 写 7056 kB/s，到扇区 359849\r\n写入速度档：读 1764 / 写 5644 kB/s，到扇区 359849\r\n写入速度档：读 1764 / 写 2822 kB/s，到扇区 359849\r\nPage 2A：缓存 512 kB，写入时转速方式 恒定线速度 (CLV)，写入速度 [(8467, 'CLV'), (7056, 'CLV'), (5645, 'CLV'), (2822, 'CLV')]\r\n这台光驱或这张盘不支持：dvd_physical (5/30/02), dvd_physical_leadin_10 (5/30/02), dvd_prerecorded_0e (5/30/02), dvd_plus_adip_11 (5/30/02), bd_disc_information (5/30/02)\r\n\r\n完整信息保存在：C:\\Users\\x\\Downloads\\disc-probe-main\\results\\info-D-20261111-234051\r\n\r\ndisexport --sectors 要填的扇区数：359849（ATIP 里的导出区起点；对空白盘运行 `info` 给的数更准）。\r\nDiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。\r\n\r\n下一步，检查这台光驱能不能测量（1 到 3 分钟）：\r\n  python -m discprobe timing --drive D:\r\n\r\nC:\\Users\\x\\Downloads\\disc-probe-main> py -m discprobe timing --drive D:\r\n这是 CD，但命令用的是 DVD 设置。要加上 --media cd 吗？ [Y/n] y\r\n正在用 D: 测量。按 Ctrl+C 可停止，已测的数据会保留。超过 15 分钟会自动放弃。\r\n光盘：CD-ROM，最后扇区号 359351，读取命令 read12\r\n缓存测试耗时：plain p50 1783.5 us, fua p50 63374.3 us，采用的读取方式 fua\r\n转速已稳定：转一圈 31.747 ms（1890.0 转/分）\r\n位置 0.05（扇区号   17967）：转一圈 31.73550 ms（1890.63 转/分），抖动  51.75 µs =  0.587°，周期清晰度 0.9998\r\n位置 0.50（扇区号  179675）：转一圈 31.74053 ms（1890.33 转/分），抖动  59.89 µs =  0.679°，周期清晰度 0.9999\r\n位置 0.95（扇区号  341383）：转一圈 31.73692 ms（1890.54 转/分），抖动  44.99 µs =  0.510°，周期清晰度 1.0000\r\n转速方式：恒定转速 (CAV)\r\n位置 0.15（扇区号   53902）：盘面角度  36.553° ± 0.086（单次标准差  0.544，40 次），基准抖动  1.189°\r\n位置 0.35（扇区号  125772）：盘面角度 213.746° ± 0.096（单次标准差  0.600，39 次），基准抖动  2.065°\r\n位置 0.55（扇区号  197643）：盘面角度  85.156° ± 0.101（单次标准差  0.640，40 次），基准抖动  2.504°\r\n位置 0.75（扇区号  269513）：盘面角度 122.079° ± 0.131（单次标准差  0.828，40 次），基准抖动  0.844°\r\n位置 0.95（扇区号  341383）：盘面角度  52.858° ± 0.103（单次标准差  0.642，39 次），基准抖动  0.914°\r\n贪吃蛇最高 8 分\r\n\r\n原始事件和汇总保存在：C:\\Users\\x\\Downloads\\disc-probe-main\\results\\timing-D-20261111-234345\r\n用时 1:58\r\n\r\n结论：转速恒定，抖动 0.51-0.68°。这台光驱看起来可以用。\r\n\r\n你的进度：\r\n  [ ] Python 依赖            缺少 pillow  <- 现在到这里\r\n  [x] 光驱                   D:\r\n  [x] 随机数据盘             已测过\r\n  [x] 光驱检查 (timing)      恒定转速 (CAV)，抖动 0.51-0.68°\r\n  [ ] 盘面几何 (geo)         还没运行\r\n  [ ] 图片镜像 (image)       还没做\r\n  [ ] 刻到同批空盘           用测量时的同一批盘\r\n\r\n下一步，测量盘面螺旋几何：\r\n  python -m discprobe geo --drive D: --media cd",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19555222"
+ },
+ {
+  "thread": "D107",
+  "title": "不用拍照的读取计时标定，你的光驱能用吗？征集实测 / Calibrating without photos using read timing: does it work on your drive? Reports wanted",
+  "where": "c61.r1",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-12T02:40:55Z",
+  "edited": false,
+  "body": "@Sptanmok 谢谢测试！GHB0N 这个结果很好：转速恒定（CAV），三个位置的抖动都在 0.5–0.7°，这台光驱可以用来测量。贪吃蛇 8 分也记上了 (๑•̀ㅂ•́)و✧\n\n接下来两步：\n\n1. 先补上 Pillow，后面出图要用：\n   ```\n   py -m pip install pillow\n   ```\n2. 还是用这张随机数据盘，测盘面几何：\n   ```\n   py -m discprobe geo --drive D: --media cd\n   ```\n   大约 5 分钟。测完把 `results` 里新出的 `geo-D-...` 文件夹打包发上来，我们帮你看结果。\n\n如果之后要用 DIS 刻 CD，记得打开\"延迟交织\"，从 disc-probe 导出预设时加上 `--along-track-frames -105`（原因见上面 FanJZSS 那段讨论）。\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19555276"
+ },
+ {
+  "thread": "D107",
+  "title": "不用拍照的读取计时标定，你的光驱能用吗？征集实测 / Calibrating without photos using read timing: does it work on your drive? Reports wanted",
+  "where": "c61.r2",
+  "login": "Sptanmok",
+  "date": "2026-11-12T02:45:36Z",
+  "edited": false,
+  "body": "> 谢谢测试！ GHB0N 这个结果很好：转速恒定（CAV），三个位置的抖动都在 0.5–0.7°，这台光驱可以用来测量。 贪吃蛇 8 分也记上了 (๑•̀ㅂ•́)و✧\r\n> \r\n> 接下来两步：\r\n> \r\n> 1. 先补上 Pillow，后面出图要用：\r\n>    ```\r\n>    py -m pip install pillow\r\n>    ```\r\n> 2. 还是用这张随机数据盘，测盘面几何：  大约 5 分钟。 测完把  里新出的  文件夹打包发上来，我们帮你看结果。```\r\n>    py -m discprobe geo --drive D: --media cd\r\n>    ```\r\n>    \r\n>    \r\n>        \r\n>          \r\n>        \r\n>    \r\n>          \r\n>        \r\n>    \r\n>        \r\n>      `results``geo-D-...`\r\n> \r\n> 如果之后要用 DIS 刻 CD，记得打开\"延迟交织\"，从 disc-probe 导出预设时加上 （原因见上面 FanJZSS 那段讨论）。`--along-track-frames -105`\r\n\r\n测盘面几何已经做了哦，不过之后的输出找不到了，抱歉）结果文件包含在上面的results.zip附件里了",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19555325"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r61",
+  "login": "LTVA1",
+  "date": "2026-11-09T14:41:52Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I did two more burns and they failed at around the same step. Iirc they didn't give any error though, at least one of them was certainly errorless. I will now show you. I asked Patreon artist and I was given a permission to show the tiny part of the image.\r\n\r\nHere's first failed burn\r\n<img width=\"230\" height=\"424\" alt=\"изображение\" src=\"https://github.com/user-attachments/assets/2807b01c-0a55-430a-ab15-356c37b31eb6\" />\r\n\r\nHere's second\r\n<img width=\"234\" height=\"477\" alt=\"изображение\" src=\"https://github.com/user-attachments/assets/fcc46b07-f363-41ba-ac9b-a56a235a2e2d\" />\r\n\r\nAbove is the outer edge of the disc.\r\n\r\nHere's the corresponding part of source dithered image:\r\n<img width=\"2066\" height=\"2142\" alt=\"lisa_fragment\" src=\"https://github.com/user-attachments/assets/f0a5e2d1-5ac2-44b4-b4dc-6de1f3ca5218\" />\r\n\r\nI thought it fails where the dithering ends but no, it fails earlier...\r\n\r\nI now filled one more disc with random data and calibrated it with `python -m discprobe geo --drive E: --ranges 70000-2295000` and now I am burning yet another disc with lisa picture. If it fails too I will grab some Verbatim discs from my father, calibrate with one of them and try to burn the same picture on them to see if it's disc issue since I am using the cheapest ones and Verbatim ones might be better, although they are at least 10+ years old.\r\n\r\nUpd: the burn failed:\r\n<img width=\"1158\" height=\"786\" alt=\"изображение\" src=\"https://github.com/user-attachments/assets/d47b836c-8bf3-4749-bbc0-8f2fb8bf364f\" />\r\n\r\nThe image is very warped in more then 50% of the area, around 1.5 mm from the outside aren't written at all. It's interesting though that image is completely accurate but is interrupted by big warped stripe. So it recovers the phase somehow when writing. Not sure why and how...\r\n\r\nI am now switching to Verbatim discs. Don't worry, I just grabbed 100 more those cheap relabeled Ritek DVD-R discs so there are plenty to test on.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19494041"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r62",
+  "login": "LTVA1",
+  "date": "2026-11-09T14:44:56Z",
+  "edited": false,
+  "body": "@Ashley-QwQ git pulled...",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19494130"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r63",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T14:48:44Z",
+  "edited": false,
+  "body": "Thank you for the photos, and thanks to the artist for letting you show them (◍•ᴗ•◍)\n\nThe most useful clue is something you already noticed: the random data discs burn to the end on the same drive and the same cheap discs, and the image discs don't. So the discs alone can't be the whole story, the content plays a part too. Trying Verbatim next is a good idea, as long as only that one thing changes.\n\nAbout the image being accurate, then a warped band, then accurate again. On a DVD-R the place where every byte lands is set by the groove the disc was pressed with. The groove wobbles and carries addresses, and the drive writes in step with that wobble. So the drive can't just put data at the wrong angle and then get back on track by itself. One way it could happen: the drive loses the wobble for a while, keeps writing on its own clock, and locks on again at the next address in the groove. That would look exactly like what you describe. It's a guess, but it fits, and a drive that has trouble following the groove would also explain why it finally gives up near the edge.\n\nYour last screenshot is still from the old script (it guessed \"closing failed\" from the time). After the `git pull` it asks the drive where it stopped. For the discs that already failed, this shows it too:\n\n```\npython -m discprobe info --drive E:\n```\n\nIf you send the \"next writable LBA\" for one or two of them, I can turn it into a radius and we'll see whether they stop at the same place on the disc or at the same place in the picture.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19494234"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r64",
+  "login": "LTVA1",
+  "date": "2026-11-09T15:01:38Z",
+  "edited": false,
+  "body": "They don't stop on the same place, nor the same sector: see that rabbit doodle was fully written on disc 1 but wasn't on disc 2",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19494562"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r65",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T15:07:51Z",
+  "edited": false,
+  "body": "Thanks, that already rules something out. If it stopped at the same sector every time, I'd suspect one spot in the image the drive can't write. Stopping at different places points more to something that builds up during the burn, or to differences between the discs.\n\nThe `info` numbers would still help: two or three of them tell us how far apart the stops really are. And I'm curious how the Verbatim one goes (｡•ᴗ•｡)",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19494714"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r66",
+  "login": "LTVA1",
+  "date": "2026-11-09T15:36:47Z",
+  "edited": false,
+  "body": "@Ashley-QwQ Verbatim burn completed without errors and lisa image is finally burned properly. But calibration is worse now because it gradually shifts for at least 5 degrees angle between inner and outer edge. How can I burn some calibration pattern and tune coefficients in your discprobe program? ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19495467"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r67",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T15:39:46Z",
+  "edited": false,
+  "body": "Yay, the Verbatim disc burned to the end and Lisa is finally on a disc (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ So the cheap discs were most of the trouble.\n\nThe 5 degrees are expected, and you don't need a photo calibration pattern for them. The geometry you used was measured on a cheap RITEK disc. Discs from a different factory (or even a different batch) have a slightly different track pitch and start radius, and a small pitch difference adds up to an angle that grows from the inside to the outside. That's exactly the gradual shift you see. The calibration only holds for discs from the same batch.\n\nSo the fix is the same as before, just on Verbatim:\n\n1. Check that the discs are the same batch: `python -m discprobe info --drive E:` prints the disc ID (MID). Old discs from your father may be mixed, so compare it on the disc you calibrate and the ones you burn.\n2. Fill one Verbatim disc with random data and run `geo` on it, as you did with the RITEK one.\n3. Make the image again with that new `summary.json`.\n\nIf Verbatim discs are scarce, there is a way to spend no extra disc, but it's fiddly: burn only random data in the inner part, measure it, then append the picture outside in a second session (`image --random-below-mm`, then append). It needs the first session left open, and I haven't tried that with your drive and burn script, so I'd only go there if you're down to the last few discs.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19495552"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r68",
+  "login": "LTVA1",
+  "date": "2026-11-09T15:43:53Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I of course used the calibration data from other Verbatim disc from the same batch. Ironically better quality disc got complaints from your self-calibration script while cheap Ritek ones didn't. I applied quadratic correction to the calibration result. Maybe the correction was actually wrong? I still have the calibration disc so I can measure it again",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19495655"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r69",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T15:50:01Z",
+  "edited": false,
+  "body": "Ah, sorry, I assumed wrong there. Same batch then, good, so that's not it.\n\nA quadratic correction that is off can easily make a few degrees between the inner and outer edge, so I'd suspect it first. Measuring the calibration disc again is the best next step. Then the two runs can be fitted together:\n\n```\npython tools/geo_polyfit.py results\\geo-E-<first run> results\\geo-E-<second run>\n```\n\nIt says whether the two runs agree, and whether the rungs support a quadratic at all or a constant pitch fits just as well. If they agree and the quadratic isn't needed, burn the next one without `--correction`.\n\nIt would help a lot if you could also post (as a zip, or pasted text):\n- the warnings `geo` printed on the Verbatim disc,\n- both `geo-E-...` folders (`summary.json`, `targets.csv`, `events.csv`),\n- the correction file and the exact `image` command you used.\n\nThen I can see which part moved the picture by those 5 degrees.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19495836"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r70",
+  "login": "LTVA1",
+  "date": "2026-11-09T16:27:20Z",
+  "edited": false,
+  "body": "@Ashley-QwQ that's the two calibration runs I did on the same disc (without even taking it from inside the drive)\r\n[calibration.txt](https://github.com/user-attachments/files/34588523/calibration.txt)\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19496724"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r71",
+  "login": "LTVA1",
+  "date": "2026-11-09T16:27:54Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I will now do two more calibration runs on the same disc",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19496730"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r72",
+  "login": "LTVA1",
+  "date": "2026-11-09T16:39:45Z",
+  "edited": false,
+  "body": "@Ashley-QwQ The console output of those two calibrations\r\n[calibration.txt](https://github.com/user-attachments/files/34588901/calibration.txt)\r\nBoth `geo-...` folders for those runs:\r\n[results.zip](https://github.com/user-attachments/files/34588920/results.zip)\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19497013"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r73",
+  "login": "LTVA1",
+  "date": "2026-11-09T16:53:16Z",
+  "edited": false,
+  "body": "@Ashley-QwQ by the way, Bluray may actually have less obstacles for high resolution images then I thought. And with hardware modification it's possible to achieve fullest quality with around 10 nm positioning along the spiral. That's quite hard to actually implement but hey, you get 320 nanometers of resolution: https://chatgpt.com/share/6af1f9e4-3688-83ed-8509-7b16181240f3",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19497268"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r74",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T17:04:58Z",
+  "edited": false,
+  "body": "Thank you, the logs and folders made this quick to check (๑•̀ㅂ•́)و✧\n\nWhat they show:\n\n1. All of these are DVD+R: the cheap ones are RITEK/F16, the Verbatim ones MCC/004. Your GU70N reads the RITEK disc very cleanly (run 171005: chi2/dof 0.93, rms 0.19°) and the Verbatim disc much more noisily (chi2/dof 4 to 8, rms 0.38 to 0.53°). That's where the complaints came from.\n2. The four Verbatim runs on the same disc agree with each other within 0.3 to 1.3° between 25.6 and 58 mm. So the calibration noise is around a degree, not five.\n3. The quadratic correction is under 1° from end to end, and the `image` command in your log (the one with `lisa_dithered_verbatim.iso`) has no `--correction` in it anyway. So the correction can't be what moved it by 5° either.\n\nThat leaves the disc itself as the most likely cause: the disc you burned may simply have a slightly different spiral from the disc you calibrated on. The track pitch only needs to differ by about one part in a million to make several degrees between the inner and outer edge, and old discs with the same MID can come from different production runs. Two DVD-R discs from one pack agreed within 0.12° for us, but that's one pack, not a rule.\n\nIf you want to check it: burn random data on the disc right next to the burned Lisa disc in the spindle, run `geo` on it, and compare with the calibration disc. If those two differ by a few degrees, it's disc to disc. And how did you see the 5°? A photo with something that should be straight would help.\n\nAlso, sorry about the `geo_polyfit` error: the command we print uses backslashes (`results\\geo-...`), which Git Bash eats. Forward slashes, as in your second try, work everywhere; I'll make it print those.\n\nThe Blu-ray idea is fun (◍•ᴗ•◍) Timing on BD-R works now (the CLV solver in PR #25), but we don't have a BD burner yet to try pictures with.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19497474"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r75",
+  "login": "LTVA1",
+  "date": "2026-11-09T17:22:50Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I will show you the picture of the warp in half an hour. I am glad bluray calibration works. I now have 50 blank BD-R discs and today my wh16NS40 began it's journey from Chinese warehouse, according to the shopping app info. Hopefully it arrives soon. I will also test 16x speed dvd writes with it. \r\n\r\nNow I will just try to burn a new Verbatim using the data from last calibration run. There's only one disc separating the calibration disc and disc I want to burn on in the original spindle package so deviation should be minimal. If it's still that big I will show you.\r\n\r\nMy BD-R discs say the max supported speed for writing is 12x.\r\n\r\nRegarding the custom drive idea, why exactly do we need to put random data on disc? I assume some stupid firmware limitation doesn't allow read timing of empty sectors. Or is it needed for calibration? For bluray there's also one sacrificial disc used for calibration? Iirc bluray's wobble curve contains address data (it's some modulation of carrier frequency).\r\n\r\nFor my modified drive idea it would bypass the drive's firmware so it would calibrate on one disc while it's still blank by just using the wobble curve and rotation encoder info. Then it would burn the image on the same disc, either by pre-generating the iso file or by synthesizing the info on the fly.\r\n\r\nSince bluray has bigger resolution the iso generation would be even slower. Can you try to multithread it in your program? ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19497819"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r76",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T17:24:15Z",
+  "edited": false,
+  "body": "Nice, a WH16NS40 and 50 BD-R discs, that's a proper Blu-ray lab (ﾉ´ヮ`)ﾉ*: ･ﾟ\n\nBurning the disc one away from the calibration disc is exactly the right test. Of your four Verbatim runs, the last two (192826 and 193456) agree with each other within 0.3°, so either of those is a good one to use.\n\nWhy random data: a blank area has nothing the drive can decode (no written sync, addresses in the data or error correction), so a read there just fails, and timing needs reads that complete. It's not so much a silly firmware limit as nothing being there to read yet. It's random rather than a picture or a texture because some textures read with a different delay, and one drive didn't like long stretches of them, so random data keeps every read alike. And yes, that disc is the sacrificial one. On Blu-ray it's the same: one BD-R filled with random data and measured, then the picture goes on the next discs from that batch.\n\nYour custom drive idea is right about the wobble: DVD+R has its addresses in the wobble (ADIP), DVD-R in land pre-pits, and BD-R modulates the wobble too. With raw access to that signal plus a rotation encoder, you could map address against angle on a blank disc and burn the same disc, no sacrificial one at all. Stock drives just don't hand that signal out, which is the only reason we go the long way through read timing.\n\nMultithreading the ISO: good point. Every chunk of sectors is independent, so it splits across processes easily, and for a 25 GB BD-R it'll matter. I'll look at it.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19497842"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r77",
+  "login": "LTVA1",
+  "date": "2026-11-09T17:58:22Z",
+  "edited": false,
+  "body": "@Ashley-QwQ this line is from verbatim lisa burn. These must be a strictly radial lines but notice how they curve around. That's probably less than 5 degrees though, but it's worse than lisa version from discimagestudio on ritek. Also notice how at the top the text letters are skewed singificantly enough for you to see it\r\n<img width=\"1069\" height=\"2298\" alt=\"изображение\" src=\"https://github.com/user-attachments/assets/fa1e14d5-4917-4e94-be7a-941a6b5f5267\" />\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19498707"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r78",
+  "login": "LTVA1",
+  "date": "2026-11-09T18:15:46Z",
+  "edited": false,
+  "body": "@Ashley-QwQ newer burn is much better, idk why. Maybe the quadratic thing broke something since I just used raw calibration data this time. Or disc is closer to the calibration one in its dimensions. Btw since 1 ppm difference makes such a difference, would thermostat help? Maybe it;s temperature difference playing a big role since material expands and shrinks due to temperature differences. \r\n\r\nAt the edge where the text is it still curves significantly enough to see it... But that is actually ok since text appears cursive lol.\r\n\r\nHow exactly do you calibrate? Just fitting 22th degree polynomial or linear approximation between points? Notice that I added the range parameter to cover the outer edge. Is it just precision loss due to CAV mode? Can it be calibrated in CLV mode like the recent bluray PR does? Maybe more points would help? I understand that more points means more time for calibration and more wear on the drive since it needs to make more reading head moves to complete. Maybe, if you distribute points evenly, make additional more dense points inside last 5-6 mm of outer space near the outer edge of the disc?",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19498966"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r79",
+  "login": "LTVA1",
+  "date": "2026-11-09T18:31:43Z",
+  "edited": false,
+  "body": "@Ashley-QwQ A correction: burn is better but it also curves at the inner side. Not that noticeable but I have found a contrast line and let me draw over a previous burn how it looks (exaggerated a bit but still)\r\n<img width=\"1318\" height=\"1588\" alt=\"изображение\" src=\"https://github.com/user-attachments/assets/3f6ae257-7c28-407a-9e10-f4f7b13d01b6\" />\r\nI am actually ok with it since for my image it's not noticeable but everyone who takes a ruler and lays it on disc surface would see it",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19499259"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r80",
+  "login": "LTVA1",
+  "date": "2026-11-09T20:51:07Z",
+  "edited": false,
+  "body": "@Ashley-QwQ after some thoughts I think you need to add DiscImageStudio like way to fine tune calibration and let user decide the number of rungs abd their positioning. I think thus my calibration issues will be gone",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19501960"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r81",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T21:00:00Z",
+  "edited": false,
+  "body": "@LTVA1 Thanks for the photos, and I'm glad the new one came out better (◍•ᴗ•◍) Your drawing over the old burn makes the inner curve easy to see.\n\nThe quadratic didn't break the earlier burn. That `image` command had no `--correction`, so both burns used the raw calibration, and the disc sitting closer to the calibration disc is the more likely reason this one is better.\n\nTemperature is a fair thought, since polycarbonate grows about 70 ppm per degree. But the drive doesn't place sectors by millimetres. It follows the groove molded into the disc, and the groove grows with the disc. A warmer disc is a slightly larger copy of itself with the same turns and the same sectors per turn, so the angles stay put. What differs from disc to disc is the groove itself, fixed when each disc was molded, so I don't think a thermostat would help.\n\nHow the calibration works: it's neither a high degree polynomial nor straight lines between points. Each rung is the angle between a reference sector and a target sector, read from timing. Those angles go into a physical spiral model with two numbers, the start radius and the track pitch, plus one constant offset. The ladder starts a turn or two from the reference and puts each next rung as far out as the current fit can still predict safely, so about 22 rungs cover the range. `tools/geo_polyfit.py` then refits the same rungs with a pitch that may change slowly across the radius, and that's the quadratic.\n\nWith only two shape numbers, a disc whose pitch drifts a little shows up as a gentle curve, and the ends of the measured range are where a fit is held least firmly. That matches what you see at the inner and outer edges. Your runs start at LBA 70000, about 25.7 mm, so anything drawn inside that is extrapolated a little as well.\n\nCAV doesn't lose precision at the edge. The timing measures an angle, so a degree is a degree at any radius. It's just a longer distance out there: 1° is about 1 mm of arc at 58 mm, against 0.45 mm at 26 mm, which is why the text at the edge shows it most. The method needs a constant spin speed because the angle is read as how far the disc turned between two reads. The Blu-ray solver in PR #25 works the other way round: Blu-ray drives read in CLV, so it times the spin period in zones and gets the radius from that. On a DVD the phase timing measures the angle itself, which is what the picture needs.\n\nMore points and choosing them yourself: part of that is there already. `--max-targets` sets the number of rungs (default 22), `--ranges` where they may go, and `--reps` how many reads each rung takes. Placing rungs by hand isn't there yet. The first few have to stay close to the reference so whole turns can be counted, but after that, extra rungs at radii you pick (denser in the outer 5 to 6 mm, say) would be easy to add. I'll look at it.\n\nSomething you can try now with what you have: `geo_polyfit` can fit several runs of the same disc together, with shared geometry and one offset per run, so your Verbatim runs become one calibration with more rungs. It also tells you whether the runs agree. With the two that matched best:\n\n```\npython tools/geo_polyfit.py results/geo-E-...-192826 results/geo-E-...-193456 --write-summary verbatim_joint.json --write-correction verbatim_corr.json\npython -m discprobe image --geo verbatim_joint.json --correction verbatim_corr.json --picture ...\n```\n\nFor DiscImageStudio style fine tuning there are two ways. `disexport` turns a geo result into a DiscImageStudio preset, and then DIS's own test burn and photo fit work on top of it. Or here: burn the grid test (`image` without `--picture`), scan it flat at 600 dpi, and `gridscan` plus `correction` measure how much the lines bend and write a correction for the next burn. That one needs a flatbed scanner; a phone photo is too distorted for it.\n\nTwo things are coming soon. Multithreading works here now: a full DVD ISO went from about 68 s to 30 s on our machine, and Blu-ray gets the same. And `geo` will measure three points again at the end of a run and tell you if the drive changed while it ran, which a clean looking fit can't show. On our GH70N it caught a run whose fit looked fine but sat 0.3° off. Noisy runs like your first Verbatim ones are what it's for. I'll tell you when both are in the repo (｀・ω・´)ゞ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19502126"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r82",
+  "login": "LTVA1",
+  "date": "2026-11-09T21:30:05Z",
+  "edited": false,
+  "body": "@Ashley-QwQ Okay, I will try with range from like 100 to max number of sectors lol. And with 80 rungs. I have a flatbed scanner, how exactly do I need to use the scan calibration tool? I understand I need test grid and burn it with DiscImageStudio and then scan it, but how exactly I need to call `gridscan` and `correction`? If I have e.g. 80 rungs will those tools take it into account? Do those tools provide corrected DiscImageStudio preset or the internal `geo` data for discprobe? I ask because I want to see how far the angular resolution can actually be pushed. You said difference in one batch is around 0.2°. That's tolerable for usual pictures but for photolithography masks repeatability it's not enough. Maybe the only way to achieve better precision ia to calibrate on each disc separately with a custom hardware modified drive. \r\n\r\nThanks for the multithreading. I will set a reminder for `git pull` tomorrow (for me already today), although I would only have 2 hours at most, starting from 22:00 (now it's November 10th, 00:29 in Moscow). I hope to test the flatbed scanner calibration to achieve the best quality for lisa disc (best angular precision and 23200х23200 picture!). \r\n\r\nBtw on our job we use highest quality PCBs with 0.1mm track width and spacing for LVDS lines that connect ADCs and FPGA. That's very small batches. We don't have any equipment to make our own PCBs but I will track your progress with photomasks and show my test burn that showcased the 5 um precision to some engineers at our lab. Maybe there would be some useful application for the technology. We in Russia have some stupid bureaucracy regarding documents that forces us to use CDs to send some files such as source code to different organizations. The not so stupid part is backing up all documents, text and drawings, on DVDs (because you know one big solar flare and all data in flash memory is gone). Thus we have plenty of DVDs, CDs and drives. I hope the whole image burning gets some traction since of course we also have flatbed scanners for calibration. ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19502624"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r83",
+  "login": "LTVA1",
+  "date": "2026-11-09T21:32:07Z",
+  "edited": false,
+  "body": "@Ashley-QwQ On Tuesdays, Thursdays and Fridays I only have 2 hours in the evening because before I have either job or university abd Chinese lessons which end at 21:15... I hope I am more free during January ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19502657"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r84",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T21:34:06Z",
+  "edited": false,
+  "body": "@LTVA1 No rush at all, two hours on a busy evening is plenty for one step of this (๑•̀ㅂ•́)و✧ And it's lovely to hear the 5 µm disc might reach your lab.\n\n80 rungs and 100 to the last sector: that should work. The ladder only picks from about 40 evenly spaced spots plus a few near the reference, so it may stop before 80 and say `candidates_exhausted`. That's fine, it just means it ran out of new places. It will take a few times longer than 22 rungs. If reads right at the edges fail, it skips those rungs and carries on.\n\nThe scanner calibration goes like this. One correction to what you wrote: the grid should come from discprobe, not DiscImageStudio, because `gridscan` compares the scan with that exact design.\n\n1. Make the grid with the same geometry you'll use for Lisa:\n\n```\npython -m discprobe image --geo <your summary.json> --output iso/grid.iso --light 92\n```\n\n2. Burn `iso/grid.iso` with `tools\\burn_imapi.ps1` on a disc from the same pack as the Lisa disc.\n3. Scan it data side down at 600 dpi, with every automatic adjustment off, saved as PNG or TIFF. Two or three scans with the disc turned a bit between them average out scanner errors.\n4. Measure each scan:\n\n```\npython -m discprobe gridscan scan1.png scan2.png --dpi 600\n```\n\nIt writes one `results/gridscan-...` folder per scan, each with a `phi.csv`: how far each ring of the picture is rotated.\n\n5. Fit the correction from all of them:\n\n```\npython -m discprobe correction results/gridscan-scan1-.../phi.csv results/gridscan-scan2-.../phi.csv --geo <your summary.json> --output angle_correction.json\n```\n\n(If the grid itself was burned with a correction, add `--base` with that file, so the new one includes it.)\n\n6. Use it for either program:\n\n```\npython -m discprobe image --geo <your summary.json> --correction angle_correction.json --picture lisa.png ...\npython -m discprobe disexport --geo <your summary.json> --correction angle_correction.json --sectors <disc capacity> --install\n```\n\nThe first makes the ISO here, the second a DiscImageStudio preset.\n\nThe scan tools don't look at the rungs at all. They measure what's left over after the geometry the grid was burned with, so the correction sits on top of whichever geo result you used, 22 rungs or 80. More rungs make the starting point better, and the scan then shows what the timing couldn't.\n\nAbout repeatability for masks: you're right that disc to disc is the limit. The 0.12° I quoted was two DVD-R from one pack, and at the outer edge that's already about 0.12 mm of arc. Over a small board the error is much smaller, since nearby features shift together, but for a whole disc it adds up. You can calibrate each disc with a stock drive though, it just costs part of the disc. We tried it once on the GH70N: burn random data on the inner part only and leave the disc open, run `geo` on that band, then append the picture to the rest of the same disc (`image --start-lba` plus `burn_imapi.ps1 -Append`). That band's result agreed with a full disc from the same spindle within 0.124°, and the appended grid read back exactly. The picture area then only extrapolates outward from the measured band. Your wobble idea would do this without giving up any area.\n\nMultithreading and the end-of-run checks aren't pushed yet, so a `git pull` won't have them tomorrow. I'll ping you here when they are.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19502706"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r85",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-09T21:38:11Z",
+  "edited": false,
+  "body": "@LTVA1 Both are pushed now, so a `git pull` gets them: the ISO is written by several processes at once (a full DVD about 68 s down to 30 s here, set the count with `DISCPROBE_WORKERS` if you like), and `geo` reads its check points again at the end and tells you if the drive changed during the run. The paths it prints use forward slashes now too.\r\n\r\nAnd since you'll show the 5 µm burn at your lab, here's ours to go with it (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ It's the Qingming scroll, the outer ring of it drawn with cells of about 4 to 6 µm. We have no microscope either, so these are phone photos through a reversed SLR lens. Each photo shows a patch about 24 mm across, about 10 µm per pixel, so a single cell is still below what the phone sees. The colours are just the disc's diffraction.\r\n\r\n<img width=\"600\" alt=\"a wide view of the bridge and the crowd\" src=\"https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/showcase/qingming5um_wide.jpg?raw=true\" />\r\n\r\nPeople on the street and a tiled roof:\r\n\r\n<img width=\"600\" alt=\"people and a tiled roof\" src=\"https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/showcase/qingming5um_figures.jpg?raw=true\" />\r\n<img width=\"600\" alt=\"a street with a gate\" src=\"https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/showcase/qingming5um_street.jpg?raw=true\" />\r\n\r\nOld willows, each branch drawn out:\r\n\r\n<img width=\"450\" alt=\"willow trees\" src=\"https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/showcase/qingming5um_trees.jpg?raw=true\" />\r\n\r\nHouses and roof tiles near the outer edge:\r\n\r\n<img width=\"450\" alt=\"houses near the outer edge\" src=\"https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/showcase/qingming5um_houses.jpg?raw=true\" />\r\n<img width=\"450\" alt=\"roof tiles\" src=\"https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/showcase/qingming5um_roof.jpg?raw=true\" />",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19502779"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r86",
+  "login": "LTVA1",
+  "date": "2026-11-10T03:42:52Z",
+  "edited": false,
+  "body": "@Ashley-QwQ thanks for the scroll images and explanation. I will try it this evening with 80 rungs. That's actually good because I need to physically move scanner near my laptop to connect it with usb cable, otherwise I can only do jpg/pdf relatively low quality scans with email based scan sharing. That time the 80 rungs will be done on my Verbatim random data disc. I finally got permanent markers yesterday and properly marked all the discs I have so far.\r\n\r\nRegarding Chinese — I will consider the fact that you are native speaker. We have a good school here so we have native speakers talk with us 45 minutes once a week (main teacher is still Russian native speaker). Also once a week I have online 2-hour long HSK4 preparation course with very experienced and respected professor, she doesn't know Russian well so the entire lesson is in Chinese, although she of course carefully chooses words we already know to speak. When I was in Beijing I met two guys in restaurant and managed to talk with them half through the translation app, half without it. The complained about Chinese majnland having many dialects lol. So that's a proof Chinese themselves consider it a problem. We of course study 普通话 so we have many stories from Russian teacher abput horrors of working as a translator and encountering somebody from Hebei province or Hong Kong.\r\n\r\nThe wobble idea seems elegant enough and it's sad that disc drives can't measure the empty sectors timing. The compromise is maybe to burn roughly one full revolution of random data per rund and then measure it? For usual images it won't be noticeable since it's tens of 0.74 um random rings across the entire disc, but it may actually provide a per-disc calibration without one disc wasted. Or just use the random data disc ring for tge image where quality isn't that important since maybe the rings will show up. Tell me please if such method is possible for calibration, especially on bluray since it uses CLV and its track spacing is more than twice as tight. ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19508194"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r87",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-10T03:44:26Z",
+  "edited": false,
+  "body": "@LTVA1 Good luck with the 80 rungs and the scanner this evening (๑•̀ㅂ•́)و✧ Marking every disc is a great habit, it saves a lot of guessing later. And an HSK4 class taught entirely in Chinese is impressive, 加油！\r\n\r\nYour ring idea is close to something we've thought about too. The rings themselves would work: one turn at 40 mm is about 250 mm of track, roughly three DVD ECC blocks, enough for one rung, and at 0.74 µm wide nobody would see them. The catch is the order things happen in. A burn writes the whole disc front to back in one go, so by the time the rings can be read, the picture next to them is already written with the old numbers. They can tell you afterwards how far off that disc came out, and that's useful for the next disc from the same spindle, but they can't correct the disc they're on.\r\n\r\nTo correct the same disc, the burn has to pause. We tried that once on the GH70N with a DVD-R: we burned random data on the inner half and left the disc open, ran `geo` on it, then appended the picture to the rest. That calibration agreed with a full random disc from the same spindle within 0.124°, and the appended part read back exactly. The cost is a gap between the two parts, about 47,000 sectors, which comes out about 0.57 mm wide at 50 mm and about 1.1 mm at 25 mm. So one or two pauses are fine if the picture has a plain ring there, but a pause for every rung would cost far too much.\r\n\r\nA neater version would use the open zones a DVD-R allows (up to three places that can each be continued later): write short random bands in the inner, middle and outer zone first, measure the disc, then fill each zone with the picture. That avoids the big gaps, but we haven't written it yet, and it still leaves the picture's outer and inner edges extrapolated a little.\r\n\r\nBlu-ray has the same ordering problem, and BD-R also allows several open areas, so the same trick could apply. The bigger issue on BD is the one from before: timing on BD gives the shape of the spiral and leaves one overall scale open, so a per-disc measurement still needs that scale from somewhere, like the dial disc in PR #25. So I'd say: possible on both, worth it on DVD-R first, and on BD only once the scale part is sorted.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19508211"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r88",
+  "login": "LTVA1",
+  "date": "2026-11-10T04:32:16Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I thought it was possible to burn random sectors in any order, sad it doesn't work. The open zones are interesting but that's only three measures per disc, and as we see even 22 aren't enough for my Verbatim discs. ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19508804"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r89",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-10T04:33:37Z",
+  "edited": false,
+  "body": "@LTVA1 It's less bad than three points, luckily (◍•ᴗ•◍) Each open zone can start with a band of random data a few millimetres wide, and a band like that holds thousands of turns, so `geo` can put many rungs inside each one, as many as you like. What three zones limit is where the measured parts are, not how many points you get: inside the bands everything is measured, and the picture between them is interpolated from the fit.\n\nAnd your Verbatim discs are DVD+R, which is the better case here: DVD+R allows up to 16 open fragments instead of three, so the bands could be spread much more evenly across the disc. All of this is still a plan though, we haven't written the burning side for it yet.\n\nOn the 22 rungs: from your logs, what hurt on the Verbatim discs looked more like noisy reads than too few points, since the four runs on one disc only agreed within 0.3 to 1.3°. Your 80-rung run tonight will show it nicely: if 80 rungs land on the same curve as the good 22-rung runs, the points weren't the problem. And `geo` now reads a few check points again at the end and tells you if the drive changed during the run, so a noisy run should say so itself.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19508818"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r90",
+  "login": "LTVA1",
+  "date": "2026-11-10T04:41:26Z",
+  "edited": false,
+  "body": "@Ashley-QwQ yes I meant the distribution of points along the disc radius.\r\n\r\nRegarding the noise — since those are purely random errors, won't increasing tge number of samples average them out and thus improve accuracy? I hope each read of ine rung doesn't involve spinning the coarse radial positioning motor since that adds to the wear of the drive. If precise positioning with coils is enough you can perform let's say 100 of reads at each rung, maybe distribution would be better and close to the normal (Gaussian) ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19508899"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r91",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-10T04:42:45Z",
+  "edited": false,
+  "body": "@LTVA1 Ah, got it, spread along the radius (๑˃ᴗ˂)ﻭ Then yes, on your DVD+R the 16 fragments would let the bands sit much more evenly from inside to outside.\n\nOn averaging: you're right for the purely random part! It shrinks like 1/√N, so 4× the reads gives about half the noise per rung. You can already ask for that: `--reps 100` reads each rung 100 times instead of the default 24 (the run gets about 4× longer). The reads come out roughly Gaussian, and we use a robust average that drops the odd outlier anyway ✧\n\nThe catch is that not everything is random. On your Verbatim disc the four runs disagreed by more than their own error bars said they should, which smells like something slow drifting during a run (the drive warming up or changing its mood (￣ω￣;)). Averaging more reads makes each run look more precise without fixing that. That's what the new check points are for: if the drive drifts, the run now says so at the end.\n\nAbout wear: each read alternates between a reference sector near the middle and the target, so yes, the sled does travel back and forth, not only the fine coils. It's about the same kind of work as a game or installer loading lots of files from a disc, so I wouldn't worry for a few runs, but a 100-reps run with 80 rungs is a long workout, so maybe let the drive rest between big runs (´∀｀)♡",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19508911"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r92",
+  "login": "LTVA1",
+  "date": "2026-11-10T08:58:29Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I see you included the Qingming scroll magnified pictures on your page. You have my full permission to use my microscope pictures to showcase the 5 um resolution. ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19513752"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r93",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-10T13:23:26Z",
+  "edited": false,
+  "body": "@LTVA1 Thank you, that's really kind of you (つ≧▽≦)つ Your photos are the best evidence we have for 5 µm, so I'd love to put them next to the Qingming ones, with your name and a link back to your test here. I'll keep the wording to what you saw: 10 µm cleanly separated, and 5 µm lines resolved but grainy.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19519586"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r94",
+  "login": "LTVA1",
+  "date": "2026-11-10T21:12:43Z",
+  "edited": false,
+  "body": "@Ashley-QwQ Did calibration on Verbatim with 50 rungs and no additional measurements number increase so far because it takes a lot of time:\r\n[calibration_50_rungs.txt](https://github.com/user-attachments/files/34647141/calibration_50_rungs.txt)\r\n[geo-E-20261110-220500.zip](https://github.com/user-attachments/files/34648487/geo-E-20261110-220500.zip)\r\n\r\nI have noticed the calibration pattern generation is very slow and it hangs with no console output. Probably because multithreading is still happening (which in my opinion isn't really needed in test patterns) and I have CPU with 16 physical cores and 32 logical processors (AMD Ryzen 9 9955HX).\r\n\r\nThen I generated the calibration pattern, burned it and scanned the disc (I wasted one disc because I forgot to add `--r-max 57.9` to the grid; it also seems to not cover the innermost part of the disc but whatever at least I have something to calibrate on):\r\n<img width=\"2952\" height=\"2952\" alt=\"scan1\" src=\"https://github.com/user-attachments/assets/4ff7ca6e-e739-43a5-a49c-dab6fd3ba62b\" />\r\n<img width=\"2952\" height=\"2952\" alt=\"scan2\" src=\"https://github.com/user-attachments/assets/c86e91e3-f718-4bf3-8ab5-38b3784b0d5e\" />\r\nThen I ran `python -m discprobe gridscan scan1.png scan2.png --dpi 600`. It takes idk 3 minutes and eats almost all 64 gigabytes of my RAM lol.\r\n\r\n`python -m discprobe gridscan scan1.png scan2.png --dpi 600\r\nscan1.png: mirrored False (scores {'design': 10.27, 'mirrored': 10.22}), rings 258/258, phi range 2.6071 deg, rms 0.4558 deg, trend -0.9956 deg over 25-55 mm, noise/ring 0.3496 deg\r\n  phi.csv and summary.json: D:\\dvd-bd-images\\disc-probe\\results\\gridscan-scan1-20261110-230240\r\nscan2.png: mirrored False (scores {'design': 10.41, 'mirrored': 10.16}), rings 258/258, phi range 2.6592 deg, rms 0.4572 deg, trend -0.9985 deg over 25-55 mm, noise/ring 0.3493 deg\r\n  phi.csv and summary.json: D:\\dvd-bd-images\\disc-probe\\results\\gridscan-scan2-20261110-230240`\r\n\r\nHere are gridscan results:\r\n[results.zip](https://github.com/user-attachments/files/34649140/results.zip)\r\n\r\nThen I ran `python -m discprobe correction results/gridscan-scan1-20261110-230240/phi.csv results/gridscan-scan2-20261110-230240/phi.csv --geo results/geo-E-20261110-220500 --output angle_correction.json`\r\n\r\n[angle_correction.json](https://github.com/user-attachments/files/34649195/angle_correction.json)\r\n\r\nThen I ran `python -m discprobe image --geo results/geo-E-20261110-220500/summary.json --picture ../lisa_dithered.png --output lisa_dithered_verbatim_scan_correction.iso --light 92 --r-max 57.9 --correction angle_correction.json`\r\n\r\nThis time it showed console output almost instantly and hang at writing 99% for 2:39 which is almost twice as fast as previous single core runs, although they used no correction and way fewer rungs.\r\n\r\nThe burned image is way better but inner 3 mm show a less but still noticeable curve and outer ~3mm where text goes appear curved too. If it can't be improved I will take it as the best result but if I can di better I will try.\r\n\r\nWhy all images generated by your script have what appears to be a ring of random data at the innermost section? I didn't add any flags to make the lead in random data. Those do not appear for DiscImageStudio images. \r\n\r\nHere's the scan of the grid I took after first correction (I regenerated the test pattern with `--correction angle_correction.json` added to the command):\r\n\r\n<img width=\"2952\" height=\"2952\" alt=\"scan_after_correction\" src=\"https://github.com/user-attachments/assets/4764cf4b-8def-4d9a-95b5-3cff9e55e29a\" />\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19528964"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r95",
+  "login": "LTVA1",
+  "date": "2026-11-11T06:44:35Z",
+  "edited": false,
+  "body": "@Ashley-QwQ today I will try to run a second calibration on this disc, maybe that would solve the edges curving",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19536489"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r96",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T14:50:52Z",
+  "edited": false,
+  "body": "@LTVA1 Thanks for the full write-up, the scans and the files! The burned picture getting much straighter after one correction is great to see. On your three questions:\n\n**The ring.** Our images don't write random data anywhere unless you pass `--random-below-mm`, so it isn't in the ISO. I looked at your first grid scan and found two rings that aren't in the design:\n\n- The dark band inside about 24 mm is the lead-in. The drive writes it on every DVD-R, before our first sector.\n- After a high-pass filter, there's a paler band about 3 mm wide, at roughly 41–44.5 mm radius. It runs right past the \"F\" mark. The grid has nothing there, only its lines and a circle every 5 mm.\n\nIs the second one the ring you mean? If it's somewhere else, a crop with the radius would help. Does the same band show up on your other burns (the rosettes, Lisa) at the same radius? On our own RITEK discs, burned in a different drive, read errors pile up at a similar radius, about 42.5–46 mm. That's roughly where half the disc is written, so my guess is the drive changes something partway through the burn. It's only a guess for now.\n\n**Slow pattern generation.** On a 12-thread machine here, a full grid ISO takes about 45 s. Nothing is printed for the first 20 s or so, while the worker processes start; each one loads its own copy of the design. It uses at most 6 workers however many cores you have, so the 32 threads shouldn't matter. If yours takes much longer than that, could you tell me how long? You can also compare with a single process:\n\n```\nset DISCPROBE_WORKERS=1\n```\n\nWe should print a line before the workers start, so it doesn't look stuck. And `gridscan` taking almost 64 GB at 600 dpi is far more than it should need. That's a bug on our side.\n\n**The curved edges.** The correction is only measured where the grid has lines, and outside that range it's held at its last value. Your first grid ended at the default 56 mm, and gridscan measured it over 25–55 mm (the \"trend over 25-55 mm\" in its output). So the outer ~3 mm of the picture, out to 57.9 mm, had no correction at all. `radius_valid_mm` in `angle_correction.json` shows the range.\n\nThe good news is that you don't need a new disc for the next step. Your scan of the corrected grid already shows what's left, and `correction --base` adds that on top of the first correction:\n\n```\npython -m discprobe gridscan scan_after_correction.png --dpi 600 --r-max 57.9\n```\n\n```\npython -m discprobe correction results/gridscan-scan_after_correction-.../phi.csv --base angle_correction.json --geo results/geo-E-20261110-220500 --output angle_correction2.json\n```\n\nUse the same `--r-max` that grid was made with (57.9 if you added it that time). Then make the picture with `--correction angle_correction2.json`. A second timing calibration probably won't straighten the edges, because the bend comes from where the correction stops, not from the timing.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19544062"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r97",
+  "login": "LTVA1",
+  "date": "2026-11-11T15:37:30Z",
+  "edited": false,
+  "body": "@Ashley-QwQ the ring I meant is probably a lead-in. Maybe it's less noticeable on DiscImageStudio burned discs.\r\n\r\nI will try the test pattern iso generation with one worker a bit later.\r\n\r\nYou wrote the corrections measures only up to the last grid line, so would a second correction actually help innermost and outermost areas? You say it probably won't so there is no way to fix those edges? ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19544903"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r98",
+  "login": "LTVA1",
+  "date": "2026-11-11T15:46:43Z",
+  "edited": false,
+  "body": "@Ashley-QwQ paler band about 3 mm wide, at roughly 41–44.5 mm radius is probably the drive's thing. I don't have any Verbatim discs with me now but the Ritek ones display a one-step small contrast change around halfway through the disc radius. ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19545060"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r99",
+  "login": "LTVA1",
+  "date": "2026-11-11T16:28:23Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I see paler band on some of other Verbatim discs but not on all of them",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19546081"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r100",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T16:28:29Z",
+  "edited": false,
+  "body": "@LTVA1 Sorry, I put that badly. Two different things:\n\n- **Another timing calibration** (`geo` again) won't help the edges. The timing is fine there; the bend comes from where the correction stops.\n- **Another grid correction** does help, as far out and in as the grid has lines. So the fix for the edges is a grid that reaches them, plus `correction --base`.\n\nOuter edge: if your second grid (the one burned with `--correction`) was made with `--r-max 57.9`, its scan already covers the outer edge. Run gridscan on it with the same `--r-max 57.9` and add the result on top with `--base angle_correction.json`. That fixes the outer 3 mm.\n\nInner edge: the grid starts at 24.5 mm, and gridscan's first usable line is around 25 mm, so nothing inside that can be measured; the correction is held at its 25 mm value there. The second pass still refits everything from 25 mm out, which should take most of the inner curve away. The last millimetre inside 25 mm will stay a little off, so keep fine details out of it.\n\nThe band at about half the radius: thanks, that's a useful match. We see read errors piling up at the same place on RITEK discs in our GH70N (about 42.5–46 mm, where half the disc is written), and a step at about the same place on your Ritek discs in your drive points to something both drives do partway through a burn rather than to the disc. Which drive model is yours, and at what speed did you burn? That would help us narrow it down.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19546084"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r101",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T16:30:45Z",
+  "edited": false,
+  "body": "@LTVA1 Our messages crossed. If only some Verbatim discs show the band, it isn't just the drive, so I take back the \"rather than the disc\" part. It may be the drive reacting to a particular disc, for example re-tuning its laser power partway through, which would differ from disc to disc. Did the discs with the band come from the same spindle as the ones without, and were they burned at the same speed? That would tell the two apart.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19546113"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r102",
+  "login": "LTVA1",
+  "date": "2026-11-11T16:38:05Z",
+  "edited": false,
+  "body": "@Ashley-QwQ yes all Verbatim discs came from the same spindle. I use gu70n for all my burned discs from the very beginning of my disc image burning experience ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19546218"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r103",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T17:39:32Z",
+  "edited": false,
+  "body": "@LTVA1 We may have found the cause of the half-radius change, at least on our setup. We burned the same picture ISO twice on the same batch of RITEK DVD-R in our GH70N:\n\n- at the drive's lowest speed (4x): 26 of 96 sampled blocks failed to read back, all of them from about a third of the way through the disc (about 39 mm) outwards; the inner part read perfectly;\n- at 8x: all 96 read back, and a dense scan from 37 to 46 mm found no failures at all.\n\nSo on our drive the slowest speed is the worst one for these texture images, and the change starts at a fixed point in the burn, not on the disc. Random data (like the measuring disc) is not affected, which is why timing still works out there.\n\nIf you can spare a disc, it would be great to know whether the same holds on your drive: burn one of your pictures at a different speed from the one that gave the paler band, and see if the band (or the contrast step on your Ritek discs) goes away. Which speed did the banded discs use?",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19547568"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r104",
+  "login": "LTVA1",
+  "date": "2026-11-11T17:56:23Z",
+  "edited": false,
+  "body": "@Ashley-QwQ \r\n```\r\nGeorg@DESKTOP-E6F4DM1 MINGW64 /d/dvd-bd-images/disc-probe (main)\r\n$ set DISCPROBE_WORKERS=1\r\n\r\nGeorg@DESKTOP-E6F4DM1 MINGW64 /d/dvd-bd-images/disc-probe (main)\r\n$ python -m discprobe image --geo results/geo-E-20261110-220500 --output iso/grid_full.iso --light 92 --r-max 57.9\r\ngrid, 0.3 mm lines, geometry u 179701.073, v 5.5511360 from results/geo-E-20261110-220500\\summary.json; 2295104 sectors (4.70 GB), dark A5, light 92\r\nFinished in 1:48\r\nVerified: sampled sectors match the design\r\n```\r\n\r\nStill made a log pause at the beginning and it took around 4 minutes, maybe I used `set DISCPROBE_WORKERS=1` the wrong way?",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19547879"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r105",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T18:01:16Z",
+  "edited": false,
+  "body": "@LTVA1 My fault: `set VAR=1` is the Windows Command Prompt way, and your prompt is Git Bash (MINGW64), where `set` does something else, so that run still used the default worker pool. In Git Bash put it in front of the command:\n\n```\nDISCPROBE_WORKERS=1 python -m discprobe image --geo results/geo-E-20261110-220500 --output iso/grid_full.iso --light 92 --r-max 57.9\n```\n\nIf you can, note how long the silent pause at the start is in both runs. That pause is where the image is prepared and the worker processes start, before the first progress line; we'll make it print a line there so it doesn't look stuck.",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19548006"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r106",
+  "login": "LTVA1",
+  "date": "2026-11-11T18:13:50Z",
+  "edited": false,
+  "body": "`Georg@DESKTOP-E6F4DM1 MINGW64 /d/dvd-bd-images/disc-probe (main)\r\n$ DISCPROBE_WORKERS=1 python -m discprobe image --geo results/geo-E-20261110-220500 --output iso/grid_full.iso --light 92 --r-max 57.9\r\ngrid, 0.3 mm lines, geometry u 179701.073, v 5.5511360 from results/geo-E-20261110-220500\\summary.json; 2295104 sectors (4.70 GB), dark A5, light 92\r\nFinished in 4:49\r\nVerified: sampled sectors match the design\r\n`\r\n\r\nIt still waited for around a minute but then the progress bar actually worked and the write process took almost 5 minutes @Ashley-QwQ ",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19548228"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r107",
+  "login": "LTVA1",
+  "date": "2026-11-11T18:31:40Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I tried burning Verbatim disc with calibration pattern at 8x speed but got error:\r\n<img width=\"1158\" height=\"294\" alt=\"изображение\" src=\"https://github.com/user-attachments/assets/898637a3-c17e-4caf-a341-b17c5d0e0a1d\" />\r\n<img width=\"2952\" height=\"2952\" alt=\"img20261111_21264328\" src=\"https://github.com/user-attachments/assets/a86210f3-1fed-45f3-b9c1-c3a21803e7cd\" />\r\nSeems like it completely lost the radial sync since radial lines aren't even there",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19548528"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r108",
+  "login": "LTVA1",
+  "date": "2026-11-11T18:51:49Z",
+  "edited": false,
+  "body": "@Ashley-QwQ I tried burning Lisa yet again after second correction but image is severely warped. Like 50 revolutions, then the warp changes direction around the middle of the disc and 50 revolutions in other direction. I used commands:\r\n\r\n` python -m discprobe gridscan scan_after_correction.png --dpi 600 --r-max 57.9 `\r\n\r\n`python -m discprobe correction results/gridscan-scan_after_correction-20261111-210245/phi.csv --base angle_correction.json --geo results/geo-E-20261110-220500 --output angle_correction2.json`\r\n\r\n`python -m discprobe image --geo results/geo-E-20261110-220500/summary.json --picture ../lisa_dithered.png --output lisa_dithered_verbatim_2nd_scan_correction.iso --light 92 --r-max 57.9 --correction angle_correction2.json`\r\n\r\nThen I burned `lisa_dithered_verbatim_2nd_scan_correction.iso` at 4x speed... And got the awful result. I assume second correction did something horribly wrong?\r\n\r\nHere are all correction results from 1st and 2nd correction\r\n[gridscans.zip](https://github.com/user-attachments/files/34701402/gridscans.zip)\r\n\r\nThere are the jsons:\r\n\r\n\r\n[angle_correction.json](https://github.com/user-attachments/files/34701424/angle_correction.json)\r\n[angle_correction2.json](https://github.com/user-attachments/files/34701425/angle_correction2.json)\r\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19548957"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r109",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T18:56:27Z",
+  "edited": false,
+  "body": "@LTVA1 Thanks for the files. I don't think the second correction is the problem:\n\n- Your scan of the grid burned with the first correction is already almost straight: across 25–55 mm the rings vary by 0.28° in total, 0.05° rms. Before the correction they varied by 2.6°.\n- So the second pass changed very little. `angle_correction2.json` differs from the first file by under 0.1° anywhere.\n- A correction file can only turn each radius by a few degrees. It can't add tens of turns of twist.\n\nTens of turns one way, then reversing around the middle of the disc, is what a geometry mismatch looks like: the disc's start radius and track pitch aren't the ones in `geo-E-20261110-220500`. A pitch that's off by a few tenths of a percent, or a start radius off by some tens of micrometres, is already tens of turns by the outer edge, and a mix of the two makes the twist change direction partway out. The same thing would explain your 8x calibration disc: with that much twist the radial lines smear into nothing, even in the part that was written before the error.\n\n`geo-E-20261110-220500` was measured on a Verbatim disc. Which discs did you burn Lisa and the 8x pattern on? If either was a Ritek, or a Verbatim from another spindle, that's very likely the cause. A quick check is to put the calibration disc and the new disc in the drive one after the other and compare the `DVD-R MID` line of\n\n```\npython -m discprobe info --drive E:\n```\n\nIf the MIDs differ, the new discs need their own `geo` run (the grid corrections then start again from that run). If they're the same, please post a scan of the Lisa disc and both `info` outputs and I'll look further.\n\nAbout the 8x error: `info` on that disc also shows how far the write got before 0xC0AA0301. Your Verbatim burns that worked earlier were at 4x, right? On our side 8x was the safer speed (RITEK discs in a GH70N), but your result shows it doesn't carry over to every disc and drive, so I'd stay at 4x for Verbatim in the GU70N.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19549055"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r110",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T18:59:11Z",
+  "edited": false,
+  "body": "@LTVA1 Two corrections to my last message, after rereading the thread:\n\n- Your Verbatim discs are DVD+R, so `info` prints the line as `DVD+R MID`, not `DVD-R MID`. Compare whichever MID line it shows.\n- The 8x screenshot already answers part of it: `Media type 9` is IMAPI's code for DVD-R, and that disc has 2,297,888 sectors. Your Verbatim calibration disc is DVD+R with 2,295,104 sectors, which is exactly the size of the ISO. So the 8x disc was a DVD-R, most likely one of the Ritek ones, burned with the Verbatim geometry. That alone explains the missing radial lines, and the write error is a separate question about 8x on that disc. So my \"stay at 4x for Verbatim\" was aimed at the wrong disc: it was a DVD-R that failed at 8x.\n\nIf Lisa also went onto a Ritek, it needs a `geo` run on a Ritek disc first. Both corrections were measured on Verbatim grids, so they belong to the Verbatim geometry and won't carry over.\n\nAnd on the pause: your single-worker run still sat silent for about a minute, so I was wrong that the pause is the workers starting. It's the preparation before any sector is written. With workers the whole run went from 4:49 to 1:48, so they do help. We've written a change that prints a line when preparation starts, so it won't look stuck. I'll tell you when it's pushed.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19549108"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r111",
+  "login": "LTVA1",
+  "date": "2026-11-11T19:02:45Z",
+  "edited": false,
+  "body": "@Ashley-QwQ damn you are right! They were on the same spindle but those are different discs. both verbatim but upper ones I used are DVD+R and lower are DVD-R. Other than that their face side looks completely identical. I will calibrate with `geo` again",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19549205"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r112",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T19:03:45Z",
+  "edited": false,
+  "body": "@LTVA1 Glad that's found! A spindle with both kinds is a sneaky one (´∀｀) For the DVD-R ones:\n\n- Run `geo` on one of them, then burn a grid with that new result and scan it. The two corrections you have belong to the DVD+R geometry, so start the DVD-R corrections fresh, without `--base`.\n- Speed: your DVD-R failed partway at 8x, so try 4x on the next one. If `info` on the failed disc shows where the write stopped, I'd still like to see it.\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19549235"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r113",
+  "login": "LTVA1",
+  "date": "2026-11-11T19:06:20Z",
+  "edited": false,
+  "body": "@Ashley-QwQ info on failed discs just hangs without printing anything",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19549307"
+ },
+ {
+  "thread": "D108",
+  "title": "【实验中】能在光盘数据面刻出指定颜色吗？ / [Experimental] Can we burn chosen colours on the data side of a disc?",
+  "where": "c18.r114",
+  "login": "Ashley-QwQ",
+  "date": "2026-11-11T19:07:46Z",
+  "edited": false,
+  "body": "@LTVA1 Then skip it, the failed disc isn't worth more of your evening. Ctrl+C is safe there: `info` only sends read commands. Hanging without a word is still a bug on our side, though. It should give up after a while and say the drive isn't answering. Roughly how long did you leave it before stopping it?\n",
+  "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19549344"
+ }
+]

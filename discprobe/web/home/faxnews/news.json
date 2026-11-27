@@ -1,0 +1,63 @@
+{
+  "format": "dp-fax-news",
+  "version": 1,
+  "sample": true,
+  "date": "2026-11-14",
+  "release": {
+    "version": "1.0.0.0-alpha",
+    "date": "2026-11-15",
+    "headline": {"zh": "DP 1.0.0.0-alpha 周日见报", "en": "DP 1.0.0.0-alpha goes to press on Sunday"},
+    "summary": {"zh": "第一个公开测试版：量盘、作画、刻录一条路走通，手机可以直接把照片传给电脑。", "en": "The first public test build: measure, draw and burn in one path, and phones send their photos straight to the computer."},
+    "url": "https://github.com/Ashley-QwQ/disc-probe/releases"
+  },
+  "changelog": [
+    {"version": "0.1.2.1", "date": "2026-11-13",
+     "title": {"zh": "主路径打通：图画进实测的环带里", "en": "Main path open: the picture goes into the measured ring"},
+     "story": {"zh": "本报讯　新作品现在把图片排进 geo 实测出的那一圈里，geo 从 1% 到 98% 都报进度。另附一张检查盘和它的照片，刻完拿来对照。", "en": "Our correspondent reports: new work now lays the picture into the ring that geo measured, and geo reports progress from 1 % to 98 %. A check disc and its photos come with it, to compare after burning."}},
+    {"version": "0.1.2.0", "date": "2026-11-12",
+     "title": {"zh": "往期作品搬进文件盒", "en": "Past works move into the file box"},
+     "story": {"zh": "本报讯　大厅的文件盒能点了。点进去是一张报告单：每件作品刻在哪张盘、用了什么参数、读回来怎样，一页看完。", "en": "The lobby's file box opens now: a report sheet with every work, the disc it went on, its settings and how it read back, on one page."}},
+    {"version": "0.1.1.9", "date": "2026-11-11",
+     "title": {"zh": "桌上来了信件托盘和地毯", "en": "A letter tray and a rug arrive on the desk"},
+     "story": {"zh": "本报讯　导入导出改成一只两层的信件托盘，旁边立一张桌签；桌下铺了一条长地毯，每天换一句问候。", "en": "Import and export became a two-tier letter tray with a tent card; a long rug now runs under the desk with a new greeting every day."}}
+  ],
+  "skins": [
+    {"id": "kraft-office", "name": {"zh": "牛皮纸办公室", "en": "Kraft Office"},
+     "pitch": {"zh": "全新上市！把整张桌子换成牛皮纸色，铜色按钮更亮一点。耐看、耐脏、不伤眼。", "en": "New! The whole desk in kraft brown, the copper buttons a shade brighter. Easy on the eyes, hides the coffee rings."},
+     "price": {"zh": "免费 · 包邮", "en": "Free · free delivery"},
+     "swatches": ["#d0c0a2", "#a8693c", "#2b2924"], "package": "skins/kraft-office.json", "size_kb": 1},
+    {"id": "night-blueprint", "name": {"zh": "夜班蓝图", "en": "Night Blueprint"},
+     "pitch": {"zh": "熬夜刻盘的你值得拥有！深蓝底、白线条，像一张工程图。附赠：不晃眼的琥珀色。", "en": "For the late-night burner! Deep blue, white lines, like an engineering drawing. Bonus: an amber that won't glare."},
+     "price": {"zh": "免费 · 包邮", "en": "Free · free delivery"},
+     "swatches": ["#1d2b3a", "#e8eef2", "#d9a75c"], "package": "skins/night-blueprint.json", "size_kb": 1}
+  ],
+  "backgrounds": [
+    {"name": {"zh": "菱格", "en": "Diamonds"}, "note": {"zh": "斜 30°，两种材质交替", "en": "Turned 30°, two materials in turn"},
+     "pattern": {"pattern": "diamond", "coordinates": "cartesian", "pitch_mm": 6, "size_mm": 1.4, "angle_deg": 30}},
+    {"name": {"zh": "圆点", "en": "Dots"}, "note": {"zh": "极坐标排布，越往外越疏", "en": "Laid out in polar rings"},
+     "pattern": {"pattern": "dots", "coordinates": "polar", "pitch_mm": 5, "size_mm": 1.8, "angle_deg": 0}},
+    {"name": {"zh": "条纹", "en": "Stripes"}, "note": {"zh": "最省事的背景，刻错也看得出来", "en": "The simplest background; a wrong preset shows at once"},
+     "pattern": {"pattern": "stripes", "coordinates": "cartesian", "pitch_mm": 4, "size_mm": 1.2, "angle_deg": -20}}
+  ],
+  "artworks": [
+    {"title": {"zh": "玫瑰", "en": "Roses"}, "image": "art/roses.webp", "by": "DP", "disc": "RITEKF1 DVD-R",
+     "caption": {"zh": "一张 DVD-R 上刻图又存了 1.38 GB 数据，读回来没有错。颜色随角度变。", "en": "A picture plus 1.38 GB of data on one DVD-R, read back without an error. The colour changes with the angle."}},
+    {"title": {"zh": "清明上河图", "en": "Along the River"}, "image": "art/qingming.webp", "by": "DP", "disc": "DVD-R",
+     "caption": {"zh": "整卷排成内外两圈。", "en": "The whole scroll in two rings."}},
+    {"title": {"zh": "读者来稿：Memorex CD-R", "en": "From a reader: Memorex CD-R"}, "image": "art/pugod124.webp", "by": "pugod124", "disc": "Memorex CD-R",
+     "caption": {"zh": "先用 geo，再在 DiscImageStudio 里精修。经作者同意刊登。", "en": "geo first, then fine calibration in DiscImageStudio. Printed with the author's permission."}}
+  ],
+  "jokes": [
+    {"zh": "问：光盘为什么从不迷路？答：它一直沿着轨道走。", "en": "Why does a disc never get lost? It always stays on track."},
+    {"zh": "刻录机对空白盘说：别紧张，我只是想在你身上留下一点数据。", "en": "The burner to the blank disc: relax, I just want to leave a little data on you."},
+    {"zh": "我的光驱很有礼貌：每次弹出来都先打个招呼——咔哒。", "en": "My drive is very polite: every time it pops out, it says click first."},
+    {"zh": "CD 问 DVD：你怎么装下那么多东西？DVD：轨距收紧一点就好。", "en": "CD asked DVD how it holds so much. DVD: just tighten your track pitch."},
+    {"zh": "这台传真机只收不发。它说：我是个好听众。", "en": "This fax only receives. It says it is a good listener."},
+    {"zh": "刻坏的盘也有用：可以当杯垫，还能顺便看彩虹。", "en": "A failed burn still has uses: a coaster with a rainbow."}
+  ],
+  "coming": [
+    {"title": {"zh": "手机直传", "en": "Straight from the phone"}, "note": {"zh": "拍完照片直接传进电脑，不用数据线。", "en": "Photos go from the phone to the computer, no cable."}},
+    {"title": {"zh": "皮肤试穿", "en": "Try on a skin"}, "note": {"zh": "包裹拆开就能换上，不喜欢再换回来。", "en": "Open the parcel and wear it; switch back if you don't like it."}},
+    {"title": {"zh": "实时 3D 的大厅", "en": "A lobby in real-time 3D"}, "note": {"zh": "还是这张桌子，只是能转一转。", "en": "The same desk, only you can turn it."}}
+  ]
+}

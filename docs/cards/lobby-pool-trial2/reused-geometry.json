@@ -1,0 +1,14 @@
+{
+  "scene-inspection.json": {
+    "source": "F:\\dp-archive\\tmp\\lobbypool\\trial\\scene-inspection.json",
+    "sha256": "02b2c1815cc7a57fc13d765cbd2ee9f42c70875107a446f89513a04db427e691"
+  },
+  "desk-coverage.npy": {
+    "source": "F:\\dp-archive\\tmp\\lobbypool\\trial\\desk-coverage.npy",
+    "sha256": "c2913a5ec737dc68da660c9b0e40149c42a059efaa57c65633fed242efd18d5b"
+  },
+  "drive-top-polygons.json": {
+    "source": "F:\\dp-archive\\tmp\\lobbypool\\trial\\drive-top-polygons.json",
+    "sha256": "e9955cc120b88fcb44b2ab6fcc2efd427f8bab56bb828b833f5b8894ce0c6c78"
+  }
+}

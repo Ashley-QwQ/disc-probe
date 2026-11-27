@@ -1,0 +1,728 @@
+{
+  "experiment_seed": [
+    20261113,
+    "disc_index"
+  ],
+  "flash_default_mm": [
+    -43.66,
+    19.79
+  ],
+  "false_accept_strict_threshold_mm": 0.326,
+  "prior_session_geometry_reused": true,
+  "reader_source": "main-path/discprobe",
+  "reader_hashes": {
+    "photo.py": "3674ffd0dbfb3c2291f601f0278aaf4de0ffef580b00f2f4cc25c917f0183d80",
+    "pcal.py": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+    "checkdisc.py": "04b7250271228f77d8fffd30c58b0452e3c56d3eb476484c64cbacbc5e893eca",
+    "imagedisc.py": "a22d6be0cc0d17efa40bf2eeee5bdc585d9901a7ccdaa4f23bd147bc18f4a228"
+  },
+  "experiments": {
+    "checkApple": {
+      "summary": {
+        "photos": 12,
+        "accepted": 4,
+        "accept_rate": 0.3333333333333333,
+        "false_accepts": 0,
+        "accepted_mae_mm": 0.08621115199078422,
+        "accepted_max_mm": 0.18482662216328646,
+        "statuses": {
+          "ok": 4,
+          "poor_angle_coverage": 2,
+          "too_few_votes": 4,
+          "no_rim": 2
+        },
+        "groups": 2,
+        "groups_applied": 1,
+        "group_false_applied": 0,
+        "group_abs_err_mm": [
+          0.1528
+        ],
+        "reasons": {
+          "LAB-A 1-03": "one_photo_provisional"
+        }
+      },
+      "rows": [
+        {
+          "target": "LAB-A 1-02",
+          "truth": {
+            "c_deg": -0.4644731937743887,
+            "L_mm": 0.19021829055710976,
+            "rms_deg": 0.07328713287086999,
+            "pp_deg": 0.29504566906037016,
+            "residual_after_L_rms_deg": 0.036051677295091976,
+            "residual_after_L_pp_deg": 0.14051376148080066
+          },
+          "verdict": "ok",
+          "applied_L_mm": 0.037455856647305975,
+          "applied_err_mm": -0.1527624339098038,
+          "reason": null,
+          "photos": [
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-02/IMG_0_0.jpg",
+              "status": "ok",
+              "L_mm": 0.005391668393823295,
+              "err_mm": -0.18482662216328646,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "c11c7e39d405c16d054c88e73e6d571ff8df1a3898ceda6ba502db856d402089"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-02/IMG_0_1.jpg",
+              "status": "poor_angle_coverage",
+              "L_mm": 0.1743151551513215,
+              "err_mm": -0.01590313540578825,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "f31d2bcee554ff86e0dc382b8cb46d8708355757ef5b1da6b8508ed82ae6cbee"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-02/IMG_0_2.jpg",
+              "status": "ok",
+              "L_mm": 0.13222244190122315,
+              "err_mm": -0.05799584865588661,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "339abc80a37e3085fc4c510447c5da859c57f2c3271cf26a248721c9ce0cbce2"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-02/IMG_0_3.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "7f15a16ee61bcfc46941787da59e0cb563bbad4237b308edb8f88a44c01b5478"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-02/IMG_0_4.jpg",
+              "status": "ok",
+              "L_mm": 0.0893303971160997,
+              "err_mm": -0.10088789344101005,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "ed9d019421eb2fbba2a3921fcab9b7e42e27ebc31482db2dc06efddb795da040"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-02/IMG_0_5.jpg",
+              "status": "poor_angle_coverage",
+              "L_mm": -1.1245519659062686,
+              "err_mm": -1.3147702564633783,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "2a52a49121eb1e46e73805abc976f18bb051a6d43dd37d4ff1b9e0710a1026ed"
+            }
+          ]
+        },
+        {
+          "target": "LAB-A 1-03",
+          "truth": {
+            "c_deg": -0.4645833837618822,
+            "L_mm": 0.1895018323771815,
+            "rms_deg": 0.07307712451912357,
+            "pp_deg": 0.2941862110241999,
+            "residual_after_L_rms_deg": 0.036049923155330885,
+            "residual_after_L_pp_deg": 0.14050830831349073
+          },
+          "verdict": "unsure",
+          "applied_L_mm": null,
+          "applied_err_mm": null,
+          "reason": "one_photo_provisional",
+          "photos": [
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-03/IMG_1_0.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "bbf5318a97ee1cba13b6bd2412428264a4748c0d09e9b8efdcd3dd5cbb8b35ec"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-03/IMG_1_1.jpg",
+              "status": "ok",
+              "L_mm": 0.18836758867422776,
+              "err_mm": -0.00113424370295373,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "62c2563bcb9596562a52e8ad5791cf5d15a998055d5cce83cf2311f5c0069fa2"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-03/IMG_1_2.jpg",
+              "status": "no_rim",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "6c899d3e62a09f33d5b41785a34169294533b453f2c1eead0621884c148407f3"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-03/IMG_1_3.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "4fdcd8e727d8766e73e306aa068573218fc23938ff73eb095c632cd6a46cbcb1"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-03/IMG_1_4.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "aec07171a1eb0db45bf72bd1c6105b9e7a199a3819d5c46366dc364eb5e80959"
+            },
+            {
+              "name": "lab/photos/checkApple/LAB-A_1-03/IMG_1_5.jpg",
+              "status": "no_rim",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "a9a0a254a95e6915f2848e877d269a931326de82b47d4026be0f48ae98ad0660"
+            }
+          ]
+        }
+      ]
+    },
+    "check34": {
+      "summary": {
+        "photos": 12,
+        "accepted": 4,
+        "accept_rate": 0.3333333333333333,
+        "false_accepts": 0,
+        "accepted_mae_mm": 0.08621115199078422,
+        "accepted_max_mm": 0.18482662216328646,
+        "statuses": {
+          "ok": 4,
+          "poor_angle_coverage": 2,
+          "too_few_votes": 4,
+          "no_rim": 2
+        },
+        "groups": 2,
+        "groups_applied": 1,
+        "group_false_applied": 0,
+        "group_abs_err_mm": [
+          0.1528
+        ],
+        "reasons": {
+          "LAB-A 1-03": "one_photo_provisional"
+        }
+      },
+      "rows": [
+        {
+          "target": "LAB-A 1-02",
+          "truth": {
+            "c_deg": -0.4644731937743887,
+            "L_mm": 0.19021829055710976,
+            "rms_deg": 0.07328713287086999,
+            "pp_deg": 0.29504566906037016,
+            "residual_after_L_rms_deg": 0.036051677295091976,
+            "residual_after_L_pp_deg": 0.14051376148080066
+          },
+          "verdict": "ok",
+          "applied_L_mm": 0.037455856647305975,
+          "applied_err_mm": -0.1527624339098038,
+          "reason": null,
+          "photos": [
+            {
+              "name": "lab/photos/check34/LAB-A_1-02/IMG_0_0.jpg",
+              "status": "ok",
+              "L_mm": 0.005391668393823295,
+              "err_mm": -0.18482662216328646,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "c11c7e39d405c16d054c88e73e6d571ff8df1a3898ceda6ba502db856d402089"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-02/IMG_0_1.jpg",
+              "status": "poor_angle_coverage",
+              "L_mm": 0.1743151551513215,
+              "err_mm": -0.01590313540578825,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "f31d2bcee554ff86e0dc382b8cb46d8708355757ef5b1da6b8508ed82ae6cbee"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-02/IMG_0_2.jpg",
+              "status": "ok",
+              "L_mm": 0.13222244190122315,
+              "err_mm": -0.05799584865588661,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "339abc80a37e3085fc4c510447c5da859c57f2c3271cf26a248721c9ce0cbce2"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-02/IMG_0_3.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "7f15a16ee61bcfc46941787da59e0cb563bbad4237b308edb8f88a44c01b5478"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-02/IMG_0_4.jpg",
+              "status": "ok",
+              "L_mm": 0.0893303971160997,
+              "err_mm": -0.10088789344101005,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "ed9d019421eb2fbba2a3921fcab9b7e42e27ebc31482db2dc06efddb795da040"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-02/IMG_0_5.jpg",
+              "status": "poor_angle_coverage",
+              "L_mm": -1.1245519659062686,
+              "err_mm": -1.3147702564633783,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "2a52a49121eb1e46e73805abc976f18bb051a6d43dd37d4ff1b9e0710a1026ed"
+            }
+          ]
+        },
+        {
+          "target": "LAB-A 1-03",
+          "truth": {
+            "c_deg": -0.4645833837618822,
+            "L_mm": 0.1895018323771815,
+            "rms_deg": 0.07307712451912357,
+            "pp_deg": 0.2941862110241999,
+            "residual_after_L_rms_deg": 0.036049923155330885,
+            "residual_after_L_pp_deg": 0.14050830831349073
+          },
+          "verdict": "unsure",
+          "applied_L_mm": null,
+          "applied_err_mm": null,
+          "reason": "one_photo_provisional",
+          "photos": [
+            {
+              "name": "lab/photos/check34/LAB-A_1-03/IMG_1_0.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "bbf5318a97ee1cba13b6bd2412428264a4748c0d09e9b8efdcd3dd5cbb8b35ec"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-03/IMG_1_1.jpg",
+              "status": "ok",
+              "L_mm": 0.18836758867422776,
+              "err_mm": -0.00113424370295373,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "62c2563bcb9596562a52e8ad5791cf5d15a998055d5cce83cf2311f5c0069fa2"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-03/IMG_1_2.jpg",
+              "status": "no_rim",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "6c899d3e62a09f33d5b41785a34169294533b453f2c1eead0621884c148407f3"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-03/IMG_1_3.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "4fdcd8e727d8766e73e306aa068573218fc23938ff73eb095c632cd6a46cbcb1"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-03/IMG_1_4.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "aec07171a1eb0db45bf72bd1c6105b9e7a199a3819d5c46366dc364eb5e80959"
+            },
+            {
+              "name": "lab/photos/check34/LAB-A_1-03/IMG_1_5.jpg",
+              "status": "no_rim",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "a9a0a254a95e6915f2848e877d269a931326de82b47d4026be0f48ae98ad0660"
+            }
+          ]
+        }
+      ]
+    },
+    "simpleApple": {
+      "summary": {
+        "photos": 12,
+        "accepted": 9,
+        "accept_rate": 0.75,
+        "false_accepts": 0,
+        "accepted_mae_mm": 0.051924024788781296,
+        "accepted_max_mm": 0.13828666637200243,
+        "statuses": {
+          "ok": 9,
+          "poor_angle_coverage": 1,
+          "too_few_votes": 2
+        },
+        "groups": 2,
+        "groups_applied": 1,
+        "group_false_applied": 0,
+        "group_abs_err_mm": [
+          0.0247
+        ],
+        "reasons": {
+          "LAB-A 1-02": "ambiguous_majority"
+        }
+      },
+      "rows": [
+        {
+          "target": "LAB-A 1-02",
+          "truth": {
+            "c_deg": -0.4644731937743887,
+            "L_mm": 0.19021829055710976,
+            "rms_deg": 0.07328713287086999,
+            "pp_deg": 0.29504566906037016,
+            "residual_after_L_rms_deg": 0.036051677295091976,
+            "residual_after_L_pp_deg": 0.14051376148080066
+          },
+          "verdict": "unsure",
+          "applied_L_mm": null,
+          "applied_err_mm": null,
+          "reason": "ambiguous_majority",
+          "photos": [
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-02/IMG_0_0.jpg",
+              "status": "ok",
+              "L_mm": 0.051931624185107314,
+              "err_mm": -0.13828666637200243,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "81ac6921bd0a47474ca0970415d5c8564807adfefb28513174d0671d5cfd5841"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-02/IMG_0_1.jpg",
+              "status": "poor_angle_coverage",
+              "L_mm": 0.32218414804609735,
+              "err_mm": 0.1319658574889876,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "5b8759fdd642fd720463b54a3598b0101045b6b700865eeddbeb5f2b753d8fcd"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-02/IMG_0_2.jpg",
+              "status": "ok",
+              "L_mm": 0.23354016251533627,
+              "err_mm": 0.04332187195822651,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "7fa569a0588b7fed00138de349d9636d7756e759580b73bf7c4836aadc091a0d"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-02/IMG_0_3.jpg",
+              "status": "ok",
+              "L_mm": 0.2138929978149556,
+              "err_mm": 0.023674707257845845,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "70e123b661e5dd9b08127f3d1d72f7282845a98f43cee8dc9f9b4af73f0fe876"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-02/IMG_0_4.jpg",
+              "status": "ok",
+              "L_mm": 0.13356013888268572,
+              "err_mm": -0.056658151674424034,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "b182f6b4cea42f1b0e5721fb3c481c6d3ffe6a1d421c11cb7dfd20b4ecd5cae7"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-02/IMG_0_5.jpg",
+              "status": "ok",
+              "L_mm": 0.1437513072646997,
+              "err_mm": -0.04646698329241006,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "badca66d864c4ab9ea63e088e622a60cacca9a31bde2ad1e154a3c690ecbd37b"
+            }
+          ]
+        },
+        {
+          "target": "LAB-A 1-03",
+          "truth": {
+            "c_deg": -0.4645833837618822,
+            "L_mm": 0.1895018323771815,
+            "rms_deg": 0.07307712451912357,
+            "pp_deg": 0.2941862110241999,
+            "residual_after_L_rms_deg": 0.036049923155330885,
+            "residual_after_L_pp_deg": 0.14050830831349073
+          },
+          "verdict": "ok",
+          "applied_L_mm": 0.1648398425615457,
+          "applied_err_mm": -0.024661989815635776,
+          "reason": null,
+          "photos": [
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-03/IMG_1_0.jpg",
+              "status": "ok",
+              "L_mm": 0.14562443985171958,
+              "err_mm": -0.04387739252546191,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "2e3a1aa146e594a0ac101d9e25254a779c52ada1f5c6c66b0091d6b0207eb359"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-03/IMG_1_1.jpg",
+              "status": "ok",
+              "L_mm": 0.16768367769089385,
+              "err_mm": -0.021818154686287644,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "83657b49503b1d305022cd6f3e286828cf5c860436b7389ba63d10351a1fddf2"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-03/IMG_1_2.jpg",
+              "status": "ok",
+              "L_mm": 0.15071639413975677,
+              "err_mm": -0.038785438237424724,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "368c68fd8877485ade1540b8a039eb713607d225aed5bf587a3bcec8cdaa6cef"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-03/IMG_1_3.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "f624ca6f4290bcc33eac483096ea659175d1fc472d5eeb2bde7feb25ce3b9933"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-03/IMG_1_4.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "a35555803ab7fa7d2c9d4a21dea235351ef699d4dc44186a9ec8e88a246ed78f"
+            },
+            {
+              "name": "lab/photos/simpleApple/LAB-A_1-03/IMG_1_5.jpg",
+              "status": "ok",
+              "L_mm": 0.24392868947213,
+              "err_mm": 0.054426857094948516,
+              "false_accept": false,
+              "light": "lamp",
+              "sha256": "0b8d91f7e50c256f1df977a07746e37b68c3c752f25bbc0738bd15fa3bb843f0"
+            }
+          ]
+        }
+      ]
+    },
+    "flashApple": {
+      "summary": {
+        "photos": 4,
+        "accepted": 1,
+        "accept_rate": 0.25,
+        "false_accepts": 0,
+        "accepted_mae_mm": 0.018920497280097787,
+        "accepted_max_mm": 0.018920497280097787,
+        "statuses": {
+          "ok": 1,
+          "poor_angle_coverage": 1,
+          "poor_radius_coverage": 1,
+          "too_few_votes": 1
+        },
+        "groups": 2,
+        "groups_applied": 0,
+        "group_false_applied": 0,
+        "group_abs_err_mm": [],
+        "reasons": {
+          "LAB-A 1-02": "one_photo_provisional",
+          "LAB-A 1-03": "no_accepted_photos"
+        }
+      },
+      "rows": [
+        {
+          "target": "LAB-A 1-02",
+          "truth": {
+            "c_deg": -0.4644731937743887,
+            "L_mm": 0.19021829055710976,
+            "rms_deg": 0.07328713287086999,
+            "pp_deg": 0.29504566906037016,
+            "residual_after_L_rms_deg": 0.036051677295091976,
+            "residual_after_L_pp_deg": 0.14051376148080066
+          },
+          "verdict": "unsure",
+          "applied_L_mm": null,
+          "applied_err_mm": null,
+          "reason": "one_photo_provisional",
+          "photos": [
+            {
+              "name": "lab/photos/flashApple/LAB-A_1-02/IMG_0_0.jpg",
+              "status": "ok",
+              "L_mm": 0.17129779327701197,
+              "err_mm": -0.018920497280097787,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "23d61b10659419fb79979da2936bfc74d9f80304a46b137909d0afbff0de4c67"
+            },
+            {
+              "name": "lab/photos/flashApple/LAB-A_1-02/IMG_0_1.jpg",
+              "status": "poor_angle_coverage",
+              "L_mm": 0.13610461501109816,
+              "err_mm": -0.0541136755460116,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "798a16b23a08a395a02f9b196a1406c6bb51aac7f30d1795c1133c2e9bb1c4c5"
+            }
+          ]
+        },
+        {
+          "target": "LAB-A 1-03",
+          "truth": {
+            "c_deg": -0.4645833837618822,
+            "L_mm": 0.1895018323771815,
+            "rms_deg": 0.07307712451912357,
+            "pp_deg": 0.2941862110241999,
+            "residual_after_L_rms_deg": 0.036049923155330885,
+            "residual_after_L_pp_deg": 0.14050830831349073
+          },
+          "verdict": "unsure",
+          "applied_L_mm": null,
+          "applied_err_mm": null,
+          "reason": "no_accepted_photos",
+          "photos": [
+            {
+              "name": "lab/photos/flashApple/LAB-A_1-03/IMG_1_0.jpg",
+              "status": "poor_radius_coverage",
+              "L_mm": -0.11616609172189635,
+              "err_mm": -0.30566792409907784,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "714ebfdc0aeba154adf0823782df4418ab52018524139197f136ad96d500337b"
+            },
+            {
+              "name": "lab/photos/flashApple/LAB-A_1-03/IMG_1_1.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "7706493f1f70acfe8d23b0c80f3db2d07af8e50080eefaa59696e7b34b6f8970"
+            }
+          ]
+        }
+      ]
+    },
+    "flash34": {
+      "summary": {
+        "photos": 4,
+        "accepted": 2,
+        "accept_rate": 0.5,
+        "false_accepts": 0,
+        "accepted_mae_mm": 0.1851297886645874,
+        "accepted_max_mm": 0.2501810508172823,
+        "statuses": {
+          "poor_angle_coverage": 1,
+          "ok": 2,
+          "too_few_votes": 1
+        },
+        "groups": 2,
+        "groups_applied": 0,
+        "group_false_applied": 0,
+        "group_abs_err_mm": [],
+        "reasons": {
+          "LAB-A 1-02": "one_photo_provisional",
+          "LAB-A 1-03": "one_photo_provisional"
+        }
+      },
+      "rows": [
+        {
+          "target": "LAB-A 1-02",
+          "truth": {
+            "c_deg": -0.4644731937743887,
+            "L_mm": 0.19021829055710976,
+            "rms_deg": 0.07328713287086999,
+            "pp_deg": 0.29504566906037016,
+            "residual_after_L_rms_deg": 0.036051677295091976,
+            "residual_after_L_pp_deg": 0.14051376148080066
+          },
+          "verdict": "unsure",
+          "applied_L_mm": null,
+          "applied_err_mm": null,
+          "reason": "one_photo_provisional",
+          "photos": [
+            {
+              "name": "lab/photos/flash34/LAB-A_1-02/IMG_0_0.jpg",
+              "status": "poor_angle_coverage",
+              "L_mm": 0.17474429463826827,
+              "err_mm": -0.015473995918841493,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "8c206260a333429bdf1882ef499611e3ab9f3d3be89a2d46e8b112cd67c85513"
+            },
+            {
+              "name": "lab/photos/flash34/LAB-A_1-02/IMG_0_1.jpg",
+              "status": "ok",
+              "L_mm": -0.05996276026017253,
+              "err_mm": -0.2501810508172823,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "b8efed9db58545602a9fdc8de48d989192967be73b9adfa57494a77ec250b499"
+            }
+          ]
+        },
+        {
+          "target": "LAB-A 1-03",
+          "truth": {
+            "c_deg": -0.4645833837618822,
+            "L_mm": 0.1895018323771815,
+            "rms_deg": 0.07307712451912357,
+            "pp_deg": 0.2941862110241999,
+            "residual_after_L_rms_deg": 0.036049923155330885,
+            "residual_after_L_pp_deg": 0.14050830831349073
+          },
+          "verdict": "unsure",
+          "applied_L_mm": null,
+          "applied_err_mm": null,
+          "reason": "one_photo_provisional",
+          "photos": [
+            {
+              "name": "lab/photos/flash34/LAB-A_1-03/IMG_1_0.jpg",
+              "status": "too_few_votes",
+              "L_mm": null,
+              "err_mm": null,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "502323ba69cfca8368d6c885f62f1ebe3baa109a87169dfff0171130f6beed07"
+            },
+            {
+              "name": "lab/photos/flash34/LAB-A_1-03/IMG_1_1.jpg",
+              "status": "ok",
+              "L_mm": 0.069423305865289,
+              "err_mm": -0.12007852651189249,
+              "false_accept": false,
+              "light": "flash",
+              "sha256": "d01eefac5c7c2b964c0af65953e16ac6a49b73ee5b6ddd1f7b824d7291ec517a"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "real_pcal_c": {
+    "source": "docs/goals/pcal-2026-11-12/run/photo.json",
+    "sha256": "309ec2e037589d77ed3326f24f267a57df9f8229643c18f64b6436e9351c991e",
+    "accepted": 6,
+    "total": 11,
+    "offset_mm": 0.1632654120890172,
+    "error_mm": null,
+    "false_accepts": null,
+    "note": "Historical reader output; not reread; independent physical L truth unknown"
+  }
+}

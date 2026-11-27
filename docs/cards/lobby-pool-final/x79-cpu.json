@@ -1,0 +1,6 @@
+{
+  "machine": "x79",
+  "avx": true,
+  "avx2": false,
+  "model": "Xeon E5-2667 v2"
+}

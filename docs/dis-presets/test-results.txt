@@ -1,0 +1,95 @@
+﻿DIS presets final verification — 2026-11-12
+Branch: core/dis-presets-20261112
+Environment: TEMP and TMP point to worktree/.test-temp; PYTHONDONTWRITEBYTECODE=1; PYTHONIOENCODING=utf-8
+
+Command: python -m pytest -q tests
+Exit: 0
+........................................................................ [ 23%]
+.................................................................... [ 44%]
+.............................s.......................................... [ 67%]
+..................................................................... [ 89%]
+................................  [100%]
+312 passed, 1 skipped, 46 subtests passed in 163.62s (0:02:43)
+
+Skip: tests/test_photo.py:329 — original sealed-test JPGs IMG_7497..7509 unavailable.
+Command: node <each tests/*.mjs and tests/*.cjs>, 18 files
+Exit: 0 for all 18 files
+
+test_along_track_stamp.mjs exit=0
+Saved photo L and refusal stamps passed in zh and en
+test_burn_page.cjs exit=0
+Burn page recorded-event checks passed
+test_calchart.mjs exit=0
+PASS empty input and accessible SVG shell
+PASS one point has an open circle and sigma bars but no fit
+PASS unordered points: exact linear fit ends at measured endpoints
+PASS weighted least squares and sigma floor affect the fitted values
+PASS hatched band uses median sigma and is clipped to the plot
+PASS head at 40: dashed boundary and centred unread label
+PASS endpoint markers have clip clearance beyond both radius endpoints
+PASS null head uses largest measured radius and respects 57 mm cutoff
+PASS result radii use squared-radius LBA mapping and exact span ends
+PASS result without span uses linear LBA mapping and sector labels
+PASS stopped results mark the remaining region, including near the edge
+PASS pattern and clip ids are unique across live and result charts
+PASS nonfinite and invalid points are skipped, including result LBAs
+PASS duplicate radii and single-LBA results have no singular fit
+PASS symmetric nicely rounded axes, themes and English labels
+Calibration chart tests passed (15 cases)
+test_geo_progress.mjs exit=0
+Web progress bounds passed
+test_geo_unsteady.mjs exit=0
+Fixed calibration speed and merged avoided-radius arguments passed
+test_kit_browser.mjs exit=0
+UI kit browser integration passed (1360,1000; file URLs, synthetic events)
+UI kit browser integration passed (390,844; file URLs, synthetic events)
+test_kit_pure.mjs exit=0
+UI kit pure helpers passed
+test_lobby_state.mjs exit=0
+Lobby state: bilingual states, unknown blankness, job precedence and drive selection passed.
+test_lobby_weekday.mjs exit=0
+Lobby weekday: both languages, local midnight and DST passed
+test_pastworks.mjs exit=0
+Past works sorting, depth, continuous fall, repeat timing and back order passed
+test_pastworks_browser.mjs exit=0
+Past works browser integration passed (1440px, file URLs)
+Past works browser integration passed (390px, file URLs)
+PASS: real lobby capture entry, return focus and new work
+test_perf2_processing.mjs exit=0
+PASS: 36 frozen processing hashes, packed decisions, and diffusion carry
+test_photo_wire.mjs exit=0
+Photo routing, contract jobs, polling lifecycle, verdicts, saved L and 404 fallback passed
+test_photo_wire_browser.mjs exit=0
+✔ photo flow in Chromium: paper, keys, polling, verdicts, upload and fallback (6328.0925ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7749.5391
+test_photocal.mjs exit=0
+Photo calibration geometry, transforms, magnifier and focus handling passed
+test_presetio.mjs exit=0
+presetio pure logic passed
+test_presetio_browser.mjs exit=0
+presetio browser passed: desktop (mock API, file URL)
+presetio browser passed: mobile (mock API, file URL)
+test_web_guidance.mjs exit=0
+Bilingual recovery, budget and failed-job tests passed
+
+Command: python -m tools.analyze_dis_presets
+Exit: 0; output: angle-audit.json
+DP -> DIS -> DP final max degrees: CD 0.0001841830383; DVD 0.0007149506152; BD 1.782145141e-08
+Max map-checked leg degrees: CD 0.0005313135153; DVD 0.001328798848; BD 0.002572104569
+Tolerance: 0.003 degrees; 20,001 full-area sector positions, 40,001-radius grid.
+
+Command: git diff --check
+Exit: 0
+
+Design detector: []
+Independent finish verdict: ship (three listed corrections resolved; mocked sheet scope).
+Protected source files: git diff --exit-code returned 0.
+No real DIS install writes; real preset and backup hashes rechecked unchanged.
+Cleanup: automatic approval review rejected recursive deletion as blocked by policy; test artifacts retained as REPORT.md lists.

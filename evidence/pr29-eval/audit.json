@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "phase_rows": 22400,
+  "phase_conditions": 8,
+  "phase_seed_pairs": 1600,
+  "end_rows": 360,
+  "replay_candidates": 38,
+  "numerical_checks": 192,
+  "final_script_reproduced_rows": 224,
+  "javascript_files_passed": 51,
+  "python_geo_tests_passed": 38,
+  "reproduction_command": [
+    "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "D:\\dp-dev\\pr29m\\evidence\\pr29-eval\\evaluate.py",
+    "--mode",
+    "phase",
+    "--seeds",
+    "2",
+    "--workers",
+    "1",
+    "--output",
+    "F:\\dp-dev-tmp\\pr29eval\\audit_pilot"
+  ],
+  "protected_source_diff": "empty",
+  "input_hashes": "unchanged",
+  "chinese_encoding": "PASS"
+}

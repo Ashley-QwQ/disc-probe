@@ -5,13 +5,16 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime
+from functools import wraps
 import json
 import math
 import os
+from pathlib import Path
 import sys
 
 try:
-    from . import guide, i18n, info, mmc, timing, ui
+    from . import guide, i18n, info, mmc, qos, timing, ui
+    from .drive_lock import DriveBusy, drive_operation
 except ImportError as e:    # half a copy of this folder: i18n may be what is missing, so it says so in both languages
     if (e.name or "").split(".")[0] != __package__:
         raise
@@ -154,10 +157,11 @@ def _open(args):
         mode, _, variant = args.sim.partition("-")
         media = getattr(args, "media", "dvd")
         sectors = getattr(args, "sectors", 1)
-        return SimDrive(mode=mode, fua_honoured=variant in ("", "audio"), flush_honoured=variant == "flush",
+        window = getattr(args, "sim_read_ahead_sectors", 24) if variant == "readahead" else None
+        return SimDrive(mode=mode, fua_honoured=variant in ("", "audio", "readahead"), flush_honoured=variant == "flush",
                         seed=args.seed, media=media, cd_audio=variant == "audio",
                         cd_read_offset_bytes=getattr(args, "read_offset_bytes", 0.0),
-                        block=32 if media == "bd" and sectors == 32 else None)
+                        block=32 if media == "bd" and sectors == 32 else None, read_ahead_sectors=window)
     _need_hardware_platform()
     transport = getattr(args, "transport", "auto")
     if sys.platform == "linux" and transport != "auto":
@@ -187,16 +191,31 @@ def _open(args):
     return ImapiDevice(args.drive)
 
 
+def _locked_read(action, *, offline=None):
+    def decorate(func):
+        @wraps(func)
+        def run(args, **kwargs):
+            if getattr(args, "sim", None) or (offline and getattr(args, offline, None)):
+                return func(args, **kwargs)
+            _choose_drive(args)
+            if not args.drive:
+                return func(args, **kwargs)  # retain the existing missing-drive diagnostic
+            with drive_operation(args.drive, action):
+                return func(args, **kwargs)
+        return run
+    return decorate
+
+
 def _check_disc(dev, args) -> None:
     """At a terminal, catch an empty tray or the wrong media settings before minutes of measuring."""
     if not ui.term().interactive:
         return
-    from .scsi import DATA_IN, DATA_NONE
-    ready = dev.execute(mmc.test_unit_ready(), 0, DATA_NONE)
+    from .scsi import execute_probe
+    ready = execute_probe(dev, mmc.test_unit_ready())
     reason = mmc.not_ready(ready.sense)
     if reason:
         sys.exit(reason)
-    cfg = dev.execute(mmc.get_configuration(), 4096, DATA_IN)
+    cfg = execute_probe(dev, mmc.get_configuration(), 4096)
     family = mmc.media_family(mmc.parse_configuration(cfg.data).get("current_profile") if cfg.ok else None)
     if family == "cd" and args.media == "dvd":
         if ui.ask("This is a CD, but the command has DVD settings. Add --media cd?"):
@@ -213,16 +232,33 @@ def _blu_ray_speed(dev, args) -> None:
     multiple = getattr(args.speed, "multiple", None)
     if multiple is None or args.sim:
         return
-    from .scsi import DATA_IN
-    cfg = dev.execute(mmc.get_configuration(), 4096, DATA_IN)
+    from .scsi import execute_probe
+    cfg = execute_probe(dev, mmc.get_configuration(), 4096)
     if cfg.ok and mmc.media_family(mmc.parse_configuration(cfg.data).get("current_profile")) == "bd":
         args.speed = round(multiple * mmc.BD_1X_KBPS)
         print(f"This is a Blu-ray disc, so {multiple:g}x is {args.speed} kB/s")
 
 
+def _measurement_setup(dev, args, kind):
+    """Keep preflight timeouts as a run even before the instrument is constructed."""
+    out = _outdir(args, kind, dev)
+    try:
+        _check_disc(dev, args)
+        _blu_ray_speed(dev, args)
+    except (OSError, RuntimeError, SystemExit) as exc:
+        try:
+            dev.close() if hasattr(dev, 'close') else None
+        except OSError:
+            pass
+        from .diagnostics import save_failure
+        save_failure(out, str(exc), args)
+        sys.exit(str(exc))
+    return out
+
+
 def _measuring(dev, args):
     """What the probe reads through: at a terminal, a wrapper that also draws the progress line."""
-    if not ui.term().interactive:
+    if not ui.term().interactive and not ui.events_enabled():
         return dev
     limit = f" It gives up after {args.max_minutes:g} minutes." if getattr(args, "max_minutes", 0) else ""
     ui.say(f"Measuring on {getattr(dev, 'name', 'the drive')}. Ctrl+C stops and keeps what was measured.{limit}", "dim")
@@ -234,9 +270,17 @@ def _identity(args, dev) -> dict | None:
     if getattr(args, "sim", None):
         return None
     try:
-        return info.identify(dev, getattr(args, "media", None))
+        identity = info.identify(dev, getattr(args, "media", None))
+        for error in identity.get('probe_errors', []):
+            print(error, file=sys.stderr, flush=True)
     except Exception:       # a label, never worth stopping a measurement
         return None
+    from .measurement_jobs import identify
+    try:
+        identify(identity)
+    except OSError:
+        pass  # The path remains protected even if its display identity could not be saved.
+    return identity
 
 
 def _geo_clv(args):
@@ -247,16 +291,28 @@ def _geo_clv(args):
     a pressed BD-ROM. Under CLV a turn takes T = 2*pi*r/v, and r^2 grows linearly with the sector,
     so T^2 is a straight line in LBA and carries (r0, pitch) up to one anchor.
     """
+    from . import geo_speed
     from .clv import DEFAULT_ZONES, ClvLadder, ConstantAngularVelocity, write_outputs
+    if args.media == "cd":
+        if args.linear_mm_s is None and not getattr(args, "cd_clv_pitch_explicit", False):
+            sys.exit("CD CLV needs an independently known --linear-mm-s or an explicit --pitch-um anchor; --speed is only a request.")
+        if args.linear_mm_s is not None and getattr(args, "cd_clv_pitch_explicit", False):
+            sys.exit("Choose one CD CLV anchor: --linear-mm-s or --pitch-um.")
+        anchor = args.linear_mm_s if args.linear_mm_s is not None else args.pitch_um
+        if not math.isfinite(anchor) or anchor <= 0:
+            sys.exit("The CD CLV anchor must be finite and positive.")
+        print(i18n.tr(guide.CD_CLV_LIMIT))
+        if args.bd_zones is not None and args.bd_zones < 5:
+            sys.exit("CD CLV needs at least five zones (--clv-zones).")
     if args.sectors != 1:
-        sys.exit("--sectors 1 only: a Blu-ray fit uses the time to turn once, which one sector gives")
+        sys.exit("--sectors 1 only: a CLV fit uses the time to turn once, which one sector gives")
     if not args.sim:
-        _need_windows()
-        from .spti import raise_priority
+        _need_hardware_platform()
+        from .device import raise_priority
         raise_priority()
     dev = _open(args)
-    _check_disc(dev, args)
-    _blu_ray_speed(dev, args)
+    out = _measurement_setup(dev, args, 'geo')
+
     reader = _measuring(dev, args)
     zones = DEFAULT_ZONES
     if args.bd_zones:
@@ -270,8 +326,11 @@ def _geo_clv(args):
                        r0_mm=args.r0_mm, host_delay_ms=args.host_delay_ms,
                        fit_offset=args.fit_offset)
     ladder.tp.summary["identity"] = _identity(args, dev)
+    ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func"}
     if args.sim:
         ladder.tp.summary["simulated"] = True
+    speed_check = ladder.tp.summary["speed_check"] = geo_speed.check_probe(ladder.tp, args.media)
+    geo_speed.print_notice(speed_check)
     progress, log = None, print
     if reader is not dev:
         def status():
@@ -281,16 +340,21 @@ def _geo_clv(args):
                 stage = "cache test" if "cache" not in ladder.summary else "waiting for a steady spindle"
                 return None, stage, None
             return done / max(len(ladder.zones), 1), f"zone {done}/{len(ladder.zones)}", None
+        status.location = lambda: ({"lba": reader.event_lba} if hasattr(reader, "event_lba") else {})
         progress = reader.progress = ui.Progress(status, keys=ui.open_keys(), pulse=reader.read_times,
                                                  wait_s=GEO_WAIT_S)
         log = ladder.log = ladder.tp.log = progress.log
-    out = _outdir(args, "geo", dev)
+    # The folder also covers failures before the first CLV fit.
     stopped, res, hand_off = None, None, None
     try:
         res = ladder.run()
     except ConstantAngularVelocity as e:
         # Not a failure: this disc wants the other instrument. The probe is all this run did.
-        hand_off = e
+        if args.media == "cd":
+            stopped = str(e)
+            log(f"stopped: {e}")
+        else:
+            hand_off = e
     except (RuntimeError, ValueError) as e:
         log(f"stopped: {e}")
         stopped = str(e)
@@ -300,12 +364,22 @@ def _geo_clv(args):
         dev.close() if hasattr(dev, "close") else None
         if (ladder.summary or {}).get("period") and hand_off is None:
             write_outputs(ladder, out, None if res else stopped or "interrupted")
+        if hand_off is None and (not res or args.media == 'cd'):
+            from .diagnostics import save_failure
+            if not os.path.isfile(os.path.join(out, 'summary.json')):
+                _write_json(os.path.join(out, 'summary.json'), dict(ladder.summary or {},
+                            stopped=stopped or 'interrupted',
+                            args={k: v for k, v in vars(args).items() if k != 'func'},
+                            **geo_speed.annotations(ladder.tp, args.media, zones=[])))
+            save_failure(out, (stopped or 'interrupted') if not res else guide.CD_CLV_LIMIT, args)
+        if hand_off is None:
+            geo_speed.print_notice(speed_check)
     if hand_off is not None:
         print(i18n.tr("This disc turns at a constant angular velocity, so its period carries no radius. "
                       "Measuring the spiral from sector addresses instead."))
         args.bd_angular = True
         args.sectors = 32 if getattr(args, "sectors", 1) == 1 else args.sectors
-        return cmd_geo(args)
+        return cmd_geo(args, speed_check=speed_check)
     if res:
         print()
         print(i18n.tr("r0 {a} mm, pitch {b} um, linear speed {c} m/s  (R^2 {d} over {e} zones, anchor: {f})")
@@ -357,14 +431,16 @@ def _geo_clv(args):
                   .format(a=len(dropped), b=shown, c=more))
         print(i18n.tr("zones.csv, summary.json: {a}").format(a=os.path.abspath(out)))
         last = derived.get("last_lba")
-        if last is not None and not getattr(args, "sim", None):
+        if last is not None and args.media == "bd" and not getattr(args, "sim", None):
             print(i18n.tr("For a DiscImageStudio preset: {a} disexport --geo {b} --sectors {c} --install")
                   .format(a=guide.PROG, b=out, c=f"{int(last) + 1}"))
         if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
             print(i18n.tr("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
                           "and only r0/v is measured."))
+        if args.media == "cd":
+            print(i18n.tr(guide.CD_CLV_LIMIT))
     else:
-        print("no results written: it stopped before the fit.")
+        print("Stopped before the fit; diagnostics were saved. Reuse this same disc for the next check.")
     if res is None:
         sys.exit(1)
 
@@ -380,20 +456,33 @@ def _geo_fit(args, media=None) -> dict:
             path = os.path.join(chosen.path, "summary.json")
             print(f"Using the geo result you chose: {guide.describe_chosen(path)}")
         else:
-            path = guide.resolve_geo(args.geo, media)
+            path = guide.resolve_geo(args.geo, media, radius_range=getattr(args, '_radius_range', None))
     except ValueError as e:
         sys.exit(str(e))
     if args.geo.lower() == "latest":
         print(f"Using the latest geo result: {guide.describe_chosen(path)}")
-        chosen = guide.latest_geo(media)
-        if chosen is not None and not chosen.reliable():
+        chosen = guide.latest_geo(media, radius_range=getattr(args, '_radius_range', None))
+        if chosen is not None and not chosen.reliable(getattr(args, '_radius_range', None)):
             print("It was judged too noisy to rely on, and there is nothing better. To see them all: python -m discprobe results --pick")
         elif chosen is not None and guide.passed_over(chosen, media):
             print(f"Left out {guide.passed_over(chosen, media)} newer run(s) judged too noisy. To see them all: python -m discprobe results --pick")
     args.geo = path
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)["fit"]
+            document = json.load(f)
+            fit = document["fit"]
+        if document.get('format') == 'dp-starter-preset-v1':
+            sys.exit('Use the original starter.json with checkdisc or image and its check-disc records.')
+        if fit.get("model") == "clv" and fit.get("media") == "cd":
+            sys.exit(i18n.tr(guide.CD_CLV_LIMIT))
+        if fit.get("model") == "dis_import" and not fit.get("image_compatible"):
+            sys.exit("This DIS preset cannot drive the DP image sampler; see source.issues in the preset.")
+        if fit.get('model') == 'dis_import' and hasattr(args, 'correction'):
+            from .presets import linked_correction
+            linked = linked_correction(path, document)
+            if not args.correction:
+                args.correction = linked
+        return fit
     except FileNotFoundError:
         latest = guide.latest_geo(media)
         _fail(f"no such geo result: {path}",
@@ -413,10 +502,22 @@ def _refuse_audio_fit(fit: dict) -> None:
 
 
 def _outdir(args, kind: str, dev) -> str:
+    from .measurement_jobs import allocating
+
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tag = getattr(dev, "name", "drive").replace(":", "")
-    path = os.path.join(args.out, f"{kind}-{tag}-{stamp}")
-    os.makedirs(path, exist_ok=True)
+    base = os.path.join(args.out, f"{kind}-{tag}-{stamp}")
+    path = base
+    suffix = 0
+    with allocating() as register:
+        while True:
+            try:
+                os.makedirs(path)
+                break
+            except FileExistsError:
+                suffix += 1
+                path = f"{base}_{suffix}"
+        register(path)
     _Parser.last_out = path
     return path
 
@@ -435,19 +536,143 @@ def cmd_list(args):
 
 
 def cmd_info(args):
-    dev = _open(args)
+    if getattr(args, "image", None):
+        return cmd_whois(args)
+    if not args.sim:
+        _choose_drive(args)  # a person's drive selection is outside the I/O deadline
+    print('Reading drive information (3s per command, 25s command budget)...', flush=True)
+    try:
+        operation = drive_operation(args.drive, "info") if not args.sim and args.drive else None
+        dev = info.InfoDevice(opener=lambda: _open(args), operation=operation)
+    except OSError as exc:
+        out = _outdir(args, 'info', type('Unavailable', (), {'name': 'unavailable'})())
+        from .diagnostics import save_failure
+        save_failure(out, str(exc), args)
+        sys.exit(str(exc))
     try:
         report = info.collect(dev)
+        from . import discid
+        try:
+            report["disc_identity"] = discid.read_device(dev, detailed=True)
+            identity = report['disc_identity']['record']
+            if identity and getattr(args, "register", None):
+                report["disc_identity"]["register"] = discid.match_register(identity, args.register)
+        except (OSError, ValueError) as exc:
+            report["disc_identity"] = dict(status="unavailable_or_invalid", error=str(exc), hash_verified=False)
     finally:
-        dev.close() if hasattr(dev, "close") else None
+        try:
+            dev.close()
+        except OSError as exc:
+            dev.errors.append(str(exc))
+    if dev.answered == 0 and not dev.errors:
+        dev.errors.append('The drive answered no info command. ' + info.NEXT_ACTION)
     out = _outdir(args, "info", dev)
+    from .capacity import capacity_words
+    report['capacity_words'] = capacity_words(report)
+    cfg = (report.get('configuration') or {}).get('parsed') or {}
+    di = (report.get('disc_information') or {}).get('parsed') or {}
+    report.update(mmc.rewritable(cfg.get('current_profile'), di.get('erasable')))
     _write_json(os.path.join(out, "info.json"), report)
     for line in info.summarize(report):
         print(line)
+    print('Rewritable: ' + json.dumps({k: report[k] for k in ('rewritable', 'rewritable_sources')}))
+    print(json.dumps(report["disc_identity"], ensure_ascii=False, indent=2))
     print(f"\nFull dump: {os.path.abspath(out)}")
+    if dev.errors:
+        from .diagnostics import save_failure
+        save_failure(out, '; '.join(dev.errors), args)
+        sys.exit(1)
     _next(guide.after_info(args, report))
 
 
+@_locked_read("whois", offline="image")
+def cmd_whois(args):
+    from . import discid
+    if getattr(args, "image", None) and (args.drive or getattr(args, "sim", None)):
+        sys.exit("Choose --image or --drive, not both")
+    try:
+        if getattr(args, "image", None):
+            result = discid.read_image(args.image, detailed=True)
+        else:
+            dev = _open(args)
+            try:
+                result = discid.read_device(dev, detailed=True)
+            finally:
+                dev.close() if hasattr(dev, "close") else None
+        record = result['record']
+        if record and getattr(args, "register", None):
+            result["register"] = discid.match_register(record, args.register)
+    except (OSError, ValueError, KeyError) as exc:
+        print(json.dumps(dict(status="unavailable_or_invalid", reason="read_failed", hash_verified=False, error=str(exc)), ensure_ascii=False))
+        sys.exit(1)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if result['reason'] != 'ok':
+        sys.exit(1)
+
+
+@_locked_read("disc")
+def cmd_disc(args):
+    """Which disc is in the drive, for the web page: a handful of read-only commands, nothing written to
+    disk, one JSON line on stdout ({"tray", "drive", "disc"}). `info` is the full dump."""
+    import json
+    from . import webui_catalog
+    dev = _open(args)
+    try:
+        report = info.quick(dev)
+    finally:
+        dev.close() if hasattr(dev, "close") else None
+    tur = report.get("test_unit_ready", {})
+    inq = (report.get("inquiry") or {}).get("parsed") or {}
+    ready = "sense" not in tur and "error" not in tur
+    # A nonzero TUR response carries both an error description and the tray's sense code.
+    out = dict(tray=tray_state(tur.get("sense"), ready),
+               drive=f"{inq.get('vendor', '')} {inq.get('product', '')}".strip() or None,
+               disc=webui_catalog.disc_report(report) if ready else None)
+    print(json.dumps(out, ensure_ascii=False))
+
+
+def tray_state(sense, ok: bool) -> str:
+    """What TEST UNIT READY says about the tray: ready, open, empty (closed, no disc), loading, changed."""
+    if ok:
+        return "ready"
+    text = str(sense or "")
+    if text.startswith("2/3A/"):
+        return "open" if text[5:] == "02" else "empty"
+    if text.startswith("6/28/"):
+        return "changed"
+    return "loading" if text.startswith("2/04/") else "unknown"
+
+
+@_locked_read("swap")
+def cmd_swap(args):
+    """Wait, read-only, while a disc is taken out and another put in: TEST UNIT READY every half second until the
+    drive has been without a disc (or reports a new one) and then has one ready. Nothing moves the tray."""
+    import time
+    from .scsi import DATA_NONE
+    dev = _open(args)
+    deadline = time.monotonic() + args.minutes * 60
+    seen, out = None, False
+    try:
+        while time.monotonic() < deadline:
+            res = dev.execute(mmc.test_unit_ready(), 0, DATA_NONE)
+            state = tray_state(res.sense, res.ok)
+            if state != seen:
+                ui.event("tray", state=state)
+                print({"ready": "Disc ready", "open": "Tray open", "empty": "Tray closed, no disc",
+                       "loading": "Reading the disc...", "changed": "The drive reports a new disc",
+                       "unknown": f"Not ready ({res.sense})"}[state], flush=True)
+                seen = state
+            if state in ("open", "empty", "changed"):
+                out = True
+            elif state == "ready" and (out or args.ready_now):
+                return
+            time.sleep(0.5)
+    finally:
+        dev.close() if hasattr(dev, "close") else None
+    sys.exit(f"No disc change within {args.minutes:g} minutes")
+
+
+@_locked_read("timing")
 def cmd_timing(args):
     if not args.sim:
         _need_hardware_platform()
@@ -455,8 +680,7 @@ def cmd_timing(args):
         if not raise_priority():
             print("note: could not raise process priority")
     dev = _open(args)
-    _check_disc(dev, args)
-    _blu_ray_speed(dev, args)
+    out = _measurement_setup(dev, args, 'timing')
     targets = [float(x) for x in args.targets.split(",")] if args.targets else timing.DEFAULT_TARGETS
     reader = _measuring(dev, args)
     probe = timing.TimingProbe(
@@ -474,13 +698,12 @@ def cmd_timing(args):
     try:
         summary = probe.run()
         finished = True
-    except timing.NoReadableDisc as e:
+    except (timing.NoReadableDisc, OSError) as e:
         stopped = str(e)
     finally:
         if progress:
             progress.close()
         dev.close() if hasattr(dev, "close") else None
-        out = _outdir(args, "timing", dev)
         rows = probe.events_as_rows()
         if rows:
             with open(os.path.join(out, "events.csv"), "w", newline="", encoding="utf-8") as f:
@@ -494,9 +717,15 @@ def cmd_timing(args):
         summary["args"] = {k: v for k, v in vars(args).items()
                            if k != "func" and (k != "media" or v != "dvd")}
         _write_json(os.path.join(out, "summary.json"), summary)
+        ui.result_event("timing", out, summary.get("stopped"))
         print(f"\nRaw events and summary: {os.path.abspath(out)}")
+        rotation = ((summary.get('period') or {}).get('rotation') or {}).get('mode')
+        if not finished or rotation not in (None, 'CAV'):
+            from .diagnostics import save_failure
+            save_failure(out, summary.get('stopped') or f'rotation is {rotation}, not CAV', args)
     if stopped:
-        _fail(stopped, guide.after_timing_stop(args, stopped))
+        _next(guide.after_timing_stop(args, stopped))
+        _fail(stopped)
     if progress:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
     _next(guide.after_timing(args, summary), args)
@@ -525,13 +754,29 @@ def cmd_scan(args):
 
 
 def cmd_rings(args):
+    from . import image_output
     from .rings import RingLayout, describe, verify_iso, write_iso
     if args.media == "cd":
         from .cdrings import RingLayout, verify_iso, write_iso
+    photo_decision = None
+    if getattr(args, "geo", None):
+        from .photo import image_photo_l, shifted_u
+        fit = _geo_fit(args, args.media)
+        _require_fit_media(args, fit)
+        _refuse_audio_fit(fit)
+        photo_decision = image_photo_l(args.geo, args.output, media=args.media,
+                                      disabled=getattr(args, "no_photo_l", False), suffix=".rings.json")
+        u = shifted_u(fit, photo_decision)
+        args.bit_nm = fit['bit_nm_assumed']
+        args.r0_mm = u * args.bit_nm * 1e-6
+        args.pitch_um = fit['v'] * args.bit_nm * 1e-3
+        _say_photo_l(photo_decision)
     layout = RingLayout(textures=tuple(t.strip().upper() for t in args.textures.split(",")),
                         groups=args.groups, ring_width_mm=args.ring_width_mm, start_mm=args.start_mm,
                         r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                         filler=args.filler.upper()).build()
+    if photo_decision is not None:
+        layout.photo_l = photo_decision
     for line in describe(layout):
         print(line)
     if args.describe:
@@ -540,10 +785,10 @@ def cmd_rings(args):
         print(f"\nWriting {os.path.abspath(args.output)}")
         with ui.writing(args.output, layout.total_sectors) as log:
             spec_path = write_iso(args.output, layout, log=log)
+            with ui.busy("Checking what was written..."):
+                problems = image_output.verify_generated(args.output, verify_iso, layout)
     except ValueError as e:
         sys.exit(str(e))
-    with ui.busy("Checking what was written..."):
-        problems = verify_iso(args.output, layout)
     print("Verified: sampled sectors in every ring record the intended byte" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by ringscan)")
@@ -575,6 +820,7 @@ def cmd_ringscan(args):
 
 
 def cmd_calib(args):
+    from . import image_output
     from .calib import CalLayout, describe, refine_layout, verify_iso, write_iso
     common = dict(start_mm=args.start_mm, end_mm=args.end_mm, guard_mm=args.guard_mm)
     try:
@@ -596,11 +842,12 @@ def cmd_calib(args):
     print(f"\nWriting {os.path.abspath(args.output)} (about a minute)")
     try:
         with ui.writing(args.output, layout.total_sectors) as log:
-            spec_path = write_iso(args.output, layout, log=log)
+            from . import discid
+            spec_path = write_iso(args.output, layout, log=log, **discid.options(args))
+            with ui.busy("Checking what was written..."):
+                problems = image_output.verify_generated(args.output, verify_iso, layout)
     except ValueError as e:
         sys.exit(str(e))
-    with ui.busy("Checking what was written..."):
-        problems = verify_iso(args.output, layout)
     print("Verified: guards are pure, bands follow their patterns" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by calscan)")
@@ -628,8 +875,73 @@ def cmd_calscan(args):
     print(f"\nbands.csv, phase.csv, summary.json and unrolled.png: {os.path.abspath(out)}")
 
 
-def cmd_geo(args):
+@_locked_read("geo", offline="refit")
+def cmd_geo(args, *, speed_check=None):
+    if vars(args).pop('json_events', False):
+        with ui.json_events():
+            return cmd_geo(args, speed_check=speed_check)
     media = getattr(args, "media", "dvd")
+    from . import geo_checkpoint, geo_speed, read_completion
+    resume = None
+    previous_events = b''
+    if getattr(args, 'resume', None):
+        from .geo import resume_source
+        if getattr(args, 'refit', None) or getattr(args, 'cd_clv', False):
+            sys.exit('--resume continues an angular measurement on the disc')
+        try:
+            resume = resume_source(args.resume, media)
+            source_path = geo_checkpoint.source_path(args.resume)
+            checkpoint = resume[0].get('checkpoint')
+            if checkpoint:
+                previous_events = geo_checkpoint.read_events(source_path.parent, checkpoint)
+        except (OSError, ValueError, KeyError) as e:
+            sys.exit(str(e))
+        source = resume[0]
+        saved_args = source.get('args') or {}
+        if source.get('simulated') and saved_args.get('sim'):
+            args.sim = args.sim or saved_args['sim']
+            args.seed = saved_args.get('seed', args.seed)
+        for key in ('speed', 'reps', 'sectors', 'host_delay_ms', 'r0_mm', 'pitch_um', 'bit_nm',
+                    'read_offset_bytes', 'ranges', 'rings_layout', 'texture', 'margin_sectors',
+                    'no_auto_correction', 'chi2_abort'):
+            if key in saved_args:
+                setattr(args, key, saved_args[key])
+        calibration = guide._load(str(read_completion.summary_path(args.resume).with_name('calibration.json')))
+        if not checkpoint and isinstance(calibration, dict) and calibration.get('avoid_mm'):
+            # These ranges came from calibrate's temporary exclusions. A
+            # continuation rechecks random data before accepting new rungs.
+            args.ranges = None
+            source['refresh_excluded_ranges'] = True
+        args.ref_lba = int(source['fit']['reference_lba'])
+        if media == 'dvd':
+            args.completion_sectors = source['fit'].get('completion_sectors', 0)
+    if getattr(args, 'refit', None):
+        try:
+            source = geo_checkpoint.source_path(args.refit)
+            saved = json.loads(source.read_text(encoding='utf-8'))
+            if not saved.get('fit'):
+                raise ValueError('the measurement stopped before a geometry fit was available')
+            saved_media = saved['fit'].get('media', 'dvd')
+            value, origin = read_completion.resolve(saved.get('identity'), args.completion_sectors, saved_media)
+            if saved_media == 'dvd' and args.completion_sectors is None and origin is None:
+                value = saved['fit'].get('completion_sectors', 0)
+                origin = dict(origin='stored')
+            output = args.out if args.out != 'results' else os.path.join(
+                args.out, source.parent.name + f'-completion-{value}')
+            fit, method = read_completion.save_reapplied(source, value, output, source=origin)
+        except (OSError, ValueError) as e:
+            sys.exit(str(e))
+        if saved_media == 'dvd':
+            print(read_completion.notice(value, origin))
+        result = "Completion offset applied" if saved_media == 'dvd' else "Geometry refit"
+        print(f"{result}: {method}; u={fit['u']:.8f}, v={fit['v']:.10f}; {output}")
+        return
+    if media != 'dvd' and getattr(args, 'completion_sectors', None) is not None:
+        sys.exit('--completion-sectors is for DVD')
+    if getattr(args, "cd_clv", False):
+        if media != "cd":
+            sys.exit("--cd-clv requires --media cd")
+        return _geo_clv(args)
     if media == "bd" and not getattr(args, "bd_angular", False):
         return _geo_clv(args)
     from .geo import Ladder, write_outputs
@@ -657,27 +969,42 @@ def cmd_geo(args):
         from .device import raise_priority
         raise_priority()
     dev = _open(args)
-    _check_disc(dev, args)
-    _blu_ray_speed(dev, args)
+    out = _measurement_setup(dev, args, 'geo')
     reader = _measuring(dev, args)
     ladder = Ladder(reader, ranges=ranges, r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
                     speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media,
                     chi2_abort=args.chi2_abort, sectors=args.sectors,
-                    read_offset_bytes=args.read_offset_bytes)
+                    read_offset_bytes=args.read_offset_bytes, auto_correct=not getattr(args, 'no_auto_correction', False),
+                    resume=resume)
     ladder.tp.summary["identity"] = _identity(args, dev)
+    try:
+        value, origin = read_completion.resolve(ladder.tp.summary['identity'],
+                                                 getattr(args, 'completion_sectors', None), media)
+    except ValueError as e:
+        dev.close() if hasattr(dev, 'close') else None
+        sys.exit(str(e))
+    ladder.completion_sectors, ladder.completion_source = value, origin
+    if media == 'dvd':
+        print(read_completion.notice(value, origin))
+    ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func" and (k != 'resume' or v)}
     if args.sim:
         ladder.tp.summary["simulated"] = True
+    if speed_check is None:
+        speed_check = geo_speed.check_probe(ladder.tp, media)
+        geo_speed.print_notice(speed_check)
+    ladder.tp.summary["speed_check"] = speed_check
     progress, log = None, print
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=GEO_WAIT_S)
         log = ladder.log = progress.log
-    out = _outdir(args, "geo", dev)
     stopped = None
     res = None
+    ladder.checkpoint = geo_checkpoint.Checkpoint(out, previous_events)
     try:
+        ladder.checkpoint.save(ladder)
         res = ladder.run()
-    except RuntimeError as e:
+    except (RuntimeError, OSError) as e:
         log(f"stopped: {e}")
         stopped = str(e)
     finally:
@@ -686,6 +1013,17 @@ def cmd_geo(args):
         dev.close() if hasattr(dev, "close") else None
         if ladder.targets and ladder.cov is not None:
             write_outputs(ladder, out, None if res else stopped or "interrupted")   # also for Ctrl+C or a drive that vanished
+        elif not ladder.targets:
+            summary = dict(ladder.tp.summary, stopped=stopped or 'interrupted')
+            period = getattr(ladder, 'T', None)
+            summary.update(geo_speed.annotations(ladder.tp, media, period_ms=period * 1e3 if period else None))
+            ladder.checkpoint.write_events(ladder.tp)
+            geo_checkpoint.write_json(Path(out) / 'summary.json', summary)
+            ladder.checkpoint.finish()
+        if not res or res.get('completion_status') != 'target_reached':
+            from .diagnostics import save_failure
+            save_failure(out, stopped or (res or {}).get('completion_status', 'interrupted'), args)
+        geo_speed.print_notice(speed_check)
     at_terminal = ui.term().interactive
     detail = (lambda text: ui.say(text, "dim")) if at_terminal else print    # at a terminal the plain summary comes first
     if res:
@@ -699,18 +1037,27 @@ def cmd_geo(args):
         detail(f"Angle uncertainty across the measured span {res['measured_span_mm'][0]}-"
                f"{res['measured_span_mm'][1]} mm: {res['angle_sigma_measured_span_deg']:.3f} deg (1 sigma); "
                f"across {'25' if args.media == 'cd' else '24'}-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
-    if res and res["chi2_per_dof"] > 2 and not at_terminal:     # at a terminal the advice below settles this
+        coverage = res['coverage']
+        detail(f"Measured intervals (mm): {coverage['measured_intervals_mm']}. Largest unsampled gap: "
+               f"{coverage['largest_unsampled_gap_mm']:.3f} mm. Model bias between samples is not bounded.")
+        detail(f"Geometry measurement took {res['elapsed_s']:.1f} s; status: {res['completion_status']}.")
+    if res and res["chi2_per_dof"] > 2 and not at_terminal and not res.get('correction_file'):
         print(f"The constant-pitch fit leaves more than noise. See whether a varying pitch fits better: "
               f"python tools/geo_polyfit.py {out}")
     if ladder.targets and ladder.cov is not None:
         print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
         if not res:
             print("It stopped early, so `--geo latest` won't use these. Don't burn from them.")
+    elif ladder.targets:
+        print(f"targets.csv, partial.json, events.csv: {os.path.abspath(out)}")
     elif stopped not in mmc.NOT_READY:
-        print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
+        print("Stopped before the first fit; summary and command events were saved. Check timing on this same disc.")
     if progress and res:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
     if res:
+        if media == 'dvd' and not args.sim:
+            from .starter import record_drive_identity
+            record_drive_identity(out, ladder.tp.summary.get('identity'), args.drive)
         _next(guide.after_geo(args, res, out), args)
     else:
         unreadable = [] if ladder.auto_ranges else sorted({e.lba for e in ladder.tp.events if e.sense.startswith("3/")})
@@ -719,9 +1066,25 @@ def cmd_geo(args):
         sys.exit(1)
 
 
+def _require_validated_correction(args, fit) -> None:
+    if fit.get('completion_status') == 'correction_unvalidated' and not getattr(args, 'allow_unvalidated_correction', False):
+        raise ValueError('此测量的角度修正未通过独立检查。请选用已验证的测量，或明确加上 '
+                         '--allow-unvalidated-correction。 / The angle correction failed independent '
+                         'validation. Choose a validated measurement or explicitly pass --allow-unvalidated-correction.')
+
+
 def _warn_other_run(args, fit) -> None:
     """A correction left over from an earlier run still loads and still gives a tidy result, so nothing else would show it."""
     from . import imagedisc
+    _require_validated_correction(args, fit)
+    if not args.correction and fit.get('correction_file'):
+        name = fit['correction_file']
+        if os.path.basename(name) != name:
+            sys.exit('invalid automatic correction filename')
+        args.correction = os.path.join(os.path.dirname(args.geo), name)
+        if not os.path.isfile(args.correction):
+            sys.exit('automatic angle correction is missing; restore correction.json for this geo run')
+        print(f'Using the automatic angle correction: {args.correction}')
     if not args.correction:
         return
     try:
@@ -755,7 +1118,32 @@ def cmd_edit(args):
 
 def cmd_simulate(args):
     from . import imagedisc, simulate
+    if args.random_label_image:
+        if not args.output or args.sheet:
+            sys.exit("--random-label-image needs --output and does not support --sheet")
+        try:
+            simulate.random_label(args.random_label_image, args.size, args.actual_geo,
+                                  args.camera, args.flash, rotate=args.rotate).save(args.output)
+        except (OSError, ValueError, KeyError) as e:
+            sys.exit(f"simulate: {e}")
+        print(i18n.tr("Prediction from a model, not a photo; real contrast and brightness may differ."))
+        return
+    if args.actual_geo:
+        sys.exit("--actual-geo needs --random-label-image")
     try:
+        if args.work:
+            from .editor_preview import Renderer
+            from pathlib import Path
+            if not args.output or args.sheet:
+                raise ValueError("work simulation requires --output; use --rotate for another view")
+            document=json.loads(Path(args.work).read_text(encoding="utf-8-sig"))
+            pose = dict(camera=args.camera,flash=args.flash,rotate=args.rotate)
+            if any('colour' in a for a in document.get('assignments', [])):
+                pose = {k:v for k,v in pose.items() if k=='rotate' or v != getattr(simulate,k.upper())}
+            data,_=Renderer(args.table).render(dict(document=document,size=args.size,pose=pose))
+            Path(args.output).write_bytes(data)
+            print(i18n.tr("Prediction from a model, not a photo; real contrast and brightness may differ."))
+            return
         if args.design:
             from . import design as project_file
             design = project_file.render(project_file.load(args.design))
@@ -765,6 +1153,18 @@ def cmd_simulate(args):
             design = imagedisc.picture_design(args.picture, args.diameter_mm)
         if not args.output and not args.sheet:
             raise ValueError("give --output or --sheet")
+        from . import simulate_a3, texlib
+        extended = args.light != 'bands' and (texlib.library() is not None or len(args.dark) != 2 or len(args.light) != 2)
+        if extended:
+            import numpy as np
+            mats=[dict(id='light',spec=args.light),dict(id='dark',spec=args.dark)]
+            labels=np.asarray(design,dtype=np.uint8)
+            if args.output:
+                simulate_a3.render(labels,args.size,materials=mats,camera=args.camera,flash=args.flash,rotate=args.rotate).save(args.output)
+            if args.sheet:
+                simulate.sheet(design,args.picture,args.size,args.dark,args.light,args.camera,args.flash,materials=mats).save(args.sheet)
+            print(i18n.tr('Prediction from a model, not a photo; real contrast and brightness may differ.'))
+            return
         if args.output:
             simulate.render(design, args.size, args.dark, args.light, args.camera, args.flash, args.rotate).save(args.output)
         if args.sheet:
@@ -789,30 +1189,90 @@ def _require_fit_media(args, fit, tiles: bool = False) -> None:
              f"{'CD' if wanted == 'cd' else 'DVD'} {'tile target' if tiles else 'picture'} needs one measured on that disc.")
 
 
-def cmd_image(args):
-    from . import imagedisc
+def cmd_compose(args):
+    from .editor_ops import compose_file
+    try:
+        doc = compose_file(args.work, args.out, table_path=args.table)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        sys.exit(str(exc))
+    print(f"{args.out}: uint8 material labels; {len(doc['materials'])} textures")
+    print(f"Texture order: {os.path.splitext(args.out)[0]}.textures.json")
+
+
+def cmd_colour_design(args):
+    from pathlib import Path
+    from . import editor_colour, editor_preview, texlib
+    from .colour_input import CONVERTED, FALLBACK
+    from .i18n import tr
+
+    def report_icc(notice):
+        message = FALLBACK if notice.get('fallback') else CONVERTED.format(**notice)
+        print(tr(message), file=sys.stderr)
+
+    try:
+        doc = editor_colour.design(args.image, args.phone, args.height, args.materials, args.dither, args.fit,
+                                   args.flash_mm, args.table, mapping=args.mapping, report_icc=report_icc)
+        if not args.no_arrow:
+            skipped = editor_colour.add_direction_arrow(doc)
+            if skipped:
+                print(tr(skipped), file=sys.stderr)
+        if args.preview:
+            png, _ = editor_preview.Renderer(args.table).render(dict(document=doc, size=600))
+            output = texlib.safe(args.preview)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(png)
+        output = texlib.safe(args.out)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        _write_json(str(output), doc)
+    except (OSError, ValueError) as exc:
+        sys.exit(str(exc))
+    print(f'{Path(args.out)}: DVD colour work; {len(doc["assignments"][0]["colour"]["materials"])} candidate textures')
+
+
+def cmd_checkdisc(args):
+    from .checkdisc import command
+    command(args)
+
+
+def cmd_image(args, *, show_next=True):
+    # Resolve the library link before doing image work; completion is recorded only after verification.
+    from .works_link import check_work, image_completed
+    check_work(args)
+    from . import burn_gate, image_output, imagecheck, imagedisc
+    from . import starter
+    trial = starter.is_record(args.geo)
+    trial_document = None
+    if trial:
+        try:
+            trial_document, trial_sha = starter.read(args.geo)
+        except (ValueError, OSError, AttributeError) as error:
+            sys.exit(f'{starter.REFUSAL} ({error})')
+        if (args.media != 'dvd' or args.correction or args.start_lba or args.random_below_mm
+                or getattr(args, 'no_photo_l', False)):
+            sys.exit(starter.REFUSAL)
+    if getattr(args, 'files', None) and (args.media != 'dvd' or args.start_lba or args.random_below_mm):
+        sys.exit('随盘文件只支持完整单层 DVD，不支持 CD、BD、追加或随机内圈')
     writer = imagedisc
     if args.media == "cd":
         from . import cdimage as writer
-    fit = _geo_fit(args, args.media)
-    _require_fit_media(args, fit)
-    _refuse_audio_fit(fit)
-    _warn_other_run(args, fit)
-    u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
-    if args.along_track_frames:
-        # Timing cannot see an along-track offset d (read completion vs written position): theta(n - d)
-        # is the same spiral with u^2 - v d / pi. Measure d on a burned grid disc.
-        from .cd import FRAME_BITS
-        if args.media != "cd":
-            sys.exit("--along-track-frames is for CD")
-        u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
+    # Explicit files (including an audio-track fit) can be rejected before loading
+    # a design. Resolve `latest` after the drawing span is known, so a partial run
+    # can still be selected for a small picture inside its measured interval.
+    fit = None
+    if args.geo.lower() != 'latest':
+        fit = trial_document['fit'] if trial else _geo_fit(args, args.media)
+        _require_fit_media(args, fit)
+        _refuse_audio_fit(fit)
+        _require_validated_correction(args, fit)
     if args.design and (args.design_npy or args.picture):
         sys.exit("--design replaces --picture and --design-npy: give one of them")
     if args.design_npy:
         import numpy as np
         design = np.load(args.design_npy)
-        if design.shape != (imagedisc.SIZE, imagedisc.SIZE):
-            sys.exit(f"design must be {imagedisc.SIZE} x {imagedisc.SIZE} cells of {imagedisc.CELL_MM} mm")
+        try:
+            imagedisc.check_cells(design, args.cell_um)
+        except ValueError as e:
+            sys.exit(str(e))
         if args.textures:
             design = design.astype(np.uint8)
         elif design.dtype != bool:
@@ -822,11 +1282,11 @@ def cmd_image(args):
         if args.design:
             from . import design as project_file
             try:
-                design = project_file.render(project_file.load(args.design))
+                design = project_file.render(project_file.load(args.design), size=imagedisc.CELL_SIDES[args.cell_um or 20])
             except ValueError as e:
                 sys.exit(str(e))
         else:
-            design = imagedisc.picture_design(args.picture, args.diameter_mm)
+            design = imagedisc.picture_design(args.picture, args.diameter_mm, cell=(args.cell_um or 20) / 1000)
         if args.media == "cd":      # the file system sits here, and write_iso refuses a drawing on top of it
             kept = imagedisc.clear_inside(design, 26.0)
             if (kept != design).any():
@@ -834,14 +1294,51 @@ def cmd_image(args):
             design = kept
         kind = f"design {os.path.basename(args.design)}" if args.design else f"picture {os.path.basename(args.picture)}"
     else:
-        design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
-                                      r_max=args.r_max, line=args.line_mm)
+        inner, outer = imagecheck._inner_mm(args), args.r_max
+        if trial:
+            cell_mm = (args.cell_um or 20) / 1000
+            inner = starter.CHECK_RANGE[0] + cell_mm
+            outer = min(outer, starter.CHECK_RANGE[1] - cell_mm)
+        design = imagedisc.grid_design(r_min=inner, r_max=outer, line=args.line_mm,
+                                      size=imagedisc.CELL_SIDES[args.cell_um or 20])
         kind = f"grid, {args.line_mm} mm lines"
+    args._radius_range = imagedisc.drawing_span(design)
+    fit = fit or _geo_fit(args, args.media)
+    _require_fit_media(args, fit)
+    _refuse_audio_fit(fit)
+    _warn_other_run(args, fit)
+    u, v, bit = fit['u'], fit['v'], fit['bit_nm_assumed']
+    from .photo import image_photo_l, shifted_u
+    photo_decision = image_photo_l(args.geo, args.output, media=args.media,
+                                  disabled=getattr(args, "no_photo_l", False),
+                                  device_id=getattr(args, "reading_drive", None))
+    if trial and (not photo_decision['written'] or photo_decision['provenance']['starter_sha256'] != trial_sha):
+        sys.exit(f"{starter.REFUSAL} ({photo_decision.get('reason', 'starter_changed')})")
+    if args.along_track_frames:
+        from .cd import FRAME_BITS
+        if args.media != 'cd':
+            sys.exit('--along-track-frames is for CD')
+        u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
+        photo_decision = dict(written=False, reason="manual_along_track_frames")
+    else:
+        u = shifted_u(fit, photo_decision)
+    _say_photo_l(photo_decision)
     total = writer.sectors_to_radius(u, v, bit, args.r_max + 0.6)
+    if fit.get('model') == 'dis_import' and fit.get('capacity_sectors'):
+        total = min(total, fit['capacity_sectors'])
     if args.media == "dvd":
         total = min(total, 2295104)
+        if trial:
+            total = min(total, trial_document['capacity_sectors'])
     else:
-        from .cd import check_capacity
+        from .cd import check_capacity, CAPACITY
+        # As on DVD, a drawing out to the rim stops where the disc does. IMAPI refused 359849 and 359800 sectors
+        # on an 80-minute CD-R and burned 359600 (KNOWLEDGE, 2026-11-04): closing the disc needs room.
+        room = CAPACITY - 249
+        if total > room:
+            print(f"The disc ends before {args.r_max:g} mm: the image stops at {room} sectors, and the picture's "
+                  "outermost ring is left out.")
+            total = room
         check_capacity(total)
     first = args.start_lba
     if first and args.media != "dvd":
@@ -859,22 +1356,71 @@ def cmd_image(args):
         lead = min(writer.sectors_to_radius(u, v, bit, args.random_below_mm), total)
         print(f"Random data up to {args.random_below_mm:g} mm (LBA {lead}); the picture starts there.")
     extra = {**({"first_lba": first} if first else {}), **({"lead_lba": lead} if lead else {})}
+    from . import discid
+    file_layout = None
+    if getattr(args, 'files', None):
+        from . import discfiles
+        writable = args.writable_sectors or fit.get('capacity_sectors') or total
+        try:
+            file_layout = discfiles.plan(args.files, args.files_at, int(writable), margin=args.files_margin,
+                                         geometry={**fit, 'u': u}, identity=discid.requested(**discid.options(args)))
+            if args.files_plan_sha256 and file_layout.fingerprint() != args.files_plan_sha256:
+                raise ValueError('文件或几何已改变，请重新检查随盘文件布局 / files layout changed; check the layout again')
+        except (ValueError, OSError) as e:
+            sys.exit(str(e))
+        total = file_layout.total_sectors
+        extra['file_layout'] = file_layout
+        design = discfiles.clip_design(design, file_layout)
+        args._radius_range = imagedisc.drawing_span(design)
+    identity_meta = {}
+    if discid.requested(**discid.options(args)):
+        origin = fit.get("completion_source") or {"origin": "legacy_default"}
+        identity_meta = dict(source_file=args.picture or args.design_npy or args.design,
+                             identity_design=kind, completion_sectors=fit.get("completion_sectors", 0),
+                             completion_source={k: origin[k] for k in ("origin", "vendor", "product", "firmware", "source") if k in origin})
+    if args._radius_range:
+        from .coverage import range_warning
+        if args.media == 'cd':
+            from .cd import SECTOR_BITS as picture_bits
+        else:
+            picture_bits = imagedisc.SECTOR_BITS
+        radius_at = lambda l: bit * 1e-6 * math.sqrt(u * u + v * l * picture_bits / math.pi)
+        span = [max(args._radius_range[0], radius_at(max(first, lead))),
+                min(args._radius_range[1], radius_at(total))]
+        if span[1] > span[0]:
+            if trial:
+                lo, hi = starter.CHECK_RANGE
+                warning = (f'作品须在检查盘覆盖的 {lo}–{hi} mm 内 / Keep the artwork inside {lo}–{hi} mm checked by the target.'
+                           if span[0] < lo or span[1] > hi else None)
+            else:
+                warning = range_warning(fit, span, allow_dis_nominal=True)
+            if warning:
+                from .diagnostics import save_failure
+                save_failure(os.path.dirname(os.path.abspath(args.geo)), warning, args)
+                sys.exit(f'{warning} Shrink the artwork to the measured intervals or re-read this same disc; no new burn is needed.')
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
-    print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
+    print(f"{kind}, {imagedisc.cell_mm(design) * 1000:g} um cells, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
-    corr = imagedisc.load_correction(args.correction) if args.correction else None
+    corr = starter.correction(trial_document) if trial else imagedisc.load_correction(args.correction) if args.correction else None
+    calibration_mid = trial_document['mid'] if trial else burn_gate.measurement_mid(args.geo)
     try:
         with ui.writing(args.output, total - first) as log:
             spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
                                     meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
-                                          "along_track_frames": args.along_track_frames,
-                                          "correction": os.path.abspath(args.correction) if args.correction else None},
-                                    correction=corr, textures=args.textures, log=log, **extra)
+                                          # Keep the legacy manual option unchanged when no photo qualifies,
+                                          # including identity-enabled ISO bytes. Photo unknown is in photo_l.
+                                          "along_track_frames": (photo_decision.get("frames") if photo_decision.get("written")
+                                                                 else args.along_track_frames),
+                                          "photo_l": photo_decision,
+                                          "correction": os.path.abspath(args.correction) if args.correction else None,
+                                          **identity_meta,
+                                          **({"calibration_mid": calibration_mid} if calibration_mid else {})},
+                                    correction=corr, textures=args.textures, log=log, **extra, **discid.options(args))
+            with ui.busy("Checking what was written..."):
+                problems = image_output.verify_generated(args.output, writer.verify_iso, design, u, v, bit, total,
+                    args.dark, args.light, correction=corr, textures=args.textures, **extra)
     except ValueError as e:
         sys.exit(str(e))
-    with ui.busy("Checking what was written..."):
-        problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
-                                     textures=args.textures, **extra)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     prev = os.path.splitext(args.output)[0] + ".preview.png"
     if design.dtype == bool:
@@ -885,10 +1431,25 @@ def cmd_image(args):
     files = f"Spec: {os.path.abspath(spec)}\nPreview (data-side view): {os.path.abspath(prev)}"
     if problems:
         print(files)
-        if args.media == "cd":
-            sys.exit(1)
-        return
-    _image_ready(args, prev, design, files)
+        sys.exit(1)
+    image_completed(args)
+    if show_next:
+        _image_ready(args, prev, design, files)
+    else:
+        print(files)
+
+
+def _say_photo_l(decision):
+    if decision.get("written"):
+        source = decision["provenance"]
+        if decision.get("origin") in ("manual-slider", "manual-cli"):
+            print(f"Photo L used: {decision['L_mm']:+.6f} mm ({decision['origin']}; "
+                  f"provenance {decision['provenance_sha256']})")
+            return
+        print(f"Photo L used: {decision['L_mm']:+.6f} mm from {source['photo_json']} "
+              f"(reader {decision['reader_version']}, provenance {decision['provenance_sha256']})")
+    else:
+        print(f"Photo L not applied: {decision['reason']}; the photo constant remains unknown.")
 
 
 def cmd_gridscan(args):
@@ -901,6 +1462,11 @@ def cmd_gridscan(args):
         kw = {"r_min": 26.5} if args.media == "cd" else {}
         gridscan.analyse(path, design, out, dpi=args.dpi, force_mirrored=None if args.auto_mirror else False, **kw)
         print(f"  phi.csv and summary.json: {os.path.abspath(out)}")
+
+
+def cmd_curve_edit(args):
+    from .curve_edit import cli
+    cli(args)
 
 
 def cmd_correction(args):
@@ -1066,7 +1632,13 @@ def _export_gate(args) -> None:
     A simulated run may still be exported, for trying the tool; --force writes the rest anyway."""
     if args.install:
         return
-    blocker = guide.install_blocker(args.geo, allow_simulated=True)
+    blocker = guide.install_blocker(args.geo, allow_simulated=True, radius_range=getattr(args, '_radius_range', None))
+    if not blocker and getattr(args, '_radius_range', None):
+        from .coverage import range_warning
+        with open(args.geo, encoding='utf-8') as stream:
+            warning = range_warning(json.load(stream).get('fit', {}), args._radius_range)
+        if warning:
+            print(f'Warning: {warning}')
     if not blocker:
         return
     if getattr(args, "force", False):
@@ -1078,6 +1650,7 @@ def _export_gate(args) -> None:
 
 def cmd_disexport(args):
     from . import disinstall
+    from .coverage import DVD_PRESET_MM
     from .disexport import export
     if (args.dis_presets or args.replace) and not args.install:
         sys.exit("--dis-presets and --replace only work together with --install")
@@ -1092,10 +1665,14 @@ def cmd_disexport(args):
         if not (fit.get("model") == "clv" or fit.get("media") == "bd"):
             sys.exit("--twist-deg is for Blu-ray: a DVD or CD preset carries a pitch profile that is "
                      "fitted, so its twist is corrected by the angle map rather than by one number")
+    args._radius_range = ((args.r_min or DVD_PRESET_MM[0], args.r_max or DVD_PRESET_MM[1]) if args.media != 'cd' else
+                          ((args.r_min, args.r_max) if args.r_min and args.r_max else None))
     fit = _geo_fit(args, args.media)
     is_cd = fit.get("media") == "cd"
     # A Blu-ray run is the CLV fit: r0, pitch and speed instead of the angle ladder's u and v.
     is_bd = fit.get("model") == "clv" or fit.get("media") == "bd"
+    if (is_cd or is_bd) and getattr(args, 'completion_sectors', None) is not None:
+        sys.exit('--completion-sectors is for DVD')
     if args.media and args.media != ("bd" if is_bd else "cd" if is_cd else "dvd"):
         sys.exit(f"--media {args.media} does not match {args.geo}, which measured a "
                  f"{'Blu-ray' if is_bd else 'CD' if is_cd else 'DVD'}")
@@ -1110,6 +1687,8 @@ def cmd_disexport(args):
         _export_gate(args)
         _disexport_bd(args)
         return
+    span = fit['measured_span_mm'] if is_cd else DVD_PRESET_MM
+    args._radius_range = (args.r_min or span[0], args.r_max or span[1])
     _export_gate(args)
     # --install writes the preset file only after the export has written --output. When both name
     # one file the export has already destroyed the presets by then, so this is checked first.
@@ -1124,14 +1703,13 @@ def cmd_disexport(args):
     # A preset is used to cut discs and outlives the run: refuse the three kinds of result the
     # rest of the tool already tells people not to trust.
     if target:
-        blocker = guide.install_blocker(args.geo)
+        blocker = guide.install_blocker(args.geo, radius_range=args._radius_range)
         if blocker:
             _fail(f"Not installing this geo result: {blocker}")
         warning = guide.install_warning(args.geo)
         if warning:
             print(f"Note: {warning}")
     _warn_other_run(args, fit)
-    span = fit["measured_span_mm"] if is_cd else (25.8, 54.4)
     try:
         # --install on its own leaves no second file behind, and can't overwrite one in the current folder.
         output = args.output or (None if args.install else "dis_preset.json")
@@ -1139,7 +1717,10 @@ def cmd_disexport(args):
                      args.r_min or span[0], args.r_max or span[1],
                      args.id or ("discprobe-cd" if is_cd else "discprobe-dvd-r"),
                      args.name or ("CD (drive-timing calibration)" if is_cd else "DVD-R (drive-timing calibration)"),
-                     args.along_track_frames)
+                     args.along_track_frames, completion_sectors=getattr(args, 'completion_sectors', None))
+        if out['source'].get('completion_method'):
+            print(f"DVD completion offset: {out['source']['completion_sectors']} sectors; "
+                  f"{out['source']['completion_method']}")
     except ValueError as e:
         sys.exit(str(e))
     f = out["fit"]
@@ -1210,13 +1791,13 @@ def cmd_cdprobe(args):
     if res["beyond_canvas"]:
         print("DiscImageStudio up to v1.4.2 draws CD pictures within 57.5 mm, so beyond that only the parts of the "
               "outer ring and spokes away from the image axes are burned. v1.5.0 draws the whole band.")
-    if not ui.term().interactive:   # at a terminal the advice below says this, with the drive
+    if not ui.term().reader:   # for a person (a terminal, or the page's) the advice below says this, with the drive
         print("Burn it with DiscImageStudio, then run `geo --media cd` on the burned disc.")
     _next(guide.after_cdprobe(res["project"]))
 
 
 def cmd_tiles(args):
-    from . import imagedisc, tiledisc
+    from . import image_output, imagedisc, tiledisc
     writer = imagedisc
     if args.media == "cd":
         from . import cdimage as writer
@@ -1229,6 +1810,14 @@ def cmd_tiles(args):
            "scale_mm": tuple(args.scale) if args.scale else None, "gap_mm": args.gap_mm,
            "shuffle_seed": args.shuffle}
     labels, textures, layout = tiledisc.design(args.palette, **geo)
+    from .coverage import range_warning
+    requested = imagedisc.drawing_span(labels != 0)
+    if requested:
+        warning = range_warning(fit, requested)
+        if warning:
+            from .diagnostics import save_failure
+            save_failure(os.path.dirname(os.path.abspath(args.geo)), warning, args)
+            sys.exit(f'{warning} Shrink the artwork or re-read this same disc; no new burn is needed.')
     if args.media == "cd":
         textures = [{"A5": "0D", "92": "AA"}.get(t, t) for t in textures]
         layout.update(media="cd", id_dark="0D", id_light="AA")
@@ -1246,22 +1835,22 @@ def cmd_tiles(args):
             "correction": os.path.abspath(args.correction) if args.correction else None}
     with ui.writing(args.output, total) as log:
         spec = writer.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures, log=log)
-    with ui.busy("Checking what was written..."):
-        problems = writer.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+        with ui.busy("Checking what was written..."):
+            problems = image_output.verify_generated(args.output, writer.verify_iso, labels, u, v, bit, total,
+                                                      correction=corr, textures=textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     base = os.path.splitext(args.output)[0]
     tiledisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
     tiledisc.preview(labels, textures, base + ".preview.png")
     print(f"Spec: {os.path.abspath(spec)}\nLayout: {os.path.abspath(base + '.tiles.json')}\n"
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
-    if args.media == "cd" and problems:
+    if problems:
         sys.exit(1)
-    if not problems:
-        _image_ready(args, base + ".preview.png")
+    _image_ready(args, base + ".preview.png")
 
 
 def cmd_beacons(args):
-    from . import beacondisc, imagedisc
+    from . import beacondisc, image_output, imagedisc
     fit = _geo_fit(args)
     _warn_other_run(args, fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
@@ -1274,8 +1863,9 @@ def cmd_beacons(args):
             "correction": os.path.abspath(args.correction) if args.correction else None}
     with ui.writing(args.output, total) as log:
         spec = imagedisc.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures, log=log)
-    with ui.busy("Checking what was written..."):
-        problems = imagedisc.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+        with ui.busy("Checking what was written..."):
+            problems = image_output.verify_generated(args.output, imagedisc.verify_iso, labels, u, v, bit, total,
+                                                      correction=corr, textures=textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     base = os.path.splitext(args.output)[0]
     beacondisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
@@ -1296,17 +1886,36 @@ def cmd_tilescan(args):
             print(f"    {name:24s} {v}")
 
 
+def cmd_label(args):
+    from .labelsession import run
+    return run(args)
+
+
 def cmd_random(args):
     from .randomdisc import write_iso
+    from . import discid
     if getattr(args, "media", "dvd") == "bd":
         from .bdexport import BD_SECTORS_PER_LAYER
         if args.sectors > BD_SECTORS_PER_LAYER:
             sys.exit(f"{args.sectors:,} sectors do not fit on a single-layer Blu-ray "
                      f"({BD_SECTORS_PER_LAYER:,}); lower --sectors")
-    print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
-    with ui.writing(args.output, args.sectors) as log:
-        write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
-    if not ui.term().interactive:   # at a terminal the advice below says this, with the right next step
+    written_sectors = args.sectors
+    if getattr(args, 'label', None) and not getattr(args, 'geo', None):
+        from .randomlabel import STOP_SECTORS
+        written_sectors = STOP_SECTORS
+    print(f"Writing {os.path.abspath(args.output)}: {written_sectors} sectors of seeded random data")
+    print(f'Random-mirror length: {written_sectors} sectors; random --sectors controls this file, not the geometric total or blank writable capacity.')
+    try:
+        with ui.writing(args.output, written_sectors, writer_owns_output=True) as log:
+            write_iso(args.output, args.sectors, args.seed, media=args.media, log=log,
+                      label=getattr(args, "label", None), geo=getattr(args, 'geo', None), **discid.options(args))
+    except ValueError as e:
+        sys.exit(str(e))
+    if getattr(args, 'label', None) and not getattr(args, 'geo', None):
+        print('Label pending: burn --keep-open, then geo, label --geo ... --drive ..., and burn --append --expect-start NWA.')
+        ui.iso_ready(args.output)
+        return
+    if not ui.term().reader:   # for a person (a terminal, or the page's) the advice below says this, with the right next step
         print("Burn it, then run `geo` on it.")
         for line in guide.burn_steps(args.output, args.media):
             print(line)
@@ -1319,10 +1928,12 @@ def cmd_random(args):
 def cmd_calibdisc(args):
     """Burn one disc that times itself and shows its own twist."""
     from . import calibdisc
+    from . import discid
     try:
-        out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
-                              rings=args.rings_list, line_deg=90.0, split=args.split, log=print,
-                              preview=args.preview)
+        with ui.writing(args.output, args.sectors) as log:
+            out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
+                                  rings=args.rings_list, line_deg=90.0, split=args.split, log=log,
+                                  preview=args.preview, **discid.options(args))
     except ValueError as e:
         sys.exit(str(e))
     if args.split:
@@ -1436,7 +2047,7 @@ def cmd_menu(args):
         opened = console.run(media, out, prelude=prelude,
                              intro=greetings.pick(first_time=first_time))
         if opened and ui.term().interactive:
-            # Start.bat leaves this window open after this; leave the checklist visible there.
+            # Leave the checklist visible in the terminal after returning from the walkthrough.
             for line in guide.progress_lines(media, out):
                 print(ui.guide_line(line))
             if not completion.installed():
@@ -1534,13 +2145,32 @@ def _speed(text: str):
 
 
 # (group title, commands); `main` fills in what each one does.
+def cmd_template(args):
+    from . import template
+    try:
+        options = dict(media=args.media, sectors=args.sectors, pose=args.pose, preset_id=args.preset_id)
+        if args.grid is not None:
+            from . import template_grid
+            _, files = template_grid.export_files(args.geo, grid=args.grid, batch=args.batch,
+                                                  rotate=args.rotate, delta_scale=args.delta_scale, **options)
+            target = template.write_files(files, args.out)
+            print(f'Template: {target.resolve()} (transparent canvas PNG, guide PNG, README)')
+            return
+        if args.batch is not None or args.rotate != 0 or args.delta_scale != 1:
+            raise ValueError('--batch, --rotate and --delta-scale require --grid')
+        target = template.write(args.geo, args.out, size=args.size, **options)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        sys.exit(f'Template export: {exc}')
+    print(f'Template: {target.resolve()} (SVG, PNG, GPL, ASE, JSON, README; layered PSD skipped)')
+
+
 COMMAND_GROUPS = (
-    ("Start here", ("menu", "guide", "tutorial", "selftest", "list")),
-    ("Measure a disc", ("info", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
-                           "calibdisc")),
-    ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
-    ("Use elsewhere", ("disexport", "cdprobe")),
+    ("Start here", ("menu", "guide", "troubleshoot", "webui", "version", "tutorial", "selftest", "list")),
+    ("Measure a disc", ("info", "checkburn", "whois", "timing", "geo", "results", "diagnose")),
+    ("Make a disc image", ("random", "label", "compose", "colour-design", "gratingcard", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+                           "calibdisc", "checkdisc")),
+    ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
+    ("Use elsewhere", ("template", "disexport", "cdprobe", "works")),
 )
 LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
              "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.\n"
@@ -1664,6 +2294,64 @@ def _build_parser():
                             "Drive commands only read.", formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(required=True, metavar="<command>", help=argparse.SUPPRESS, prog=guide.PROG)
 
+    from . import news
+    news.add_parser(sub)
+    from . import community
+    community.add_parser(sub)
+
+    from . import burner
+    from . import eraser
+    sp = sub.add_parser('erase', help='erase a rewritable disc (quick by default)')
+    sp.add_argument('--drive', required=True)
+    sp.add_argument('--full', action='store_true', help='full erase (default: quick)')
+    sp.set_defaults(func=eraser.run)
+    burn_zh = i18n.active() == "zh"
+    sp = sub.add_parser("burn", help="刻录 ISO（独立写入路径，必须明确确认）" if burn_zh else
+                        "write an ISO (separate, explicitly confirmed write path)")
+    sp.add_argument("--drive", required=True)
+    sp.add_argument("--iso", required=True)
+    sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
+    sp.add_argument("--disc-number", help="写在盘上的盘号（省略时自动编号）" if burn_zh else
+                    "number written on the disc (generated when omitted)")
+    sp.add_argument("--speed", type=float, help="刻录倍速；DVD 默认选最接近 8x 的支持速度，CD 默认最低速度" if burn_zh else
+                    "multiple of 1x; default: DVD nearest supported to 8x, CD lowest supported")
+    sp.add_argument("--no-verify", action="store_true", help="跳过刻录后的抽样回读" if burn_zh else
+                    "skip automatic sampled read-back after writing")
+    sp.add_argument("--yes-write", action="store_true", help="确认不可逆的刻录操作" if burn_zh else
+                    "confirm irreversible writing")
+    sp.add_argument("--expected-mid", help="作品批次的 MID（旧镜像可手动指定）" if burn_zh else
+                    "calibrated batch MID (can be supplied for an older ISO)")
+    sp.add_argument("--allow-other-batch", action="store_true", help="明确允许在不同批次的盘上刻录" if burn_zh else
+                    "explicitly allow writing to a different disc batch")
+    sp.add_argument('--keep-open', action='store_true', help='DVD：本次刻录后保持光盘开放' if burn_zh else 'DVD: leave disc open after this session')
+    sp.add_argument('--erase', action='store_true', help='erase recorded rewritable media before burning')
+    sp.add_argument('--append', action='store_true', help='DVD：追加会话并封盘，需要 --expect-start' if burn_zh else 'DVD: append and close; requires --expect-start')
+    sp.add_argument('--expect-start', type=int, help='必须与当前 NWA 相等的起始 LBA' if burn_zh else 'required NWA for appended image')
+    sp.add_argument("--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
+                    help="CD 扇区布局，必须与 ISO 生成时相同" if burn_zh else
+                    "CD sector layout; must match the ISO generator (default: mode2form1)")
+    sp.set_defaults(func=burner.run)
+
+    from . import calibrate
+    calibrate.add_parser(sub)
+    from . import presets
+    presets.add_parser(sub)
+
+    # Works library adapters are separate to keep this shared parser easy to merge.
+    from . import works_cli
+    works_cli.add_parser(sub)
+    from . import library
+    library.add_parser(sub)
+
+    from . import photo
+    photo.add_parser(sub)
+    from . import starter
+    starter.add_parser(sub)
+
+    sp = sub.add_parser("version", help="show core and GUI API versions and capabilities")
+    sp.add_argument("--json", action="store_true", help="print version information as JSON")
+    sp.set_defaults(func=cmd_version)
+
     sp = sub.add_parser("list", help="list optical drives")
     sp.set_defaults(func=cmd_list)
 
@@ -1695,10 +2383,12 @@ def _build_parser():
     def common(sp):
         sp.add_argument("--drive", help="drive: E: on Windows, /dev/sr0 on Linux; `list` shows them. At a terminal it can be left out "
                                         "when there is one drive")
-        sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio"],
+        sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio", "cav-readahead"],
                         help="use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a "
                              "zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track "
-                             "as DiscImageStudio burns pictures)")
+                             "as DiscImageStudio burns pictures; readahead: only following sectors are cached)")
+        sp.add_argument("--sim-read-ahead-sectors", type=int, default=argparse.SUPPRESS, metavar="N",
+                        help="forward cache size for cav-readahead (default 24, 0 for no cache)")
         sp.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto",
                         help="Windows-only command path: spti may need an elevated terminal; imapi (IMAPI2 "
                              "IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi")
@@ -1707,7 +2397,36 @@ def _build_parser():
 
     sp = sub.add_parser("info", help="dump drive and disc information")
     common(sp)
+    sp.add_argument("--image", help="read disc identity from an ISO without drive access")
+    sp.add_argument("--register", help="match identity against a local register JSON (read-only)")
     sp.set_defaults(func=cmd_info)
+
+    sp = sub.add_parser('diagnose', help='save sanitized run diagnostics without photos or drive access')
+    sp.add_argument('run', metavar='RUN', help='run folder or summary.json')
+    from .diagnostics import run as diagnose_run
+    sp.set_defaults(func=diagnose_run)
+
+    from . import troubleshoot
+    troubleshoot.arguments(sub.add_parser("troubleshoot", help=troubleshoot.HELP))
+
+    from . import checkburn
+    checkburn.add_parser(sub)
+
+    sp = sub.add_parser("whois", help="read and check a public disc identity record")
+    common(sp)
+    sp.add_argument("--image", help="read disc identity from an ISO without drive access")
+    sp.add_argument("--register", help="match identity against a local register JSON (read-only)")
+    sp.set_defaults(func=cmd_whois)
+
+    sp = sub.add_parser("disc", help="which disc is in the drive (read-only, quick; one JSON line)")
+    common(sp)
+    sp.set_defaults(func=cmd_disc)
+
+    sp = sub.add_parser("swap", help="wait (read-only) while the disc is taken out and another put in")
+    common(sp)
+    sp.add_argument("--minutes", type=float, default=10, help="give up after this long")
+    sp.add_argument("--ready-now", action="store_true", help="return at once if a disc is already ready")
+    sp.set_defaults(func=cmd_swap)
 
     sp = sub.add_parser("timing", help="cache/FUA test, CAV check, sector phase measurement")
     common(sp)
@@ -1751,6 +2470,8 @@ def _build_parser():
     sp.set_defaults(func=cmd_scan)
 
     sp = sub.add_parser("rings", help="write the DVD texture-ring test ISO (one recorded byte per ring)")
+    sp.add_argument("--geo", help="geo run for measured ring geometry and its accepted photo L")
+    sp.add_argument("--no-photo-l", action="store_true", help="do not apply the run's photo L")
     sp.add_argument("--output", default="rings.iso")
     sp.add_argument("--textures", default="A5,B9,66,64,E4,92,RND",
                     help="scrambled-domain bytes in hex, or RND; must include A5 and 92")
@@ -1801,6 +2522,12 @@ def _build_parser():
 
     sp = sub.add_parser("geo", help="measure the spiral geometry of a burned DVD or CD from read timing (ladder)")
     common(sp)
+    from .read_completion import HELP as completion_help, REFIT_HELP, argument as completion_argument
+    sp.add_argument('--completion-sectors', type=completion_argument, help=completion_help)
+    sp.add_argument('--reapply', dest='refit', metavar='GEO', help=REFIT_HELP)
+    sp.add_argument('--resume', metavar='GEO', help='read missing radii on the same disc using a saved geometry run')
+    sp.add_argument('--json', dest='json_events', action='store_true',
+                    help='write live geometry and progress events as JSON lines to stdout')
     sp.add_argument("--speed", type=_speed, default=5540,
                     help="read speed to fix, in kB/s or as a multiple like 4x (default 4x = 5540; CD 8x = 1411), "
                          "or keep to send no speed command and leave the drive as it is")
@@ -1817,23 +2544,26 @@ def _build_parser():
     sp.add_argument("--r0-mm", type=float, default=24.0, help="prior geometry (loose)")
     sp.add_argument("--pitch-um", type=float, default=0.74)
     sp.add_argument("--bit-nm", type=float, default=133.3)
+    sp.add_argument('--no-auto-correction', action='store_true',
+                    help='disable variable-pitch prediction and automatic repeated angle probes')
     sp.add_argument("--chi2-abort", type=float, default=25.0,
-                    help="stop when chi2/dof of the constant-pitch fit exceeds this; raise it for media "
-                         "whose pitch varies (CD: a smooth S of a few degrees), the 90-degree residual "
-                         "check still catches whole-turn errors")
+                    help="constant-pitch abort limit (default 25); variable pitch is followed automatically "
+                         "unless --no-auto-correction is given; whole-turn checks remain active")
     sp.add_argument("--read-offset-bytes", type=float, default=0.0,
                     help="CD audio track only: where this drive's READ CD completes, in bytes before the end of "
                          "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")
+    sp.add_argument("--cd-clv", action="store_true",
+                    help="experimental CD period fit; requires --linear-mm-s or explicit --pitch-um; no calibrated angle map")
     sp.add_argument("--linear-mm-s", type=float,
-                    help="Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the "
+                    help="CLV fit: independently known linear speed in mm/s. With it the fit gives the "
                          "pitch; without it the pitch is an anchor and only the ratio stays known")
-    sp.add_argument("--bd-zones", type=int,
-                    help="Blu-ray only: how many zones to time, spread evenly from 5%% to 95%% of the disc "
+    sp.add_argument("--bd-zones", "--clv-zones", type=int,
+                    help="CLV fit: how many zones to time, spread evenly from 5%% to 95%% of the disc "
                          "(default 9). Two numbers come out of the line, so nine zones already pin them; "
                          "more zones buy a better check that the line is straight, which is what tells a "
                          "clean CLV disc from one that changes speed part way")
     sp.add_argument("--fit-offset", action="store_true",
-                    help="Blu-ray only: fit a constant offset in the period as well, which is the only way to "
+                    help="CLV fit: fit a constant offset in the period as well, which is the only way to "
                          "separate 'this disc really starts further out than 24.0 mm' from 'every period "
                          "carries a fixed few hundred microseconds'. Needs five zones or more")
     sp.set_defaults(func=cmd_geo)
@@ -1849,7 +2579,10 @@ def _build_parser():
     source = sp.add_mutually_exclusive_group(required=True)
     source.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
     source.add_argument("--design", help="a design file saved by edit")
+    source.add_argument("--work", help="an editor work document to compose and simulate")
     source.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
+    source.add_argument("--random-label-image", help="random label .image.json: paper view including geometry error")
+    sp.add_argument("--actual-geo", help="actual DVD geo summary for the random label preview (default: written geometry)")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--dark", default="A5", help="dark texture: one hexadecimal byte")
     sp.add_argument("--light", default="B9", help="light texture: one hexadecimal byte, or bands to choose by viewing angle as on the figures disc")
@@ -1861,14 +2594,67 @@ def _build_parser():
     sp.add_argument("--size", type=int, default=420, help="side of a tile in pixels")
     sp.set_defaults(func=cmd_simulate)
 
+    sp = sub.add_parser("template", help="export a batch-sized drawing template and material swatches")
+    sp.add_argument("--geo", required=True, help="geo summary/folder, latest, or DiscImageStudio preset JSON")
+    sp.add_argument("--media", choices=("dvd", "cd", "bd"), help="check geometry media (inferred by default)")
+    sp.add_argument("--sectors", type=int, help="written sector count; default: capacity recorded in geometry")
+    sizes = sp.add_mutually_exclusive_group()
+    sizes.add_argument("--size", type=int, default=4096, help="legacy guide side in pixels (256..8192)")
+    sizes.add_argument("--grid", type=int, choices=(5, 10, 20), help="grid pitch in µm for 120 mm canvas and guide PNGs")
+    sp.add_argument("--out", default="disc-template", help="output directory")
+    sp.add_argument("--preset-id", help="select a preset ID when the JSON contains several")
+    sp.add_argument("--pose", nargs="?", const="default", help="approximate DVD first-order layer: default or cx,cy,cz,lx,ly,lz in mm")
+    sp.add_argument("--batch", help="batch name or MID for grid template filenames")
+    sp.add_argument("--rotate", type=float, default=0, help="grid template disc rotation in degrees counterclockwise")
+    sp.add_argument("--delta-scale", type=float, default=1, help="scale DVD diffraction for grid template guides")
+    sp.set_defaults(func=cmd_template)
+    sp = sub.add_parser("compose", help="compose an editor work document into material labels (no drive access)")
+    sp.add_argument("work", help="versioned work JSON saved by the page")
+    sp.add_argument("--out", required=True, help="output uint8 design.npy; texture order saved beside it")
+    sp.set_defaults(func=cmd_compose)
+
+    sp = sub.add_parser('colour-design', help='map a colour picture to DVD textures for a phone and shooting height')
+    sp.add_argument('image')
+    sp.add_argument('--phone', required=True, help='phone ID, e.g. iphone17pro or custom')
+    sp.add_argument('--height', required=True, type=float, help='lens height above the table, cm')
+    sp.add_argument('--flash-mm', type=float, help='flash-to-lens distance for a custom phone')
+    sp.add_argument('--materials', help='override the bundled material set with a JSON file containing texture specs')
+    sp.add_argument('--dither', choices=('ordered', 'nearest'), default='ordered')
+    sp.add_argument('--mapping', choices=('perceptual', 'vivid'), default='perceptual',
+                    help='vivid favours brighter textures with a fitted table (default: perceptual)')
+    sp.add_argument('--fit', choices=('disc', 'ring'), default='disc', help='fill the disc or fit the picture above the hub')
+    sp.add_argument('--no-arrow', action='store_true', help="omit the direction arrow at 12 o'clock (added by default)")
+    sp.add_argument('-o', '--out', required=True, help='work JSON')
+    sp.add_argument('--preview', help='write the model prediction as PNG')
+    sp.set_defaults(func=cmd_colour_design)
+
+    from . import gratingcard_cli
+    gratingcard_cli.add_parser(sub)
+
+    from . import discfiles
+    sp = sub.add_parser('files-layout', help='plan DVD files and picture annuli as JSON (no drive access)')
+    discfiles.add_arguments(sp, layout_only=True)
+    sp.add_argument('--geo', help='measured DVD geometry; omit for a nominal-radius guide')
+    sp.set_defaults(func=discfiles.command)
+
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
+    discfiles.add_arguments(sp)
+    sp.add_argument("--no-photo-l", action="store_true", help="do not apply the run's photo L")
+    sp.add_argument("--reading-drive", help="check the photo against this specific drive identity (no drive access)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")
     sp.add_argument("--output", default="iso/grid.iso")
     sp.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
     sp.add_argument("--design", help="a design file saved by edit, instead of --picture")
-    sp.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
+    sp.add_argument("--design-npy", help="prepared boolean design (True = dark), data-side view, spanning the 120 mm disc: "
+                    "6000 x 6000 (20 um cells), 12000 x 12000 (10 um) or 24000 x 24000 (5 um)")
+    sp.add_argument("--cell-um", type=int, choices=(20, 10, 5), help="cell size of the drawing in um "
+                    "(default 20). At 10 / 5 um, DVD and BD are finer both along the track and radially; "
+                    "CD stays about 80 um along the track and is finer only radially. "
+                    "Coloured textures need broad areas: a single 5 um cell cannot show colour. "
+                    "With --design-npy it must match the array, which sets it anyway")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
-    sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")
+    from .coverage import IMAGE_OUTER_MM
+    sp.add_argument("--r-max", type=float, default=IMAGE_OUTER_MM, help="outer radius of the drawing")
     sp.add_argument("--start-lba", type=int, default=0,
                     help="DVD: write only from this sector on, to append to a disc already written up to it "
                          "(`info` shows the next writable address)")
@@ -1923,6 +2709,14 @@ def _build_parser():
     sp.add_argument("--out", default="results")
     sp.set_defaults(func=cmd_gridscan)
 
+    sp = sub.add_parser("curve-edit", help="refit assisted phi(r) edits and independently validate before saving")
+    sp.add_argument("--run", required=True, help="geo run folder with correction.json and probes.json")
+    edits = sp.add_mutually_exclusive_group()
+    edits.add_argument("--edit", help="curve-edit v1 JSON file; omit to get the automatic initial document")
+    edits.add_argument("--edit-json", help="inline curve-edit v1 JSON, for API clients")
+    sp.add_argument("--save", action="store_true", help="save only after fresh independent validation")
+    sp.set_defaults(func=cmd_curve_edit)
+
     sp = sub.add_parser("correction", help="fit an angle-correction curve from gridscan phi.csv files")
     sp.add_argument("phi", nargs="+", help="phi.csv files written by gridscan")
     sp.add_argument("--output", default="angle_correction.json")
@@ -1933,6 +2727,7 @@ def _build_parser():
     sp.set_defaults(func=cmd_correction)
 
     sp = sub.add_parser("disexport", help="fit a measurement as a DiscImageStudio preset: a DVD/CD angle map (cubic pitch), or a Blu-ray T^2 line (constant pitch)")
+    sp.add_argument('--completion-sectors', type=completion_argument, help=completion_help)
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose; "
                                                     "a CD fit gives a CD preset")
     sp.add_argument("--correction", help="angle-correction file from the correction command")
@@ -1994,7 +2789,25 @@ def _build_parser():
     sp.add_argument("--output", default="iso/random.iso")
     sp.add_argument("--sectors", type=int, default=2295104, help="how much to burn, not the disc size; it has to fit on the blank")
     sp.add_argument("--seed", type=int, default=1)
+    sp.add_argument("--label", metavar="TEXT", help="DVD: pending ASCII label; stop random data at 50 mm, burn --keep-open then geo and label. With --geo, write the measured label in one burn (default nearest 8x)")
+    sp.add_argument('--geo', help='same-batch DVD geo folder or summary.json for a one-burn label')
     sp.set_defaults(func=cmd_random)
+
+    sp = sub.add_parser('label', help='build an appended DVD label session using measured geometry')
+    sp.add_argument('--geo', required=True, help='DVD geo folder or summary.json')
+    sp.add_argument('--text', required=True, help='printable ASCII label text')
+    sp.add_argument('--output', default='iso/label.iso', help='appended session ISO output')
+    sp.add_argument('--drive', help='read current DVD NWA from this drive (no writing)')
+    sp.add_argument('--start-lba', type=int, help='explicit NWA for offline construction')
+    sp.add_argument('--sectors', type=int, default=2295104, help="DVD mapping end in sectors; default is the random image length, not the blank's writable capacity")
+    sp.set_defaults(func=cmd_label)
+
+    sp = sub.add_parser("checkdisc", help="write the experimental DVD photo check disc using measured geometry")
+    sp.add_argument("--geo", required=True, help="DVD geo run folder or summary.json")
+    sp.add_argument("--output", help="ISO output (default: iso/check-<stamp>.iso)")
+    sp.add_argument("--sectors", type=int, help="sector count (default: geo setup.last_lba + 1)")
+    sp.add_argument("--disc-code", dest="disc_id_code", help="disc code for the work ISO record")
+    sp.set_defaults(func=cmd_checkdisc)
 
     sp = sub.add_parser("calibdisc", help="write one Blu-ray that both times itself and shows its own twist")
     sp.add_argument("--output", default="iso/bd-calib.iso")
@@ -2013,8 +2826,42 @@ def _build_parser():
                          "survives a wrong preset as a handful of arms, where a thin line does not")
     sp.set_defaults(func=cmd_calibdisc)
 
+    sp = sub.add_parser("webui", help="serve the web GUI backend")
+    from . import web_instance
+    sp.add_argument("--open", dest="open_browser", action="store_true", help="open the lobby in the default browser")
+    sp.add_argument("--gui", metavar="PATH", help="GUI folder containing gui.json (default: bundled GUI)")
+    sp.add_argument("--port", type=int, default=web_instance.DEFAULT_PORT,
+                    help="preferred HTTP port (default: 8765; uses a free port if occupied)")
+    sp.add_argument("--lan", action="store_true", help="accepted for compatibility; no-op (LAN is on by default)")
+    sp.add_argument("--local-only", action="store_true", help="listen only on 127.0.0.1; disable LAN phone access")
+    sp.add_argument("--no-drives", action="store_true", help="offline design session; do not enumerate drives (or DISC_PROBE_NO_DRIVES=1)")
+    sp.add_argument("--new-instance", action="store_true", help="start a separate service without replacing the existing instance")
+    sp.add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd", help="disc type")
+    sp.add_argument("--out", default="results", help="results directory (default: results)")
+    from .webui import run as run_webui
+    sp.set_defaults(func=run_webui)
+    lifecycle = sp.add_subparsers(dest="webui_action", metavar="[status|stop]")
+    status_help = i18n.tr("show the running web service and optical-drive lock holders")
+    control = lifecycle.add_parser("status", help=status_help, description=status_help)
+    control.add_argument("--json", action="store_true", help="print the service and drive status as JSON")
+    control.set_defaults(func=web_instance.status)
+    i18n.localize_parser(control)
+    stop_help = i18n.tr("stop the web service after its tasks finish")
+    control = lifecycle.add_parser("stop", help=stop_help, description=stop_help)
+    control.add_argument("--force", action="store_true", help="stop active tasks only when no disc write is in progress")
+    control.set_defaults(func=web_instance.stop)
+    i18n.localize_parser(control)
+
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)
+
+    from . import texlib
+    texlib.add_parser(sub)
+    for name in ('simulate','image','tiles','compose','colour-design','rings','webui'):
+        sub.choices[name].add_argument('--texlib', help='read-only texture library directory (otherwise DISCPROBE_TEXLIB)')
+    for name in ('simulate','compose','colour-design','webui'):
+        sub.choices[name].add_argument('--table', help='override the bundled colour-picture table with an NPZ file')
+    sub.choices['webui'].add_argument('--materials', help='override the bundled colour-picture material set with JSON')
 
     # Add media only to commands with an implemented CD path. Existing DVD
     # defaults are retained verbatim; explicit CD options override CD defaults.
@@ -2052,11 +2899,21 @@ def _build_parser():
             help="CD only: sector layout the burner writes; IMAPI2 data burns are Mode 2 Form 1 "
                  "(user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1")
     # Each command's help names what it does, and the top level lists the commands in workflow order.
+    from .works_link import add_options as add_work_options
+    add_work_options(sub)
+    for name in ('image', 'tiles', 'beacons', 'disexport'):
+        sub.choices[name].add_argument('--allow-unvalidated-correction', action='store_true',
+            help='允许使用未通过独立校验的角度修正 / Allow an angle correction that failed independent validation')
     tr = i18n.tr
+    for name in ("image", "random", "calib", "calibdisc", "burn", "files-layout"):
+        sub.choices[name].add_argument("--disc-id", action="store_true",
+            help="write a public disc identity record (default: off)")
+        sub.choices[name].add_argument("--disc-id-code", "--disc-code", dest="disc_id_code",
+            help="consent to disc identity and set its disc code, e.g. KOI-A 3-05")
     helps = {a.dest: tr(a.help) for a in sub._choices_actions}
     for name, parser in sub.choices.items():
         parser.description = helps[name]
-        parser.epilog = i18n.block(name, EXAMPLES.get(name))
+        parser.epilog = i18n.block(name, EXAMPLES.get(name, parser.epilog))
         if sys.platform == "linux" and parser.epilog:
             parser.epilog = parser.epilog.replace("--drive E:", "--drive /dev/sr0").replace("geo-E-", "geo-sr0-")
             if name == "random":
@@ -2083,6 +2940,11 @@ def _main(argv=None):
         args = argparse.Namespace(func=cmd_menu, menu_media=None, out="results")
         return args.func(args)
     args = p.parse_args(argv)
+    if getattr(args, "cd_clv", False):
+        args.cd_clv_pitch_explicit = any("--pitch-um".startswith(a.split("=")[0])
+                                        for a in raw_args if a.startswith("--"))
+    if raw_args[:1] == ["burn"]:
+        return args.func(args)  # Write speeds have their own units and safety checks.
     if getattr(args, "rings", None) and isinstance(args.rings, str):
         try:
             args.rings_list = [float(x) for x in args.rings.replace(",", " ").split()]
@@ -2116,10 +2978,48 @@ def _main(argv=None):
         ui.say(f"--speed is {args.speed} kB/s", "dim")
     elif getattr(args, "speed", None) and args.speed < 100:
         ui.say(f"Note: --speed is in kB/s, so {args.speed} is very slow. For a multiple, write {args.speed}x.", "yellow")
-    args.func(args)
+    if raw_args[0] in {"image", "random", "rings", "calib", "tiles", "beacons", "calibdisc", "disexport", "cdprobe", "spokes"}:
+        print(i18n.tr("Preparing the design and image data; this may take a few seconds..."), flush=True)
+    try:
+        if raw_args[0] != 'webui' and getattr(args,'texlib',None):
+            from .texlib import configure
+            configure(args.texlib)
+        if raw_args[0] in ('simulate','image','tiles','rings'):
+            from .texlib import resolve
+            for key in ('dark','light','filler'):
+                if hasattr(args,key):setattr(args,key,resolve(getattr(args,key)))
+            for key in ('textures','palette'):
+                value=getattr(args,key,None)
+                if value:
+                    setattr(args,key,','.join(resolve(v) for v in value.split(',')) if isinstance(value,str) else [resolve(v) for v in value])
+        if raw_args[0] in ('calibrate', 'timing', 'geo') and not args.sim and not getattr(args, 'geo', None):
+            from .measurement_jobs import track
+            with track(args.out, media):
+                args.func(args)
+        else:
+            args.func(args)
+    except ValueError as exc:
+        p.error(str(exc))
+    except SystemExit as exc:
+        if exc.code and raw_args[0] in ('image', 'tiles', 'disexport') and os.path.isfile(str(getattr(args, 'geo', ''))):
+            from .diagnostics import save_failure
+            save_failure(os.path.dirname(os.path.abspath(args.geo)), str(exc.code), args)
+        raise
+
+
+def cmd_version(args):
+    from .api import version_payload
+    payload = version_payload()
+    if args.json:
+        print(json.dumps(payload))
+    else:
+        print(f"disc-probe {payload['core_version']} (API {payload['api_version']})")
+        print("Capabilities: " + ", ".join(payload["capabilities"]))
+        print("Supported older API majors: " + (", ".join(map(str, payload["supported_older_api_majors"])) or "none"))
 
 
 def main(argv=None):
+    qos.keep_full_speed()       # jobs started from the web page have no window; Windows must not park them
     try:
         flag, rest = i18n.take_flag(list(sys.argv[1:] if argv is None else argv))
     except ValueError as e:
@@ -2132,19 +3032,27 @@ def main(argv=None):
         rest = [a for a in rest if a != "--no-animation"]
         ui.term().animate = False
     try:
+        if rest[:1] == ["troubleshoot"]:
+            from . import troubleshoot
+            return troubleshoot.cli(rest[1:], prog=guide.PROG)
         if rest[:1] == ["completion"]:      # not a parser command, so piped help and errors stay as they were
             from . import completion
             return completion.main(rest[1:], _build_parser, ui.term().stream)
         _main(rest)
     except _Rerun as again:
         main(list(sys.argv[1:] if argv is None else argv) + again.extra)
+    except DriveBusy as exc:
+        ui.event("error", code=exc.code, message=str(exc))
+        i18n._prepare(sys.stderr)
+        print(str(exc), file=sys.stderr)
+        sys.exit(exc.exit_code)
     except KeyboardInterrupt:
         kept = f" What was measured so far is in {os.path.abspath(_Parser.last_out)}" if _Parser.last_out else ""
         print(f"\nStopped by Ctrl+C.{kept}", file=sys.stderr)
         sys.exit(130)
     except ModuleNotFoundError as e:
         package = (e.name or "").split(".")[0]
-        if package not in ("numpy", "scipy", "PIL"):
+        if package not in ("numpy", "PIL", "scipy", "cv2"):
             raise
         sys.exit(f"this command needs {'Pillow' if package == 'PIL' else package}. "
                  f"Install what disc-probe uses with: {guide.INSTALL}")

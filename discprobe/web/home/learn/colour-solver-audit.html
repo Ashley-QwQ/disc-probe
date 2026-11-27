@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- Generated from docs/goals/colour-solver-audit.md by tools/render_learning_guide.py. -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网页彩色求解器核查 · disc-probe</title>
+<link rel="icon" type="image/x-icon" href="../../brand/probe/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../brand/probe/apple-touch-icon.png">
+<link rel="stylesheet" href="../guide.css">
+<link rel="stylesheet" href="./page.css">
+<link rel="stylesheet" href="../../fonts/titles.css">
+<script type="module" src="./page.mjs"></script>
+</head>
+<body><main>
+<h1 id="网页彩色求解器核查">网页彩色求解器核查</h1>
+<p>截至 2026-11-21，基点 <code>39a1dac</code>。这里的实测分为软件实验和从已有照片重新取样两类。</p>
+<ul><li><strong>网页和 CLI 的选材用同一套 core（软件实测）。</strong> 同一作品的标签文件逐字节相同。两边独立导入默认摆放不同，统一摆放后 3,600 万格的纹理逐格一致，两个整盘 ISO 只有 ISO 9660 时间字段有差别。</li><li><strong>摆放纸机位的 δ 算得对（软件实测）。</strong> 用摆放纸约定的镜头和灯位置，24 个坐标的手算与合成器最大只差 <code>1.67×10⁻¹⁶</code>。在所列样本上，把灯擅自换到横向会让 δ 变动约 0.05–0.12，足以换材。任意横拍、转手机或倾盘不属于这套固定机位。</li><li><strong>当前模型能选出有差异的纹理，彩色精度有限（软件实测）。</strong> 测试图有 15.5% 的可刻覆盖区落在色表角度范围外。这些位置跳过彩色填充。最接近的已知材质本身往往也离目标很远。Bayer 抖动改善了局部平均色差，同时留下固定周期纹。</li><li><strong>拟合表与实拍还有可见差距（旧实拍复核）。</strong> colour4 的同一种 F9 纹理，在一张照片的 14 个定位区域逐区比较。11 个色度足够的区域色相误差中位数 38.1°，一块接近反色。本次没有新刻盘，结果只覆盖这块盘上的 F9。</li><li><strong>角色卡和网页解决的目标不同（档案与软件实测）。</strong> 4-20 的 112 种是同一张角色卡在多个角度共同优化后实际用到的纹理。网页的 58 种是单机位彩色图片的候选集。两张查表在共同拟合区域的数值一致。扩大网页候选池值得另做对照实验，直接切换默认表还缺依据。</li></ul>
+<h2 id="1-从同一张-png-到-iso">1. 从同一张 PNG 到 ISO</h2>
+<p>实验让无头 Edge 走网页的真实导入入口、颜色面板、1× 摆放纸机位、彩色图片填充和默认导出。浏览器脚本经 CDP 操作隔离的离线回环服务，网页使用真实 <code>/api/compose</code> 和 <code>/api/run</code>。作品库和批次选择由夹具提供，脚本没有开启实体设备。</p>
+<p>CLI 从同一张 PNG 运行 <code>colour-design --phone iphone17pro --height 22.3</code>。两边解码得到相同 RGBA。默认摆放对照之后，把 CLI 图层调整到实际记录下来的网页位置和尺寸；两边均使用 20 µm 网格、同一 24–58 mm 环带、同一几何、相同的摆放纸机位和 12 点 RND 方向箭头。另让 CLI 直接合成网页导出的同一作品，分别检验独立导入和同一作品的结果。ISO 文件各自写入创建、修改和目录时间，比较时另外计算只把这些日期字段归零的哈希。</p>
+<div class="learn-table"><table><thead><tr><th scope="col">比较</th><th scope="col">实测</th></tr></thead><tbody><tr><td>两边默认摆放</td><td>网页 80.384 mm，CLI 116 mm。在 600 × 600 对照网格中，仅对齐摆放就改变了 111,366 个标签。</td></tr><tr><td>同一份网页作品，网页与 CLI 分别合成</td><td>完整 <code>.npy</code> 逐字节一致，共 36,000,000 个标签。</td></tr><tr><td>独立导入且对齐摆放</td><td>网页 78 个槽位、CLI 61 个槽位。数字标签有 10,398,114 格不同，按槽位解引用后 <strong>36,000,000 格的刻录纹理全部一致</strong>。</td></tr><tr><td>两个整盘 ISO</td><td>各 4,700,372,992 字节。原始 SHA-256 不同。仅归零 ISO 9660 中 55 个储存时间的字节后，SHA-256 双方均为 <code>56b57af691a1a26af7fdc49fe230c3cc73b2c61fe6033515d523020f80f3272f</code>。</td></tr></tbody></table></div>
+<p>网页在包材质之前还创建了手动材质面板用的槽位，CLI 只生成彩色填充所需槽位。默认导入摆放和预览的黑白／实验导出选择在浏览器完成；彩色填充提交原图、图层、机位、材质候选及色表标记，由 core 选材。修正了普通材质说明里关于默认黑白输出的旧文案。彩色图片填充默认输出彩色纹理，只有材质、图案或特效的作品仍默认黑白。改动只涉及说明文字。</p>
+<h2 id="2-δ机位和盘面方向">2. δ、机位和盘面方向</h2>
+<p>轨道切线在数据面坐标是 <code>(−y, x, 0) / r</code>。从格子分别指向镜头和闪光灯，先把这两个向量各自除以长度，相加后投影到轨道切线，取绝对值就是 δ。摆放纸的校准镜头高度是距桌面 22.3 cm，机位表给出的盘面上镜头高 221.740 mm。镜头位于盘心朝 12 点 28.450 mm，闪光灯再向 12 点 47.936 mm。查色表时另乘 0.93。</p>
+<div class="learn-table"><table><thead><tr><th scope="col">数据面格子 (x, y)，mm</th><th scope="col">手算与合成 δ</th><th scope="col">查表 δ</th><th scope="col">若把闪光灯改成横向，推算 δ</th><th scope="col">若上下翻转，推算 δ</th></tr></thead><tbody><tr><td>(−30.5, 57.5)</td><td>0.218417</td><td>0.203128</td><td>0.294006</td><td>0.192842</td></tr><tr><td>(−30.5, 11.5)</td><td>0.425293</td><td>0.395523</td><td>0.303200</td><td>0.414318</td></tr><tr><td>(+26.5, −34.5)</td><td>0.261316</td><td>0.243024</td><td>0.313773</td><td>0.282367</td></tr></tbody></table></div>
+<p>在这套镜头与灯都位于 x=0 的机位下，左右镜像保持 <code>|δ|</code>，所以光靠 δ 不能查出左右镜像。另给预测图一个偏右的不对称标签块，盘逆时针转 35° 后，重心从第 109 行、200 列移到第 64.8 行、179.4 列，方向符合数据面约定。把输入图层旋转 37° 时，合成器仍用它覆盖到的实际盘面坐标算 δ。把距桌面的高度错当成距盘面高度，在示例各点让 δ 偏移约 0.0012–0.0023。照片侧的横竖方向、盘转角和设备位置仍须按摆放纸来设置。</p>
+<h2 id="3-色域与抖动">3. 色域与抖动</h2>
+<p>用六个高饱和色块和带不对称亮标的灰阶渐变做 600 × 600 格模型实验。按实际 δ 插值响应再转 Lab，逐格与映射后的目标比较。600 网格的每格 0.20 mm，便于复算及放大定位抖动；默认写盘每格 0.02 mm。</p>
+<ul><li>218,976 个图层覆盖的可写格中，184,994 格有角度数据。两种模式在其他 33,982 个格均保留背景。色表范围内，各 δ 的可达亮度上下限用于重映射 L*，a*、b* 同比缩放并保持目标色相。色度比例的第 5、50、95 百分位约 0.668、1、1。当前第三轮算法还加入边缘提亮／压暗和低亮度跨度下的色度保留。第二轮文档中简单的 <code>Cmax/134</code> 只描述当时的实现。参见前几轮彩色图报告。</li><li>各格可选纹理中，以未加权的 ΔE76 做独立基线。关闭抖动时，59.1% 的格选到这个基线的第一名。其余允许用平滑和材质切换代价交换局部精度，以减轻放射细纹。开抖动时，35.6% 的格选中基线第一名；单格色差一般更高。</li><li>用线性 XYZ 对完整 8 × 8 邻域做面积平均，纯色内区的色差中位数从 38.3 降到 36.2，第 95 百分位从 57.3 降到 51.3。在同一区域扣掉局部低频亮度后，按 8 × 8 相位折叠得到的亮度 RMS 从参考 Y 的 0.00069 升到 0.0305。这是数字网格里的固定周期信号。真实盘会不会看见颗粒、条纹或摩尔纹，尤其是手机缩图之后，未测。</li></ul>
+<div class="learn-table"><table><thead><tr><th scope="col">色块</th><th scope="col">每格可选材质的最小色差中位数</th><th scope="col">关抖动</th><th scope="col">开抖动</th></tr></thead><tbody><tr><td>红</td><td>37.5</td><td>41.7</td><td>53.9</td></tr><tr><td>绿</td><td>32.4</td><td>36.3</td><td>42.1</td></tr><tr><td>蓝</td><td>24.7</td><td>34.9</td><td>38.7</td></tr><tr><td>黄</td><td>34.9</td><td>37.0</td><td>40.3</td></tr><tr><td>洋红</td><td>55.8</td><td>58.6</td><td>61.1</td></tr><tr><td>青</td><td>39.1</td><td>40.4</td><td>44.4</td></tr><tr><td>灰阶</td><td>21.4</td><td>21.8</td><td>23.2</td></tr></tbody></table></div>
+<h2 id="4-已有实拍逐区对照">4. 已有实拍逐区对照</h2>
+<p>用 GH70N 写入的 RITEKF1 colour4 靶盘、iPhone 17 Pro 闪光照片 <code>IMG_7122.jpeg</code> 和第三次颜色试验已有的盘缘位姿与瓦片编号。只用成功定位的 14 块，各对 F9 色片内部取 81 点。照片先由 sRGB 解码到线性 RGB，预测取相同位置 δ 下包内 F9 的 XYZ，再比较亮度变化。例如瓦片 1 的照片与预测色相分别为 297° 和 259°，瓦片 3 为 304° 和 125°，瓦片 20 为 308° 和 266°。色相比较前将每一对亮度置到同一 Y，色度低于 10 的 3 块只参与亮度分析。14 块亮度的 Pearson r 为 0.54。相机的曝光和模型的照度基准不同，未比较绝对亮度。</p>
+<p>原记录的焦距来自 EXIF，未用标定板内参，定位残差约 0.070 mm。包内 58 种与这张旧盘的 9 种只有 F9 重合，因此这次结果无法外推到全部材质。实拍包含底色、眩光、手机处理等，纯衍射预测把这些留在模型之外。SHOW-D 版式有实拍记录，本轮没有复用它做同一色表的逐区验收。参见已有照片说明及色表研究记录。</p>
+<p><strong>4-20 的独立实拍记录。</strong> <code>IMG_8338</code> 六帧的已有区域分析也看到偏色。隐去态耳尖预测黄绿，实拍橙红。以 3355 px 焦距求相机位置后，窄峰方案贴合这组照片的查表倍数约 1.04，设计使用 0.93。这里的 1.04 是事后从同一张盘拟合的数，盘转角也用实拍轮廓估计。它提示下一轮应先按摆放纸重拍，再判断网页默认倍数是否需要改。原始对照见 <code>F:/dp-dev-tmp/showcase-blink/photo/ANALYSIS-IMG_8338.md</code>。</p>
+<h2 id="5-112-种角色卡纹理与-58-种网页材质">5. 112 种角色卡纹理与 58 种网页材质</h2>
+<div class="learn-table"><table><thead><tr><th scope="col"></th><th scope="col">网页彩色</th><th scope="col">角色卡流程</th></tr></thead><tbody><tr><td>选材范围</td><td>随包 58 种，表约 222 KB</td><td>归档风险筛查后 3,844 个候选；4-20 实际用 112 种</td></tr><tr><td>查表</td><td>341 个 δ，约 0.100–0.950；总 XYZ</td><td><code>delta-lookup.npz</code> 共 3,874 行，包含复核用附加纹理；381 个 δ，0–0.950；逐阶 XYZ，文件约 73.8 MB</td></tr><tr><td>光学目标</td><td>一组镜头、灯和盘面机位，在单图上保色相、亮度层次和局部反差</td><td>多个倾角的亮度和颜色响应同时进入评分，另考虑残影、衍射阶次和通道门槛</td></tr><tr><td>小 δ</td><td>表外格跳过填充</td><td>在拟合区之外有按光谱算出的响应，镜面反射附近的反差仍缺可靠实拍</td></tr></tbody></table></div>
+<p>两个表都用 0.93。把角色卡的各阶 XYZ 加起来，57 个共同材质在拟合区 341 个 δ 上的最大绝对差为 <code>9.18×10⁻⁸</code>。唯一缺少的包材质是含字节 <code>92</code> 的 <code>6790560892</code>。这是候选策略的差异。4-20 的原始标签清单确有 112 个不同材质，全部在角色卡查表里，均未包含 <code>92</code>，其中 <strong>20 种</strong>也在网页的 58 种中。</p>
+<p><strong>能不能用（代码与格式判断）。</strong> 现有普通彩色路径可传合规的 XYZ NPZ 和材料 JSON。角色卡的逐阶表须先汇总、转换并挑出小目录，且还要统一亮度参考和处理小 δ。原表格式和 3,844 个候选都不能直接喂给现有路径，单份作品的材质标签为 uint8，通常还需要给背景、暗部、方向箭头等留槽。</p>
+<p><strong>该不该换（建议由用户决定）。</strong> 保留 alpha 的 58 种默认表。可以用角色卡的筛查规则另选一套同样大小或接近 112 种的候选，对同一图、同机位做色域、耗时、调制纹和模拟通道对照，再补同一几何的实拍与回读。角色卡的 112 种是为那个构图选的，不能从数量推出它们更适合任意彩色照片。</p>
+<h2 id="复现">复现</h2>
+<p>在仓库根目录运行。无头 Edge 由脚本经 CDP 驱动。历史照片和纹理库查表由命令行显式指定。</p>
+<pre><code>$out = &#x27;D:/dp-dev/tmp/learngrating/audit&#x27;
+$env:TEMP = $env:TMP = &#x27;D:/dp-dev/tmp/learngrating&#x27;
+node tools/audit_colour_web.mjs $out
+python -B -X utf8 tools/audit_colour_solver.py parity $out
+python -B -X utf8 tools/audit_colour_solver.py model $out
+python -B -X utf8 tools/audit_colour_solver.py photo $out --archive D:/disc-probe/docs/goals/colour-sim
+python -B -X utf8 tools/audit_colour_solver.py library $out --archive D:/disc-probe-scratch/flip-pairs --character-textures F:/dp-dev-tmp/showcase-blink/work/g6/labels.textures.json</code></pre>
+<p>脚本保留标签、模型和采样日志，并在归一化哈希一致后删除两个整盘 ISO。证据目录中的 <code>photo-regions.png</code> 按瓦片编号并排显示照片与预测色，使用相同亮度以便看色相。</p>
+</main></body>
+</html>

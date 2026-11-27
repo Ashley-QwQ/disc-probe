@@ -1,0 +1,105 @@
+{
+  "mode": "desk",
+  "image_size": [
+    2560,
+    1440
+  ],
+  "px_per_mm": 2.9,
+  "pixel_origin": "top-left, y down",
+  "layers": [
+    "base",
+    "bag",
+    "upper",
+    "sheets",
+    "knob",
+    "doc_paper",
+    "doc_envelope"
+  ],
+  "draw_order": "base (opaque) -> bag_shadow, bag -> upper -> sheets_shadow, sheets -> knob_shadow, knob -> doc_*_shadow, doc_*; each moving layer moves together with its shadow",
+  "tray_rect_px": [
+    143.2,
+    64.68,
+    897.2,
+    1087.26
+  ],
+  "bag_rect_px": [
+    188.15,
+    266.57,
+    853.7,
+    1188.47
+  ],
+  "sheets_rect_px": [
+    211.64,
+    150.4,
+    826.44,
+    998.39
+  ],
+  "knob": {
+    "centre_px": [
+      2092.0,
+      539.8
+    ],
+    "radius_px": 36.2,
+    "travel_px": 187.2,
+    "note": "up = export, down = import; the knob layer is drawn at the middle"
+  },
+  "slot_px": [
+    [
+      2092.0,
+      339.11
+    ],
+    [
+      2092.0,
+      764.61
+    ]
+  ],
+  "leds": {
+    "export": {
+      "centre_px": [
+        2022.4,
+        358.97
+      ],
+      "radius_px": 9.9
+    },
+    "import": {
+      "centre_px": [
+        2022.4,
+        744.75
+      ],
+      "radius_px": 9.9
+    }
+  },
+  "lever_plate_rect_px": [
+    1984.7,
+    268.2,
+    2152.9,
+    839.14
+  ],
+  "doc_paper_rect_px": [
+    1020.45,
+    152.49,
+    1861.45,
+    1287.33
+  ],
+  "doc_envelope_rect_px": [
+    1011.75,
+    108.68,
+    1870.15,
+    1812.1
+  ],
+  "doc_paper_text_rect_px": [
+    1090.05,
+    220.75,
+    1791.85,
+    1219.25
+  ],
+  "doc_envelope_text_rect_px": [
+    1087.15,
+    595.19,
+    1794.75,
+    1366.75
+  ],
+  "camera": "orthographic, 12 deg from straight down toward the front; up the picture = away from the person",
+  "rect_note": "[left, top, right, bottom] in px",
+  "source": "discprobe/web/home/newplan/render_newplan.py --mode desk (tray: art/desk/skills/desk-prop-tray/final_bundle/tray.blend)"
+}

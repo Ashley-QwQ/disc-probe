@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "discs": {
+    "media": "dvd-r",
+    "count": 1,
+    "seed": 17,
+    "capacity": 8192,
+    "initial_state": {
+      "state": "burned",
+      "random": true,
+      "sectors": 4096,
+      "seed": 23
+    }
+  },
+  "drive": {
+    "profile": "gh70n"
+  },
+  "faults": [
+    {
+      "id": "read-band",
+      "kind": "read_error",
+      "params": {
+        "lba": [
+          0,
+          4096
+        ]
+      }
+    }
+  ]
+}

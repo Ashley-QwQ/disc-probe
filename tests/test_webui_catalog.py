@@ -1,0 +1,228 @@
+"""Catalogue tests use temporary files only, never a drive."""
+import json
+import os
+from pathlib import Path
+import tempfile
+from unittest.mock import Mock
+from discprobe import webui_catalog as catalog
+from discprobe import guide
+from discprobe import webui
+from tests.iso_fixture import write_checked_iso
+
+
+def write_geo(root, stamp='20261107-101500', **overrides):
+    path = Path(root) / 'results' / ('geo-H-' + stamp)
+    path.mkdir(parents=True)
+    data = dict(fit=dict(media='dvd', u=180000, v=5.5, chi2_per_dof=1,
+        measured_span_mm=[24.49,56.01], angle_sigma_measured_span_deg=.1),
+        identity=dict(disc='TEST <MID>', drive='Fake drive'), setup=dict(last_lba=999))
+    data.update(overrides)
+    (path / 'summary.json').write_text(json.dumps(data), encoding='utf-8')
+    (path / 'targets.csv').write_text('header\n' + 'point\n'*10)
+    return path
+
+
+def test_empty_and_presets():
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or Path(__file__).resolve().parents[1]) as tmp:
+        root=Path(tmp)
+        assert catalog.catalogue(root, root/'results') == dict(dvd=[],cd=[],bd=[])
+        (root/'presets').mkdir()
+        (root/'presets'/'one.json').write_text(json.dumps({'preset':{'id':'p','displayName':'Long <name>', 'totalSectors':100}}))
+        (root/'presets'/'broken.json').write_text('{')
+        rows=catalog.catalogue(root,root/'results')
+        assert rows['dvd'][0]['name'] == 'Long <name>'
+        assert rows['dvd'][0]['s'] == 'unknown'
+        assert rows['dvd'][0]['left'] is None
+
+
+def test_dis_import_status_is_geometry_not_a_measurement(tmp_path):
+    from discprobe import presets
+    for media in ('cd', 'dvd'):
+        preset = dict(id=media, displayName=media.upper(), description='From DIS',
+                      innerRadiusMm=25, outerRadiusMm=58,
+                      **({'sectors': 359849} if media == 'cd' else {'totalSectors': 2295104}))
+        presets.import_file(json.dumps(preset), 'manual-dis-preset.json', tmp_path / 'presets', media=media)
+        row = catalog.catalogue(tmp_path, tmp_path / 'results')[media][0]
+        assert row['s'] == 'imported'
+        assert row['imported'] and row['image_compatible'] and row['geo']
+        assert row['last'] is None and row['drive'] is None
+        saved = json.loads((tmp_path / row['geo']).read_text())
+        assert saved['fit']['calibrated'] is False
+        assert saved['source']['along_track_frames'] is None
+    # Unknown future fields keep an otherwise valid preset archive-only.
+    preset.update(id='archive', futureField=True)
+    presets.import_file(json.dumps(preset), 'archive.json', tmp_path / 'presets', media='dvd')
+    archive = next(row for row in catalog.catalogue(tmp_path, tmp_path / 'results')['dvd'] if row['id'] == 'preset:archive')
+    assert archive['s'] == 'unknown' and archive['imported']
+    assert not archive['image_compatible'] and archive['geo'] is None
+
+
+def test_results_identity_verdict_and_counter():
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or Path(__file__).resolve().parents[1]) as tmp:
+        root=Path(tmp)
+        path=write_geo(root)
+        write_geo(root, '20261108-101500', stopped='cancelled')
+        write_geo(root, '20261109-101500', simulated=True)
+        rows=catalog.catalogue(root,root/'results')
+        assert len(rows['dvd']) == 1
+        entry=rows['dvd'][0]
+        assert entry['s'] == guide.result_verdict(guide.scan(str(root/'results'))[-1]) == 'good'
+        assert entry['drive'] == 'Fake drive' and entry['sectors'] == 1000
+        assert entry['last'] == '2026-11-07'
+        catalog.save_entry(root,root/'results',dict(id=entry['id'],name='My batch',left=13))
+        saved=catalog.catalogue(root,root/'results')['dvd'][0]
+        assert saved['left'] == 13 and saved['name'] == 'My batch'
+        (root/'presets').mkdir()
+        (root/'presets'/'export.json').write_text(json.dumps({'preset':{'id':'linked','displayName':'Linked', 'totalSectors':1000}}))
+        assert catalog.save_entry(root,root/'results',dict(id=entry['id'],preset='presets/export.json')) == {'saved': True}
+        linked=catalog.catalogue(root,root/'results')['dvd']
+        assert len(linked)==1 and linked[0]['name']=='My batch' and linked[0]['left']==13
+        # the core reports the preset by its absolute path: stored relative, still one batch
+        catalog.save_entry(root,root/'results',dict(id=entry['id'],preset=str((root/'presets'/'export.json').resolve())))
+        assert json.loads((root/'catalogue.json').read_text())[entry['id']]['preset'] == 'presets/export.json'
+        assert len(catalog.catalogue(root,root/'results')['dvd']) == 1
+        # an absolute path saved by an older page links the preset too
+        (root/'catalogue.json').write_text(json.dumps({entry['id']: {'preset': str((root/'presets'/'export.json').resolve())}}))
+        assert len(catalog.catalogue(root,root/'results')['dvd']) == 1
+        assert (path/'summary.json').exists()
+        (root/'presets'/'export.json').write_text('{')
+        unreadable = catalog.save_entry(root,root/'results',dict(id=entry['id'],preset='presets/export.json'))
+        assert unreadable['photo_shift'] == {'written': False, 'reason': 'invalid_preset'}
+        for bad in [dict(id=entry['id'],left=True),dict(id='missing',name='x'),dict(id=entry['id'],name='')]:
+            try: catalog.save_entry(root,root/'results',bad)
+            except ValueError: pass
+            else: raise AssertionError('bad metadata accepted')
+
+
+def test_unidentified_results_stay_separate():
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or Path(__file__).resolve().parents[1]) as tmp:
+        root=Path(tmp)
+        write_geo(root, identity={})
+        write_geo(root,'20261108-101500',identity={})
+        rows=catalog.catalogue(root,root/'results')['dvd']
+        assert len(rows)==2 and all(x['mid'] is None for x in rows)
+
+
+def test_cd_library_uses_only_accepted_along_track(tmp_path):
+    import hashlib
+    from discprobe import cd, pcal, photo, presetio_api
+
+    bit = cd.BIT_NM
+    path = write_geo(tmp_path, args={'drive':'H:'},
+        fit=dict(media='cd', u=25/(bit*1e-6), v=.016/(bit*1e-6), bit_nm_assumed=bit,
+                 chi2_per_dof=1, measured_span_mm=[25,56.01], angle_sigma_measured_span_deg=.1),
+        identity=dict(disc='CD TEST', drive='GH70N', device_id='H:'), setup=dict(last_lba=359846))
+    summary = path / 'summary.json'
+    def known():
+        row, = catalog.catalogue(tmp_path, tmp_path / 'results')['cd']
+        assert row['s'] == 'good'
+        return row['along_track']['known']
+
+    assert not known()
+    exported = presetio_api.handle(tmp_path, dict(operation='export',
+        path=summary.relative_to(tmp_path).as_posix(), name='Legacy CD', sectors=359849))
+    assert exported['preset']['displayName'] == 'Legacy CD'
+    assert exported['preset']['sectors'] == 359849
+
+    offset, ident = 2.0, 'target-1'
+    geo = json.loads(summary.read_bytes())
+    shots = [dict(id=str(i), disc_id=ident, status='ok', L_mm=offset, zone_spread_mm=.2,
+                  c_deg=30*i, input_sha256=str(i+1)*64) for i in range(2)]
+    record = dict(path=str(path), media='cd', verdict='ok', offset_mm=offset, L_frames=offset/pcal.CD_FRAME_MM,
+                  disc_id=ident, photos=shots, reader_sha256=photo.READER_SHA256,
+                  burn_path=dict(burner='H:', path='recorded writer', mode='recorded mode'),
+                  source_geo=dict(run_id=path.name, sha256=hashlib.sha256(summary.read_bytes()).hexdigest(),
+                                  drive_identity=photo.drive_identity(geo, path)))
+    reader = path / 'photo.json'
+    reader.write_text(json.dumps({**record, 'photos':shots[:1]}), encoding='utf-8')
+    assert not known()
+    reader.write_text(json.dumps(record), encoding='utf-8')
+    assert known()
+    reader.unlink()
+    photo.save_manual_l(path, 'cd', 0, evidence={'photo':'saved slider alignment'})
+    assert known()
+    summary.write_bytes(summary.read_bytes() + b'\n')
+    assert not known()
+
+
+def test_info_report_blank_capacity_and_family():
+    report={k:{'parsed':v} for k,v in dict(configuration=dict(current_profile=0x11,current_profile_name='DVD-R'),
+        track_1=dict(blank=True,track_start=0,free_blocks=1000),
+        dvd_prerecorded_0e=dict(manufacturer_id='TEST MID')).items()}
+    disc=catalog.disc_report(report)
+    assert disc == dict(rewritable=False,rewritable_sources=dict(current_profile=0x11,profile_rewritable=False,erasable=None),present=True,media='dvd',kind='DVD-R',mid='TEST MID',blank=True,sectors=1000,closed=None,
+                        capacity_sectors=1000,capacity_source='free space of this blank disc',drive_name=None)
+    report['track_1']['parsed'].pop('blank')
+    report['disc_information']={'parsed':{'disc_status':'empty'}}
+    assert catalog.disc_report(report)['blank'] is True
+    assert catalog.disc_report({})['present'] is False
+    for status, closed in (('complete', True), ('incomplete', False), ('empty', None)):
+        report['disc_information']={'parsed':{'disc_status':status}}
+        assert catalog.disc_report(report)['closed'] is closed
+
+
+def test_measurement_preserves_stop_reason(tmp_path):
+    path = write_geo(tmp_path, stopped='medium error at LBA 42')
+    run = next(r for r in guide.scan(str(tmp_path / 'results')) if Path(r.path) == path)
+    assert catalog.measurement(run)['stopped'] == 'medium error at LBA 42'
+
+
+def test_history_saved_runs_and_explicit_burn_links(tmp_path):
+    old = write_geo(tmp_path, '20261107-101500', stopped='read failed')
+    new = write_geo(tmp_path, '20261108-101500')
+    write_geo(tmp_path, '20261109-101500', identity={'disc': 'OTHER', 'drive': 'Fake drive'})
+    write_geo(tmp_path, '20261110-101500', simulated=True)
+    iso = tmp_path / 'iso'
+    iso.mkdir()
+    (iso / 'art.image.json').write_text(json.dumps({'geometry_from': str(new / 'summary.json')}))
+    results = [dict(result='completed', verification=dict(status='completed', ok=96, differing=0, unreadable=0, untested=0)),
+               dict(result='completed', verification=dict(status='completed', ok=95, differing=1, unreadable=0, untested=0)),
+               dict(result='failed'), dict(result='cancelled'), dict(result='completed', verification=dict(status='skipped'))]
+    log = iso / 'art.iso.burn.jsonl'
+    records = [dict(type='burn_result', time=1794230000+i, log_path=str(log), **r) for i, r in enumerate(results)]
+    log.write_text('\n'.join(json.dumps(r) for r in records) + '\n{truncated', encoding='utf-8')
+    # A durable web result duplicates one engine record; it is still one burn.
+    job = tmp_path / '.webui-jobs/j-one'; job.mkdir(parents=True)
+    (job / 'burn.json').write_text(json.dumps(dict(records[0], media='dvd', identity={'disc':'TEST <MID>', 'drive':'Fake drive'})))
+    (iso / 'unlinked.iso.burn.jsonl').write_text(json.dumps(dict(records[0], time=1794239999)))
+    rows = catalog.catalogue(tmp_path, tmp_path / 'results')['dvd']
+    batch = next(r for r in rows if r['mid'] == 'TEST <MID>')
+    events = batch['history']
+    assert len(events) == 7
+    assert [e['state'] for e in events if e['kind'] == 'calibrate'] == ['needs', 'ok']
+    assert [e['state'] for e in events if e['kind'] == 'burn'] == ['ok', 'needs', 'needs', 'needs', 'unknown']
+    assert all(set(e) == {'kind', 'state', 'when', 'label'} for e in events)
+    assert all(e['kind'] == 'calibrate' for e in next(r for r in rows if r['mid'] == 'OTHER')['history'])
+
+
+def test_history_unidentified_runs_stay_separate(tmp_path):
+    write_geo(tmp_path, identity={})
+    write_geo(tmp_path, '20261108-101500', identity={})
+    rows = catalog.catalogue(tmp_path, tmp_path / 'results')['dvd']
+    assert len(rows) == 2 and all(len(r['history']) == 1 for r in rows)
+
+
+def test_web_burn_history_survives_server_lifetime(tmp_path):
+    write_geo(tmp_path)
+    (tmp_path / 'iso').mkdir()
+    write_checked_iso(tmp_path / 'iso/image.iso', bytes(2048))
+    event = dict(type='burn_result', result='completed', time=1794230000,
+                 verification=dict(status='completed', ok=96, differing=0, unreadable=0, untested=0))
+    def runner(argv, **kw):
+        Path(kw['env']['DISCPROBE_EVENTS']).write_text(json.dumps(event) + '\n')
+        return Mock(wait=Mock(return_value=0), close=Mock())
+    backend = webui.Backend(tmp_path, runner=runner,
+        drive_provider=lambda:[dict(id='H:', disc=dict(blank=True, mid='TEST <MID>', drive_name='Fake drive',
+                                                        media='dvd', profile=0x11, rewritable=False))])
+    try:
+        payload = dict(action='burn', media='dvd', drive='H:', args=dict(iso='iso/image.iso'))
+        ident = backend.start(dict(payload, burn_token=backend.burn_token(payload)['token']))['job']
+        assert backend.jobs[ident].finished.wait(3)
+    finally:
+        backend.close()
+    saved = json.loads(next((tmp_path / '.webui-jobs').glob('*/burn.json')).read_text())
+    assert saved['time'] == event['time'] and saved['identity']['disc'] == 'TEST <MID>'
+    # Reading catalogue data needs neither this Backend instance nor any drive access.
+    events = catalog.catalogue(tmp_path, tmp_path / 'results')['dvd'][0]['history']
+    assert [e['kind'] for e in events] == ['calibrate', 'burn']
+    assert events[-1]['state'] == 'ok'

@@ -1,0 +1,1774 @@
+[
+ {
+  "file": "burner_body_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.07, alpha mean 0.00, px >8: 0.442%",
+  "old_dark": "mean 8.76, alpha mean 0.00, px >8: 98.547%"
+ },
+ {
+  "file": "burner_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.405%",
+  "old_dark": "mean 8.51, alpha mean 0.00, px >8: 98.045%"
+ },
+ {
+  "file": "burner_shadow_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "new picture",
+  "old_dark": "new"
+ },
+ {
+  "file": "burner_shadow_paper.webp",
+  "encoding": "lossless",
+  "paper_check": "new picture",
+  "old_dark": "new"
+ },
+ {
+  "file": "burner_tray_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.330%",
+  "old_dark": "mean 7.78, alpha mean 0.00, px >8: 95.128%"
+ },
+ {
+  "file": "burner_traydisc_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.03, alpha mean 0.00, px >8: 0.275%",
+  "old_dark": "mean 7.44, alpha mean 0.00, px >8: 96.199%"
+ },
+ {
+  "file": "burner_traydiscshadow_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "new picture",
+  "old_dark": "new"
+ },
+ {
+  "file": "burner_traydiscshadow_paper.webp",
+  "encoding": "lossless",
+  "paper_check": "new picture",
+  "old_dark": "new"
+ },
+ {
+  "file": "burner_trayshadow_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "new picture",
+  "old_dark": "new"
+ },
+ {
+  "file": "burner_trayshadow_paper.webp",
+  "encoding": "lossless",
+  "paper_check": "new picture",
+  "old_dark": "new"
+ },
+ {
+  "file": "caltop/*_paper.webp",
+  "encoding": "compose_anim",
+  "paper_check": "changed: none",
+  "old_dark": "-"
+ },
+ {
+  "file": "caltop\\out_anim\\discstart_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%",
+  "old_dark": "mean 5.78, alpha mean 0.00, px >8: 29.825%"
+ },
+ {
+  "file": "caltop\\out_anim\\overbody_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.002%",
+  "old_dark": "mean 6.67, alpha mean 0.00, px >8: 93.224%"
+ },
+ {
+  "file": "caltop\\out_anim\\overclamp_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%",
+  "old_dark": "mean 6.67, alpha mean 0.00, px >8: 96.517%"
+ },
+ {
+  "file": "caltop\\out_anim\\prop_pen_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 8.47, alpha mean 0.00, px >8: 82.374%"
+ },
+ {
+  "file": "caltop\\out_anim\\prop_pen_shadow_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "caltop\\out_anim\\prop_penrose_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.007%",
+  "old_dark": "mean 6.05, alpha mean 0.00, px >8: 62.214%"
+ },
+ {
+  "file": "caltop\\out_anim\\prop_penrose_shadow_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.006%"
+ },
+ {
+  "file": "caltop\\out_anim\\prop_square_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%",
+  "old_dark": "mean 4.72, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "caltop\\out_anim\\prop_square_shadow_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "caltop\\out_anim\\shadowbody_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "caltop\\out_anim\\tray_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%",
+  "old_dark": "mean 8.97, alpha mean 0.00, px >8: 95.139%"
+ },
+ {
+  "file": "caltop\\out_anim\\trayin_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%",
+  "old_dark": "mean 9.82, alpha mean 0.00, px >8: 96.355%"
+ },
+ {
+  "file": "caltop\\out_anim\\trayshadow_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "caltop\\out_anim\\under_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.013%",
+  "old_dark": "mean 6.22, alpha mean 0.00, px >8: 87.650%"
+ },
+ {
+  "file": "caltop\\out_pool\\bg_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 7.84, alpha mean 0.00, px >8: 90.209%"
+ },
+ {
+  "file": "caltop\\out_pool\\disc_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%",
+  "old_dark": "mean 7.48, alpha mean 0.00, px >8: 98.911%"
+ },
+ {
+  "file": "caltop\\out_pool\\glow_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "caltop\\out_pool\\lid_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 7.37, alpha mean 0.00, px >8: 99.088%"
+ },
+ {
+  "file": "caltop\\out_pool\\mid_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 8.85, alpha mean 0.00, px >8: 92.442%"
+ },
+ {
+  "file": "caltop\\out_pool\\occluders_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%",
+  "old_dark": "mean 6.67, alpha mean 0.00, px >8: 96.516%"
+ },
+ {
+  "file": "caltop\\out_pool\\shadow_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "caltop\\out_pool\\sled_dark.png",
+  "encoding": "png",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 6.65, alpha mean 0.00, px >8: 80.517%"
+ },
+ {
+  "file": "faxnews\\handset_dark.webp",
+  "encoding": "(92, 6)",
+  "paper_check": "unchanged",
+  "paper_exact": true,
+  "paper_changed_pixels": 0,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 1.13, alpha mean 0.00, px >8: 1.102%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "faxnews\\handset_dark.webp",
+   "encoding": "(92, 6)",
+   "paper_check": "unchanged",
+   "paper_exact": true,
+   "paper_changed_pixels": 0,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "faxnews\\handset_shadow_dark.webp",
+  "encoding": "(80, 6)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 288,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "faxnews\\handset_shadow_dark.webp",
+   "encoding": "(80, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 288,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "faxnews\\top_dark.webp",
+  "encoding": "(92, 6)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 4007,
+  "paper_stats": {
+   "rgb_mean": 0.001466019241898148,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.00013563368055555556
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.49, alpha mean 0.00, px >8: 0.025%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "faxnews\\top_dark.webp",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 4007,
+   "paper_stats": {
+    "rgb_mean": 0.001466019241898148,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.00013563368055555556
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "interior\\bg_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.547%",
+  "old_dark": "mean 9.86, alpha mean 0.00, px >8: 95.379%"
+ },
+ {
+  "file": "interior\\disc_cut_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.03, alpha mean 0.00, px >8: 0.255%",
+  "old_dark": "mean 6.26, alpha mean 0.00, px >8: 96.763%"
+ },
+ {
+  "file": "interior\\disc_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.045%",
+  "old_dark": "mean 6.27, alpha mean 0.00, px >8: 97.371%"
+ },
+ {
+  "file": "interior\\glow_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "old_dark": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+ },
+ {
+  "file": "interior\\mid_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.133%",
+  "old_dark": "mean 10.46, alpha mean 0.00, px >8: 96.541%"
+ },
+ {
+  "file": "interior\\occluders_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.17, alpha mean 0.00, px >8: 1.219%",
+  "old_dark": "mean 6.14, alpha mean 0.00, px >8: 93.170%"
+ },
+ {
+  "file": "interior\\sled_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 2.91, alpha mean 0.00, px >8: 3.823%",
+  "old_dark": "mean 6.05, alpha mean 0.00, px >8: 34.142%"
+ },
+ {
+  "file": "lobby\\base_dark.webp",
+  "encoding": "(92, 6)",
+  "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.026%",
+  "paper_exact": false,
+  "paper_changed_pixels": 49618,
+  "paper_stats": {
+   "rgb_mean": 0.023598097547924808,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.026368823283082075
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 2.09, alpha mean 0.00, px >8: 9.503%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "lobby_pool_final_attempt": {
+   "file": "lobby\\base_dark.webp",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.026%",
+   "paper_exact": false,
+   "paper_changed_pixels": 49618,
+   "paper_stats": {
+    "rgb_mean": 0.023598097547924808,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.026368823283082075
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "old_dark": "mean 2.09, alpha mean 0.00, px >8: 9.503%",
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true
+  }
+ },
+ {
+  "file": "lobby\\fax_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
+  "paper_exact": false,
+  "paper_changed_pixels": 3100,
+  "paper_stats": {
+   "rgb_mean": 0.9071873617940113,
+   "alpha_mean": 0.00046583105220189216,
+   "over8_percent": 2.963786779052525
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 4.87, alpha mean 0.00, px >8: 0.132%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 0.91,
+   "alpha_mean": 0.0,
+   "over8_percent": 2.964
+  },
+  "paper_recorded_text": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.00281263820598876,
+   "alpha_mean": 0.00046583105220189216,
+   "over8_percent": 0.0002132209474750013
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "lobby_pool_final_attempt": {
+   "file": "lobby\\fax_dark.webp",
+   "encoding": "lossless",
+   "paper_check": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
+   "paper_exact": false,
+   "paper_changed_pixels": 3100,
+   "paper_stats": {
+    "rgb_mean": 0.9071873617940113,
+    "alpha_mean": 0.00046583105220189216,
+    "over8_percent": 2.963786779052525
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "old_dark": "mean 4.87, alpha mean 0.00, px >8: 0.132%",
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 0.91,
+    "alpha_mean": 0.0,
+    "over8_percent": 2.964
+   },
+   "paper_recorded_text": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.00281263820598876,
+    "alpha_mean": 0.00046583105220189216,
+    "over8_percent": 0.0002132209474750013
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true
+  }
+ },
+ {
+  "file": "lobby\\faxnews_dark.webp",
+  "encoding": "(92, 6)",
+  "paper_check": "mean 1.17, alpha mean 0.00, px >8: 1.190%",
+  "paper_exact": false,
+  "paper_changed_pixels": 16838,
+  "paper_stats": {
+   "rgb_mean": 1.1727035405449502,
+   "alpha_mean": 0.001416388358778626,
+   "over8_percent": 1.190039158100832
+  },
+  "paper_gate": null,
+  "paper_accepted": null,
+  "old_dark": "mean 8.44, alpha mean 0.00, px >8: 83.260%"
+ },
+ {
+  "file": "lobby\\filebox_dark.webp",
+  "encoding": "(92, 4)",
+  "paper_check": "mean 1.29, alpha mean 0.00, px >8: 2.149%",
+  "paper_exact": false,
+  "paper_changed_pixels": 33139,
+  "paper_stats": {
+   "rgb_mean": 1.2887736100026603,
+   "alpha_mean": 0.0003352454741860985,
+   "over8_percent": 2.1491278075476
+  },
+  "paper_gate": null,
+  "paper_accepted": null,
+  "old_dark": "mean 4.71, alpha mean 0.00, px >8: 3.237%"
+ },
+ {
+  "file": "lobby\\lamp_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%",
+  "paper_exact": false,
+  "paper_changed_pixels": 58531,
+  "paper_stats": {
+   "rgb_mean": 1.3166129076723734,
+   "alpha_mean": 0.0,
+   "over8_percent": 2.8306178149036474
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 8.06, alpha mean 0.00, px >8: 20.395%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.32,
+   "alpha_mean": 0.0,
+   "over8_percent": 2.831
+  },
+  "paper_recorded_text": "mean 1.32, alpha mean 0.00, px >8: 2.831%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.003387092327626684,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0003821850963525719
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "lobby\\newplan_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 1.13, alpha mean 0.00, px >8: 1.249%",
+  "paper_exact": false,
+  "paper_changed_pixels": 169612,
+  "paper_stats": {
+   "rgb_mean": 1.1289383385608516,
+   "alpha_mean": 0.0006907492287609246,
+   "over8_percent": 1.249367169633453
+  },
+  "paper_gate": null,
+  "paper_accepted": null,
+  "old_dark": "mean 18.38, alpha mean 0.00, px >8: 99.044%"
+ },
+ {
+  "file": "lobby\\parcel_dark.webp",
+  "encoding": "(92, 6)",
+  "paper_check": "mean 0.23, alpha mean 0.00, px >8: 0.090%",
+  "paper_exact": false,
+  "paper_changed_pixels": 5702,
+  "paper_stats": {
+   "rgb_mean": 0.2262716888310815,
+   "alpha_mean": 0.0005315791222299744,
+   "over8_percent": 0.09025031189446023
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 5.28, alpha mean 0.00, px >8: 14.135%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "lobby_pool_final_attempt": {
+   "file": "lobby\\parcel_dark.webp",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.23, alpha mean 0.00, px >8: 0.090%",
+   "paper_exact": false,
+   "paper_changed_pixels": 5702,
+   "paper_stats": {
+    "rgb_mean": 0.2262716888310815,
+    "alpha_mean": 0.0005315791222299744,
+    "over8_percent": 0.09025031189446023
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "old_dark": "mean 5.28, alpha mean 0.00, px >8: 14.135%",
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true
+  }
+ },
+ {
+  "file": "lobby\\screen_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+  "paper_exact": false,
+  "paper_changed_pixels": 1138,
+  "paper_stats": {
+   "rgb_mean": 0.04601078445775725,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.12895643231419662
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 4.22, alpha mean 0.00, px >8: 32.035%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 0.06,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.194
+  },
+  "paper_recorded_text": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.01398921554224275,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.06504356768580338
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "lobby_pool_final_attempt": {
+   "file": "lobby\\screen_dark.webp",
+   "encoding": "lossless",
+   "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+   "paper_exact": false,
+   "paper_changed_pixels": 1138,
+   "paper_stats": {
+    "rgb_mean": 0.04601078445775725,
+    "alpha_mean": 0.0003264620837608432,
+    "over8_percent": 0.12895643231419662
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "old_dark": "mean 4.22, alpha mean 0.00, px >8: 32.035%",
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 0.06,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.194
+   },
+   "paper_recorded_text": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.01398921554224275,
+    "alpha_mean": 0.0003264620837608432,
+    "over8_percent": 0.06504356768580338
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true
+  }
+ },
+ {
+  "file": "lobby\\screen_on_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+  "paper_exact": false,
+  "paper_changed_pixels": 1137,
+  "paper_stats": {
+   "rgb_mean": 0.04684056740830218,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.12895643231419662
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 2.28, alpha mean 0.00, px >8: 16.431%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 0.06,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.194
+  },
+  "paper_recorded_text": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.013159432591697814,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.06504356768580338
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "lobby_pool_final_attempt": {
+   "file": "lobby\\screen_on_dark.webp",
+   "encoding": "lossless",
+   "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+   "paper_exact": false,
+   "paper_changed_pixels": 1137,
+   "paper_stats": {
+    "rgb_mean": 0.04684056740830218,
+    "alpha_mean": 0.0003264620837608432,
+    "over8_percent": 0.12895643231419662
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "old_dark": "mean 2.28, alpha mean 0.00, px >8: 16.431%",
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 0.06,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.194
+   },
+   "paper_recorded_text": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.013159432591697814,
+    "alpha_mean": 0.0003264620837608432,
+    "over8_percent": 0.06504356768580338
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true
+  }
+ },
+ {
+  "file": "newplan\\envelope_back_dark.webp",
+  "encoding": "(90, 4)",
+  "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.001%",
+  "paper_exact": false,
+  "paper_changed_pixels": 314598,
+  "paper_stats": {
+   "rgb_mean": 0.0828672899996255,
+   "alpha_mean": 4.00962309542903e-06,
+   "over8_percent": 0.0012483303581459799
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.50, alpha mean 0.00, px >8: 0.002%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "newplan\\envelope_back_dark.webp",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.001%",
+   "paper_exact": false,
+   "paper_changed_pixels": 314598,
+   "paper_stats": {
+    "rgb_mean": 0.0828672899996255,
+    "alpha_mean": 4.00962309542903e-06,
+    "over8_percent": 0.0012483303581459799
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "newplan\\envelope_front_dark.webp",
+  "encoding": "(90, 6)",
+  "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.016%",
+  "paper_exact": false,
+  "paper_changed_pixels": 144752,
+  "paper_stats": {
+   "rgb_mean": 0.044468301846985796,
+   "alpha_mean": 1.3281876503608662e-05,
+   "over8_percent": 0.015640508718338348
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.48, alpha mean 0.00, px >8: 0.027%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "newplan\\envelope_front_dark.webp",
+   "encoding": "(90, 6)",
+   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.016%",
+   "paper_exact": false,
+   "paper_changed_pixels": 144752,
+   "paper_stats": {
+    "rgb_mean": 0.044468301846985796,
+    "alpha_mean": 1.3281876503608662e-05,
+    "over8_percent": 0.015640508718338348
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "newplan\\paper_dark.webp",
+  "encoding": "(90, 4)",
+  "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 167217,
+  "paper_stats": {
+   "rgb_mean": 0.08684969962161172,
+   "alpha_mean": 2.7310924369747898e-05,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.65, alpha mean 0.01, px >8: 0.029%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "newplan\\paper_dark.webp",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 167217,
+   "paper_stats": {
+    "rgb_mean": 0.08684969962161172,
+    "alpha_mean": 2.7310924369747898e-05,
+    "over8_percent": 0.0
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "newplan\\paper_shadow_dark.webp",
+  "encoding": "(91, 6)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 108739,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "newplan\\paper_shadow_dark.webp",
+   "encoding": "(91, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 108739,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "newplan\\top_dark.webp",
+  "encoding": "(90, 4)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 1343,
+  "paper_stats": {
+   "rgb_mean": 0.0007061993634259259,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.00035264756944444444
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.59, alpha mean 0.00, px >8: 0.103%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "newplan\\top_dark.webp",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 1343,
+   "paper_stats": {
+    "rgb_mean": 0.0007061993634259259,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.00035264756944444444
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\envelope_back_dark.webp",
+  "encoding": "(90, 6)",
+  "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.002%",
+  "paper_exact": false,
+  "paper_changed_pixels": 89215,
+  "paper_stats": {
+   "rgb_mean": 0.03673043452549967,
+   "alpha_mean": 5.678131083711875e-06,
+   "over8_percent": 0.0016390700302312004
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.47, alpha mean 0.00, px >8: 0.003%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\envelope_back_dark.webp",
+   "encoding": "(90, 6)",
+   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.002%",
+   "paper_exact": false,
+   "paper_changed_pixels": 89215,
+   "paper_stats": {
+    "rgb_mean": 0.03673043452549967,
+    "alpha_mean": 5.678131083711875e-06,
+    "over8_percent": 0.0016390700302312004
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\envelope_front_dark.webp",
+  "encoding": "(89, 6)",
+  "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
+  "paper_exact": false,
+  "paper_changed_pixels": 153090,
+  "paper_stats": {
+   "rgb_mean": 0.12048541624494251,
+   "alpha_mean": 4.8669695003244645e-06,
+   "over8_percent": 0.06521243366652744
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.55, alpha mean 0.00, px >8: 0.065%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\envelope_front_dark.webp",
+   "encoding": "(89, 6)",
+   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
+   "paper_exact": false,
+   "paper_changed_pixels": 153090,
+   "paper_stats": {
+    "rgb_mean": 0.12048541624494251,
+    "alpha_mean": 4.8669695003244645e-06,
+    "over8_percent": 0.06521243366652744
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b",
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_0_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.876%",
+  "paper_exact": false,
+  "paper_changed_pixels": 42300,
+  "paper_stats": {
+   "rgb_mean": 1.4027877256725139,
+   "alpha_mean": 0.112607421875,
+   "over8_percent": 3.8762062274544533
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 13.34, alpha mean 0.01, px >8: 98.637%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.4,
+   "alpha_mean": 0.11,
+   "over8_percent": 3.859
+  },
+  "paper_recorded_text": "mean 1.40, alpha mean 0.11, px >8: 3.859%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.002787725672513952,
+   "alpha_mean": 0.0026074218750000017,
+   "over8_percent": 0.017206227454453327
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_0_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.876%",
+   "paper_exact": false,
+   "paper_changed_pixels": 42300,
+   "paper_stats": {
+    "rgb_mean": 1.4027877256725139,
+    "alpha_mean": 0.112607421875,
+    "over8_percent": 3.8762062274544533
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 1.4,
+    "alpha_mean": 0.11,
+    "over8_percent": 3.859
+   },
+   "paper_recorded_text": "mean 1.40, alpha mean 0.11, px >8: 3.859%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.002787725672513952,
+    "alpha_mean": 0.0026074218750000017,
+    "over8_percent": 0.017206227454453327
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_1_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.400%",
+  "paper_exact": false,
+  "paper_changed_pixels": 40533,
+  "paper_stats": {
+   "rgb_mean": 1.4378014251735212,
+   "alpha_mean": 0.108515625,
+   "over8_percent": 4.399681563552173
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.92, alpha mean 0.02, px >8: 97.897%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.43,
+   "alpha_mean": 0.11,
+   "over8_percent": 4.403
+  },
+  "paper_recorded_text": "mean 1.43, alpha mean 0.11, px >8: 4.403%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.007801425173521226,
+   "alpha_mean": 0.0014843749999999961,
+   "over8_percent": 0.0033184364478264783
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_1_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.400%",
+   "paper_exact": false,
+   "paper_changed_pixels": 40533,
+   "paper_stats": {
+    "rgb_mean": 1.4378014251735212,
+    "alpha_mean": 0.108515625,
+    "over8_percent": 4.399681563552173
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 1.43,
+    "alpha_mean": 0.11,
+    "over8_percent": 4.403
+   },
+   "paper_recorded_text": "mean 1.43, alpha mean 0.11, px >8: 4.403%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.007801425173521226,
+    "alpha_mean": 0.0014843749999999961,
+    "over8_percent": 0.0033184364478264783
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_2_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+  "paper_exact": false,
+  "paper_changed_pixels": 36492,
+  "paper_stats": {
+   "rgb_mean": 1.913332904093517,
+   "alpha_mean": 0.08845947265625,
+   "over8_percent": 5.685281366699575
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.96, alpha mean 0.01, px >8: 98.988%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.91,
+   "alpha_mean": 0.09,
+   "over8_percent": 5.685
+  },
+  "paper_recorded_text": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.003332904093517053,
+   "alpha_mean": 0.0015405273437500006,
+   "over8_percent": 0.0002813666995757913
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_2_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+   "paper_exact": false,
+   "paper_changed_pixels": 36492,
+   "paper_stats": {
+    "rgb_mean": 1.913332904093517,
+    "alpha_mean": 0.08845947265625,
+    "over8_percent": 5.685281366699575
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 1.91,
+    "alpha_mean": 0.09,
+    "over8_percent": 5.685
+   },
+   "paper_recorded_text": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.003332904093517053,
+    "alpha_mean": 0.0015405273437500006,
+    "over8_percent": 0.0002813666995757913
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_3_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.707%",
+  "paper_exact": false,
+  "paper_changed_pixels": 36840,
+  "paper_stats": {
+   "rgb_mean": 1.6162103330710726,
+   "alpha_mean": 0.1005810546875,
+   "over8_percent": 4.706530291109363
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 13.09, alpha mean 0.01, px >8: 98.634%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.62,
+   "alpha_mean": 0.1,
+   "over8_percent": 4.729
+  },
+  "paper_recorded_text": "mean 1.62, alpha mean 0.10, px >8: 4.729%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.00378966692892746,
+   "alpha_mean": 0.0005810546874999989,
+   "over8_percent": 0.02246970889063693
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_3_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.707%",
+   "paper_exact": false,
+   "paper_changed_pixels": 36840,
+   "paper_stats": {
+    "rgb_mean": 1.6162103330710726,
+    "alpha_mean": 0.1005810546875,
+    "over8_percent": 4.706530291109363
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 1.62,
+    "alpha_mean": 0.1,
+    "over8_percent": 4.729
+   },
+   "paper_recorded_text": "mean 1.62, alpha mean 0.10, px >8: 4.729%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.00378966692892746,
+    "alpha_mean": 0.0005810546874999989,
+    "over8_percent": 0.02246970889063693
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_4_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.422%",
+  "paper_exact": false,
+  "paper_changed_pixels": 36986,
+  "paper_stats": {
+   "rgb_mean": 2.008139131895945,
+   "alpha_mean": 0.1049951171875,
+   "over8_percent": 6.422037618542517
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.77, alpha mean 0.02, px >8: 96.458%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 2.01,
+   "alpha_mean": 0.1,
+   "over8_percent": 6.41
+  },
+  "paper_recorded_text": "mean 2.01, alpha mean 0.10, px >8: 6.410%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.0018608681040546138,
+   "alpha_mean": 0.004995117187499995,
+   "over8_percent": 0.012037618542517059
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_4_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.422%",
+   "paper_exact": false,
+   "paper_changed_pixels": 36986,
+   "paper_stats": {
+    "rgb_mean": 2.008139131895945,
+    "alpha_mean": 0.1049951171875,
+    "over8_percent": 6.422037618542517
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 2.01,
+    "alpha_mean": 0.1,
+    "over8_percent": 6.41
+   },
+   "paper_recorded_text": "mean 2.01, alpha mean 0.10, px >8: 6.410%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.0018608681040546138,
+    "alpha_mean": 0.004995117187499995,
+    "over8_percent": 0.012037618542517059
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_5_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+  "paper_exact": false,
+  "paper_changed_pixels": 31145,
+  "paper_stats": {
+   "rgb_mean": 3.329248269430324,
+   "alpha_mean": 0.07739013671875,
+   "over8_percent": 10.491783898806005
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.55, alpha mean 0.01, px >8: 98.085%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 3.33,
+   "alpha_mean": 0.08,
+   "over8_percent": 10.492
+  },
+  "paper_recorded_text": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.0007517305696760346,
+   "alpha_mean": 0.0026098632812499994,
+   "over8_percent": 0.0002161011939953994
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_5_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+   "paper_exact": false,
+   "paper_changed_pixels": 31145,
+   "paper_stats": {
+    "rgb_mean": 3.329248269430324,
+    "alpha_mean": 0.07739013671875,
+    "over8_percent": 10.491783898806005
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 3.33,
+    "alpha_mean": 0.08,
+    "over8_percent": 10.492
+   },
+   "paper_recorded_text": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.0007517305696760346,
+    "alpha_mean": 0.0026098632812499994,
+    "over8_percent": 0.0002161011939953994
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_6_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+  "paper_exact": false,
+  "paper_changed_pixels": 34127,
+  "paper_stats": {
+   "rgb_mean": 1.7038101768096068,
+   "alpha_mean": 0.10126708984375,
+   "over8_percent": 4.776420245677513
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 13.04, alpha mean 0.01, px >8: 98.243%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.7,
+   "alpha_mean": 0.1,
+   "over8_percent": 4.776
+  },
+  "paper_recorded_text": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.0038101768096068245,
+   "alpha_mean": 0.0012670898437499994,
+   "over8_percent": 0.00042024567751308695
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_6_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+   "paper_exact": false,
+   "paper_changed_pixels": 34127,
+   "paper_stats": {
+    "rgb_mean": 1.7038101768096068,
+    "alpha_mean": 0.10126708984375,
+    "over8_percent": 4.776420245677513
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 1.7,
+    "alpha_mean": 0.1,
+    "over8_percent": 4.776
+   },
+   "paper_recorded_text": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.0038101768096068245,
+    "alpha_mean": 0.0012670898437499994,
+    "over8_percent": 0.00042024567751308695
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_7_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.011%",
+  "paper_exact": false,
+  "paper_changed_pixels": 37702,
+  "paper_stats": {
+   "rgb_mean": 1.7272230689601167,
+   "alpha_mean": 0.09586181640625,
+   "over8_percent": 6.010565760975442
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.61, alpha mean 0.01, px >8: 97.542%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.73,
+   "alpha_mean": 0.1,
+   "over8_percent": 6.052
+  },
+  "paper_recorded_text": "mean 1.73, alpha mean 0.10, px >8: 6.052%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.0027769310398833014,
+   "alpha_mean": 0.004138183593750011,
+   "over8_percent": 0.04143423902455723
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_7_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.011%",
+   "paper_exact": false,
+   "paper_changed_pixels": 37702,
+   "paper_stats": {
+    "rgb_mean": 1.7272230689601167,
+    "alpha_mean": 0.09586181640625,
+    "over8_percent": 6.010565760975442
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 1.73,
+    "alpha_mean": 0.1,
+    "over8_percent": 6.052
+   },
+   "paper_recorded_text": "mean 1.73, alpha mean 0.10, px >8: 6.052%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.0027769310398833014,
+    "alpha_mean": 0.004138183593750011,
+    "over8_percent": 0.04143423902455723
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_8_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.276%",
+  "paper_exact": false,
+  "paper_changed_pixels": 38079,
+  "paper_stats": {
+   "rgb_mean": 1.721215547956885,
+   "alpha_mean": 0.101943359375,
+   "over8_percent": 5.276289455498416
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.62, alpha mean 0.02, px >8: 97.734%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.72,
+   "alpha_mean": 0.1,
+   "over8_percent": 5.313
+  },
+  "paper_recorded_text": "mean 1.72, alpha mean 0.10, px >8: 5.313%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.0012155479568849437,
+   "alpha_mean": 0.001943359374999995,
+   "over8_percent": 0.03671054450158362
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_8_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.276%",
+   "paper_exact": false,
+   "paper_changed_pixels": 38079,
+   "paper_stats": {
+    "rgb_mean": 1.721215547956885,
+    "alpha_mean": 0.101943359375,
+    "over8_percent": 5.276289455498416
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 1.72,
+    "alpha_mean": 0.1,
+    "over8_percent": 5.313
+   },
+   "paper_recorded_text": "mean 1.72, alpha mean 0.10, px >8: 5.313%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.0012155479568849437,
+    "alpha_mean": 0.001943359374999995,
+    "over8_percent": 0.03671054450158362
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "pastworks\\tumble_9_dark.webp",
+  "encoding": "(89, 4)",
+  "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.392%",
+  "paper_exact": false,
+  "paper_changed_pixels": 31306,
+  "paper_stats": {
+   "rgb_mean": 2.991353768942614,
+   "alpha_mean": 0.07754150390625,
+   "over8_percent": 8.392202933947534
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.51, alpha mean 0.01, px >8: 98.473%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 2.99,
+   "alpha_mean": 0.08,
+   "over8_percent": 8.369
+  },
+  "paper_recorded_text": "mean 2.99, alpha mean 0.08, px >8: 8.369%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.0013537689426139643,
+   "alpha_mean": 0.0024584960937499983,
+   "over8_percent": 0.02320293394753392
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "night_pool_recorded": {
+   "file": "pastworks\\tumble_9_dark.webp",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.392%",
+   "paper_exact": false,
+   "paper_changed_pixels": 31306,
+   "paper_stats": {
+    "rgb_mean": 2.991353768942614,
+    "alpha_mean": 0.07754150390625,
+    "over8_percent": 8.392202933947534
+   },
+   "paper_gate": "night-b-recorded",
+   "paper_accepted": true,
+   "paper_gate_applied": "night-b-recorded",
+   "paper_recorded_baseline": {
+    "rgb_mean": 2.99,
+    "alpha_mean": 0.08,
+    "over8_percent": 8.369
+   },
+   "paper_recorded_text": "mean 2.99, alpha mean 0.08, px >8: 8.369%",
+   "paper_recorded_delta": {
+    "rgb_mean": 0.0013537689426139643,
+    "alpha_mean": 0.0024584960937499983,
+    "over8_percent": 0.02320293394753392
+   },
+   "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+   "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+   "written": true,
+   "machine": "local i5-12400F, CPU, 8 threads"
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
+ },
+ {
+  "file": "presetio\\desk\\desk_bag_dark.webp",
+  "encoding": "(88, 6)",
+  "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.087%",
+  "paper_exact": false,
+  "paper_changed_pixels": 143837,
+  "paper_stats": {
+   "rgb_mean": 0.2570810707635312,
+   "alpha_mean": 3.2552083333333335e-06,
+   "over8_percent": 0.08735769805145156
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 18.57, alpha mean 0.00, px >8: 99.605%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_bag_shadow_dark.webp",
+  "encoding": "(93, 4)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 1738515,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_base_dark.webp",
+  "encoding": "(90, 4)",
+  "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.004%",
+  "paper_exact": false,
+  "paper_changed_pixels": 53602,
+  "paper_stats": {
+   "rgb_mean": 0.020940031828703704,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.003824869791666667
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 17.03, alpha mean 0.00, px >8: 99.953%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_doc_envelope_dark.webp",
+  "encoding": "(90, 4)",
+  "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.009%",
+  "paper_exact": false,
+  "paper_changed_pixels": 69084,
+  "paper_stats": {
+   "rgb_mean": 0.06074663556558115,
+   "alpha_mean": 1.0850694444444444e-06,
+   "over8_percent": 0.009340801318537038
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 8.99, alpha mean 0.01, px >8: 96.560%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_doc_envelope_shadow_dark.webp",
+  "encoding": "(92, 4)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 931818,
+  "paper_stats": {
+   "rgb_mean": 3.391169733131898e-06,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_doc_paper_dark.webp",
+  "encoding": "(90, 4)",
+  "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 40070,
+  "paper_stats": {
+   "rgb_mean": 0.03973775112493936,
+   "alpha_mean": 1.0850694444444445e-05,
+   "over8_percent": 0.00020909653568859673
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.71, alpha mean 0.01, px >8: 0.215%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_doc_paper_shadow_dark.webp",
+  "encoding": "(86, 4)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 843811,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_knob_dark.webp",
+  "encoding": "(91, 6)",
+  "paper_check": "mean 1.49, alpha mean 0.00, px >8: 1.364%",
+  "paper_exact": false,
+  "paper_changed_pixels": 4336,
+  "paper_stats": {
+   "rgb_mean": 1.4938027136046939,
+   "alpha_mean": 8.192274305555555e-05,
+   "over8_percent": 1.3641364136413643
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 12.80, alpha mean 0.00, px >8: 98.856%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 1.49,
+   "alpha_mean": 0.0,
+   "over8_percent": 1.474
+  },
+  "paper_recorded_text": "mean 1.49, alpha mean 0.00, px >8: 1.474%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.0038027136046938637,
+   "alpha_mean": 8.192274305555555e-05,
+   "over8_percent": 0.10986358635863569
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_knob_shadow_dark.webp",
+  "encoding": "(85, 6)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 74056,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 4.0147569444444445e-05,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_sheets_dark.webp",
+  "encoding": "(91, 4)",
+  "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%",
+  "paper_exact": false,
+  "paper_changed_pixels": 67807,
+  "paper_stats": {
+   "rgb_mean": 0.12897003723832143,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0021034998412813757
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.65, alpha mean 0.00, px >8: 0.238%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_sheets_shadow_dark.webp",
+  "encoding": "(84, 4)",
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 1641460,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "presetio\\desk\\desk_upper_dark.webp",
+  "encoding": "(91, 6)",
+  "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%",
+  "paper_exact": false,
+  "paper_changed_pixels": 77878,
+  "paper_stats": {
+   "rgb_mean": 0.10899268852520856,
+   "alpha_mean": 1.0850694444444444e-06,
+   "over8_percent": 0.008684816177970305
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 18.32, alpha mean 0.00, px >8: 99.590%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ }
+]

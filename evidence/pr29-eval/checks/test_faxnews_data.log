@@ -1,0 +1,2 @@
+COMMAND: node tests/test_faxnews_data.mjs
+fax news data: sample paper and parcels, refusals, versions, layout and the day's picks passed

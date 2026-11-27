@@ -30,14 +30,17 @@ def _labels(design, u, v, bit_mm, frame, slot, correction):
     # Data halves are contiguous on the physical track, unlike user byte groups.
     middle_slot = np.where(slot < 12, 5.5, 21.5)
     n = frame * 588 + 51 + middle_slot * 17
-    r = bit_mm * np.sqrt(u * u + v * n / math.pi)
-    th = -theta(n, u, v)
+    s = np.sqrt(u * u + v * n / math.pi)
+    r = bit_mm * s
+    th = -(2.0 * n / (s + u))
     if correction is not None:
         th += np.radians(correction(r))
-    ix = np.floor((r * np.cos(th) + I.HALF_MM) / I.CELL_MM).astype(np.int64)
-    iy = np.floor((I.HALF_MM - r * np.sin(th)) / I.CELL_MM).astype(np.int64)
-    ok = (ix >= 0) & (ix < I.SIZE) & (iy >= 0) & (iy < I.SIZE)
-    return np.where(ok, design[np.clip(iy, 0, I.SIZE - 1), np.clip(ix, 0, I.SIZE - 1)], 0)
+    size = design.shape[0]
+    cell = 2 * I.HALF_MM / size
+    ix = np.floor((r * np.cos(th) + I.HALF_MM) / cell).astype(np.int64)
+    iy = np.floor((I.HALF_MM - r * np.sin(th)) / cell).astype(np.int64)
+    ok = (ix >= 0) & (ix < size) & (iy >= 0) & (iy < size)
+    return np.where(ok, design[np.clip(iy, 0, size - 1), np.clip(ix, 0, size - 1)], 0)
 
 
 def texture_bytes(spec, frame, slot, random_bytes):
@@ -54,6 +57,20 @@ def texture_bytes(spec, frame, slot, random_bytes):
 
 def _sector_q(design, textures, u, v, bit_mm, lba0, count, correction):
     lbas = np.arange(lba0, lba0 + count)
+    if all(len(t) == 2 for t in textures):
+        # CIRC's byte/slot permutation repeats each sector: a sector translates
+        # frame numbers by exactly 98 (2352 raw bytes / 24). Resolve 2048 byte
+        # positions once, not count*2048 full physical coordinate triples.
+        frame, slot = cd.user_to_physical(0, np.arange(2048))
+        first = int(frame.min())
+        start, end = lba0 * 98 + first, (lba0 + count - 1) * 98 + int(frame.max())
+        labels = _labels(design, u, v, bit_mm, np.arange(start, end + 1)[:, None],
+                         np.array([0, 16])[None, :], correction)
+        palette = np.array([bytes.fromhex(t)[0] for t in textures], np.uint8)
+        indices = labels.astype(np.uint8) if labels.dtype == bool else labels.astype(np.int64, copy=False)
+        by_frame = palette[indices]
+        return by_frame[(np.arange(count) * 98)[:, None] + (frame - first)[None, :],
+                        (slot >= 16).astype(np.int8)[None, :]]
     frame, slot = cd.user_to_physical(lbas[:, None], np.arange(2048)[None, :])
     # Evaluate the geometry once per physical half-frame, then gather in user
     # order. CIRC scatters a sector, but many bytes still share one sample.
@@ -61,11 +78,12 @@ def _sector_q(design, textures, u, v, bit_mm, lba0, count, correction):
     labels_by_frame = _labels(design, u, v, bit_mm, np.arange(first, last + 1)[:, None],
                               np.array([0, 16])[None, :], correction)
     labels = labels_by_frame[frame - first, (slot >= 16).astype(np.int8)]
-    rnd = I.texture_bytes("RND", lbas)
+    # Deterministic textures do not need the multi-megabyte splitmix stream.
+    rnd = I.texture_bytes("RND", lbas) if any(t == "RND" or t.startswith("MIX:") for t in textures) else None
     q = np.empty(labels.shape, np.uint8)
     for i, spec in enumerate(textures):
         m = labels == i
-        q[m] = texture_bytes(spec, frame[m], slot[m], rnd[m])
+        q[m] = texture_bytes(spec, frame[m], slot[m], rnd[m] if rnd is not None else None)
     return q
 
 
@@ -78,16 +96,26 @@ def _new_paths(path, suffix):
 
 
 def write_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA", log=print,
-              meta=None, correction=None, textures=None):
+              meta=None, correction=None, textures=None, disc_id=False, disc_id_code=None):
     cd.check_capacity(total_sectors)
     texs = I._textures(design, dark, light, textures)
     # Metadata sectors and their CIRC footprint must be in background label 0.
-    f, s = cd.user_to_physical(np.arange(16, 21)[:, None], np.arange(2048)[None, :])
+    from . import discid
+    enabled = discid.requested(disc_id, disc_id_code)
+    if enabled:
+        discid.positions(total_sectors)
+    f, s = cd.user_to_physical(np.arange(0 if enabled else 16, 32 if enabled else 21)[:, None], np.arange(2048)[None, :])
     if np.any(_labels(design, u, v, bit_nm * 1e-6, f, s, correction) != 0):
         raise ValueError("ISO 9660 sectors overlap the drawing; leave an inner background margin")
     for t in texs:
         texture_bytes(t, np.array([0]), np.array([0]), np.array([0], np.uint8))
     _new_paths(path, ".image.json")
+    identity = None
+    if enabled:
+        identity = discid.create(code=disc_id_code, design=design, u=u, v=v, bit_nm=bit_nm,
+                                 textures=texs, meta=meta)
+        discid.encode_copy(identity, 0)
+        discid.notice()
     done, next_report = 0, 0.0
     with open(path, "xb") as fh:
         while done < total_sectors:
@@ -95,16 +123,22 @@ def write_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA", 
             q = _sector_q(design, texs, u, v, bit_nm * 1e-6, done, count, correction)
             fh.write((q ^ cd.MASK).tobytes())
             done += count
-            if done / total_sectors >= next_report:
+            if done / total_sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                 log(f"  {100 * done / total_sectors:5.1f} %")
-                next_report += 0.2
-    iso9660.add(path, total_sectors, "DISCPROBE_CD_IMAGE")
+                next_report += getattr(log, "every", 0.2)
+    iso9660.add(path, total_sectors, "DISCPROBE_CD_IMAGE", identity)
     spec = {"kind": "cd-picture", "media": "cd", "user_offset": cd.USER_OFFSET, "u": u, "v": v, "bit_nm": bit_nm,
-            "total_sectors": total_sectors, "textures": texs, "cell_mm": I.CELL_MM,
+            "total_sectors": total_sectors, "textures": texs, "cell_mm": I.cell_mm(design),
             "sampling": "physical 12-data-symbol half-frame", "origin": "ECMA-130 fig C.4, sector byte 0 at F1 slot 1",
             "physical_origin_measured": False, **(meta or {})}
+    spec['capacity_words'] = dict(image_length_sectors=total_sectors,
+                                   geometric_total_sectors=None, blank_writable_sectors=None,
+                                   random_mirror_sectors=None,
+                                   uses='image file length; CD sector layout and blank writable capacity must match the burner')
     if design.dtype == bool:
         spec.update(dark=dark, light=light)
+    if identity is not None:
+        spec["disc_identity_layout"] = discid.layout(total_sectors, "cd")
     spec_path = os.path.splitext(path)[0] + ".image.json"
     with open(spec_path, "x", encoding="utf-8") as fh:
         json.dump(spec, fh, indent=2)
@@ -147,6 +181,8 @@ def verify_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA",
     sums = np.zeros((1200, 1200), np.float64) if reconstruction else None
     hits = np.zeros((1200, 1200), np.int64) if reconstruction else None
     problems = []
+    from . import discid
+    extra = discid.sectors_for(total_sectors) if discid.read_image(path) else []
     # Independent bit-stream scrambler, rather than the writer's byte mask.
     bits, reg = [], 1
     for _ in range(2340 * 8):
@@ -159,7 +195,7 @@ def verify_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA",
             fh.seek(start * 2048)
             data = np.frombuffer(fh.read(count * 2048), np.uint8).reshape(count, 2048)
             lba, byte, frame, slot = inverse_positions(start, count)
-            keep = ~np.isin(lba, list(iso9660.SECTORS))
+            keep = ~np.isin(lba, list(iso9660.SECTORS) + extra)
             lba, byte, frame, slot = (a[keep] for a in (lba, byte, frame, slot))
             rec = data[lba - start, byte] ^ mask[byte]
             # Reconstruct the group's location with the rationalized closed form.

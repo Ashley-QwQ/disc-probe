@@ -1,0 +1,358 @@
+{
+  "scenario": "0.000",
+  "materials": [
+    {
+      "spec": "0EFE8B8B5C06938E1AC3AB8A7A516E838B8D",
+      "id": "DVD-S-B0059-K96-A06f74b",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "11958AD99524934BE5FE4B8C8DE98BD00A95ECACF022958A16F0838B8E2C6B8316EF",
+      "id": "DVD-S-B0585-K96-Ada75a9",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "E7E1BACC77E554",
+      "id": "DVD-2-R8_5-S30_70-B0003-K96-Ace452e",
+      "rev": 3,
+      "texlib_rev": 3
+    },
+    {
+      "spec": "04F0",
+      "id": "DVD-L-B0141-L025-K96-Ae23b9c",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "3D1D",
+      "id": "DVD-L-B0075-L075-K96-Acdd689",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "6790560892",
+      "id": "DVD-2-R5_3-S30_70-B0005-K96-A327266",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "733D02",
+      "id": "DVD-2-R8_5-S60_40-B0000-K96-A76ec53",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "00",
+      "id": "DVD-S-B0067-K96-A7ea79c",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "888394FA8EB983658D",
+      "id": "DVD-2-R3_2-S50_50-B0034-K96-A994dde",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "097A",
+      "id": "DVD-O2-B0018-GNONE-K96-A407000",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "2F9DFF9D5F",
+      "id": "DVD-2-R5_3-S50_50-B0005-K96-A09c0ba",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "6794BB8CA9",
+      "id": "DVD-3-H7_9_10-cyan-B0005-K96-A8c86fd",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "C19C66",
+      "id": "DVD-2-R3_2-S30_70-B0005-K96-Adbfd77",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "3D03",
+      "id": "DVD-O3-B0038-G2-K96-Ad78727",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "E5B10E",
+      "id": "DVD-O2-B0025-GNONE-K96-A2ff1ac",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "60BF8D8887",
+      "id": "DVD-2-R7_4-S50_50-B0013-K96-A8e18c6",
+      "rev": 3,
+      "texlib_rev": 3
+    },
+    {
+      "spec": "4CE797B1BD7686EF217A82987193E5",
+      "id": "DVD-2-R4_3-S50_50-B0035-K96-Ae59109",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "E3",
+      "id": "DVD-O2-B0016-G1-K96-A15445c",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "00ED",
+      "id": "DVD-S-B0094-K96-Acd8cf9",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "A37062",
+      "id": "DVD-S-B0000-K96-A8e5716",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "3A03",
+      "id": "DVD-O2-B0020-G1-K96-A153c24",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "865DAD",
+      "id": "DVD-S-B0019-K96-Abc404b",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "6E9E0CA1ADE4A3",
+      "id": "DVD-S-B0008-K96-Aacbf36",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "A8368B",
+      "id": "DVD-O2-B0021-G1-K96-Ada2458",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "A5A7DFA5A4",
+      "id": "DVD-S-B0004-K96-A233812",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "FF69CDD4DB8069CDD4B2",
+      "id": "DVD-S-B0029-K96-A0f6f53",
+      "rev": 3,
+      "texlib_rev": 3
+    },
+    {
+      "spec": "6200",
+      "id": "DVD-O3-B0039-G2-K96-A37ce76",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "967983",
+      "id": "DVD-S-B0464-K96-Ab2d7ee",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "18CCBD1567C23E76999C",
+      "id": "DVD-2-R3_2-S50_50-B0024-K96-A9dddca",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "6F",
+      "id": "DVD-O2-B0039-GNONE-K96-A87c5c3",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "FFB2",
+      "id": "DVD-S-B0030-K96-A28ec9f",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "C5CDE68DCDE6",
+      "id": "DVD-S-B0033-K96-A8a4628",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "83",
+      "id": "DVD-S-B0039-K96-A059be0",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "EBC6",
+      "id": "DVD-O2-B0034-GNONE-K96-A506e4a",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "709C",
+      "id": "DVD-L-B0006-L075-K96-Ae597a3",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "9EB66EE4EE",
+      "id": "DVD-S-B0007-K96-A8f9bd8",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "E761C7",
+      "id": "DVD-O3-B0049-G2-K96-A6fd8f8",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "58BBC66798BFCE",
+      "id": "DVD-S-B0014-K96-A717802",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "D8C769B9D1D4B2D880D2F9",
+      "id": "DVD-S-B0027-K96-Ada146f",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "F9",
+      "id": "DVD-S-B0023-K96-A6d3a0e",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "009F",
+      "id": "DVD-O2-B0014-G1-K96-A6a4af8",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "3A05",
+      "id": "DVD-O2-B0019-GNONE-K96-A5fab08",
+      "rev": 4,
+      "texlib_rev": 4
+    },
+    {
+      "spec": "0670",
+      "id": "DVD-O3-B0043-G2-K96-A074ae2",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "65",
+      "id": "DVD-O2-B0030-GNONE-K96-Ad7c778",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "E3DE",
+      "id": "DVD-L-B0068-L025-K96-A660ab3",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "B2D1D4",
+      "id": "DVD-S-B0028-K96-A051b1f",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "86829866B7977F9866B7",
+      "id": "DVD-S-B0020-K96-Ad3e123",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "CC67",
+      "id": "DVD-S-B0016-K96-A8a3287",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "CF500534",
+      "id": "DVD-L-B0058-L050-K96-A2cb600",
+      "rev": 3,
+      "texlib_rev": 3
+    },
+    {
+      "spec": "DF6377A4EC61A7",
+      "id": "DVD-S-B0003-K96-Aa92dad",
+      "rev": 2,
+      "texlib_rev": 2
+    },
+    {
+      "spec": "7E",
+      "id": "DVD-O2-B0002-GNONE-K96-A605657",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "AD86CFB75CAD86CF935C",
+      "id": "DVD-S-B0018-K96-A60873a",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "E68DCDACC0CBACD1DBB2CD",
+      "id": "DVD-S-B0032-K96-A8a5492",
+      "rev": 3,
+      "texlib_rev": 3
+    },
+    {
+      "spec": "86B086829B5C96D6D6888866FDF9F97171",
+      "id": "DVD-S-B0222-K96-A80094e",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "840AFFFAFABAFA",
+      "id": "DVD-L-B0145-L075-K96-A800e98",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "6699E872D9BBFCA666676F94BEBEFCA6",
+      "id": "DVD-S-B0012-K96-A16c31e",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "6971B9D880D48271B9BDFFD4",
+      "id": "DVD-S-B0253-K96-A3f8561",
+      "rev": 1,
+      "texlib_rev": 1
+    },
+    {
+      "spec": "98BF67CCCE",
+      "id": "DVD-S-B0015-K96-A234151",
+      "rev": 2,
+      "texlib_rev": 2
+    }
+  ],
+  "source_table_sha256": "2f71fd2daad780ce4f715ae4d2c0074da1b4d2cbf6c47924019f3d9f15b258de",
+  "source_material_sets_sha256": "a9aa62e7b4f7bbcec71b8c768adbfa4e2bd30c508452f4b1fb2b60575233260b",
+  "signature": "7faa731b79f0f962ea8c9de28252249299dd819796f57e94181017ceee219462",
+  "geometry_to_model_delta": 0.93,
+  "table_sha256": "756f7440306509e2f68156e00f2e4ceb9eb46f5eb0623754de663e0568fc4763"
+}

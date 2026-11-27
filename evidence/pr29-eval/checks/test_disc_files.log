@@ -1,0 +1,2 @@
+COMMAND: node tests/test_disc_files.mjs
+disc-files: 7 assertions passed

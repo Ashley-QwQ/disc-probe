@@ -1,0 +1,2 @@
+COMMAND: node tests/test_lobby_state.mjs
+Lobby state: bilingual states, unknown blankness, job precedence and drive selection passed.

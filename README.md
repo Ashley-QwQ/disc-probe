@@ -21,6 +21,10 @@
 
 ---
 
+测量只靠光驱的读取时间。从 1.0.0.0-alpha 起还有一个本地网页：测盘、设计、出图，到用手机拍照核对，都能在页面里一步步走完，见[网页](#网页)。
+
+大厅传真机会联网，从 [GitHub Raw](https://raw.githubusercontent.com/Ashley-QwQ/disc-probe/main/news/news.json) 或 [jsDelivr](https://cdn.jsdelivr.net/gh/Ashley-QwQ/disc-probe@main/news/news.json) 只下载报纸和附件、不上传；命令行也可用 `python -m discprobe news`，见[数据来源](docs/fax-news.md)。
+
 ## 效果预览
 
 <img src="docs/showcase/qingming5um_overview.jpg" width="75%" alt="每张特写的拍摄位置，画在刻盘所用 ISO 的渲染图上，旁边是同比例的 550 ml 矿泉水瓶">
@@ -71,20 +75,40 @@ disc-probe 让光驱来量。盘匀速转动时，一个扇区读完的时刻，
 
 这套测量只发读取类命令。测完可以直接生成 ISO，也可以导出 [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio) 预设。
 
+## 网页
+
+从 1.0.0.0-alpha 起，大多数步骤可以在本地网页里做，不用记命令。
+
+- **打开**：解压所选免安装包。Windows 双击 `Start (Windows).bat`，Linux 运行 `bash start-linux.sh`。两个平台都使用包内的 Python 和依赖。使用源码时，在仓库目录运行 `python -m discprobe webui --open`。服务会打印带令牌的地址，Linux 无图形桌面时可使用该地址。首选端口为 8765，被占用时自动换到空闲端口。
+- **查看和停止**：`python -m discprobe webui status` 查看服务和光驱持锁状态，可加 `--json`。在大厅点“退出”，或运行 `python -m discprobe webui stop`。有任务时会提示正在进行的任务，`stop --force` 仅在没有光驱写入时允许。关掉启动服务的黑色窗口也会停止服务。
+- **启动选项**：`--local-only` 把服务限制在本机，`--no-drives` 或 `DISC_PROBE_NO_DRIVES=1` 用于离线设计。再次启动时如果参数不同，命令会打印已有实例的地址并提示先用 `webui stop`。
+- **新手引导**：大厅里点"看新手引导"。它按你已经做过的步骤，告诉你下一步做什么。
+- **设计**：导入图片，摆放位置，分图层，调明暗，先看看刻出来大概是什么样。作品存在本机的作品库里，关掉网页也不会丢。
+- **用手机拍照核对（DVD）**：先刻一张检查盘，用同一个局域网里的手机扫码，拍好的照片直接传到电脑上。程序会说明哪张照片不能用、为什么，比如没拍全整张盘、光线不对。几张照片读出的结果互相一致，才会拿来修正出图。
+- **和 DiscImageStudio 互通**：可以导入、导出它的预设，继续用它设计和刻录。
+
+这是 alpha 版。检查盘的图案目前只按 RITEKF1 DVD-R 选过；哪些手机、系统和流程实际测过，见这一版的发布说明。灯下视图里的颜色和特效只是预览，不代表刻出来的颜色。
+
+同一个发布版里还有两个独立的包。**Disc Lab** 是虚拟光驱练习台，没有光驱也能把全流程模拟走一遍。**Disc Neo** 是纹理和色卡的预览数据，解压后双击 `index.html` 就能离线浏览；里面的颜色是模型预测，不是实拍。
+
 ## 快速开始
+
+下面是命令行的做法。
 
 > 如果你在 2026-11-06 之前用 `--correction` 导出过预设，修正可能没有生效。更新后重新导出就行，不用重新测盘。
 
-要准备同一批的空盘：DVD 至少 2 张（测量、刻图），CD 至少 3 张（测量、标定、刻图）。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows 或 Linux、Python 3.10 以上和一台能刻录的光驱。macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
+要准备同一批的空盘。最少要几张：DVD 2 张（测量、刻图），CD 3 张（测量、标定、刻图），这是一次就刻对的情况。网页按 3 张来安排：测量盘、检查盘（拍照看偏了多少）、成品；误差大时第 4 张才是成品。3 张是目标，不是保证。照片拍坏了只要重拍，不用重刻。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows 或 Linux 和一台能刻录的光驱。使用源码、core 包或通用 wheel 时，需另外准备 Python 3.11 或更新版本。macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
 
-也可以不用 git，到 [Releases](https://github.com/Ashley-QwQ/disc-probe/releases/latest) 下载打包好的版本：
+也可以不用 git，到 [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) 下载打包好的版本（1.0.0.0-alpha 是预发布版，不显示为 Latest）：
 
-- `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start.bat`，不用另外安装。下面的安装步骤可以跳过。
+- **免安装包**：只用 Windows x86_64 选 `disc-probe-<版本>-win64.zip`（<!-- size:win64 -->约 120 MB<!-- /size -->），只用 Linux x86_64 选 `disc-probe-<版本>-linux-x86_64.zip`（<!-- size:linux-x86_64 -->约 165 MB<!-- /size -->），两个平台都用或不确定时选 `disc-probe-<版本>-full.zip`（<!-- size:full -->约 270 MB<!-- /size -->）。包内自带所选平台的 Python 3.13 和依赖。Linux 需要 glibc 2.28 或更新。
 - `core`：只有 disc-probe，要你已经装好 Python。解压后在文件夹里运行 `python -m pip install -r requirements.txt`，再运行下面的 `selftest`。
 
 Windows 上用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
 
 Linux 上经 `SG_IO` 直接给 `/dev/sr0` 发命令，不需要额外的包，`--drive` 写 `/dev/sr0`（或 `sr0`）。用户要能读写这个设备，通常加入 `cdrom` 组即可。盘被自动挂载也能测，不用先卸载；`/dev/sr0` 被别的程序独占时，程序会改用对应的 `/dev/sgN`。`timing` 和 `geo` 会尝试实时调度（`SCHED_FIFO`），这需要 root 或 `CAP_SYS_NICE`，做不到就退回普通优先级。`--transport` 只在 Windows 上有意义。
+
+本次 Linux 验证使用的机器没有光驱。实盘读取、刻录以及网页发起的刻录均未实测。若程序回退到 `/dev/sgN`，用户也需要读写该设备的权限。
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -95,7 +119,7 @@ cd disc-probe
 ```
 
 ```bash
-python -m pip install numpy pillow scipy
+python -m pip install numpy pillow scipy opencv-python-headless
 ```
 
 ```bash
@@ -159,6 +183,8 @@ python -m discprobe timing --drive H:      # Linux: --drive /dev/sr0
 ```bash
 python -m discprobe geo --drive H:
 ```
+
+读速会影响读取延迟，单一读速下随半径变化的延迟可能被拟合吸收，残差看不出来。DVD 默认请求 4x（5540 kB/s），因为 GH70N（NYA2）用这个速度测得的几何已经用网格盘验证，径向线偏差峰峰值为 0.106°。换光驱或读速时，建议在刻图前用相同设置测量，刻一张网格盘并扫描检查径向线是否笔直。
 
 有些盘的轨距会缓慢变化。比如 RITEKF1 恒定轨距就够，`CMC MAG. AM3` 和一种 RITEK DVD+RW 则要二次修正（残差从 0.38°、0.61° 降到约 0.08°）。
 
@@ -258,27 +284,13 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 
 ### 颜色（实验中）
 
-反复写同一段数据，这一小块盘面就像一块光栅，把白光分开。重复的间距不同，同一个方向上看到的颜色就不同，换个角度颜色也会变。这部分还在实验，进展在 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
+可以把自己的照片或插画刻在 DVD 的数据面上。反复写入同一段数据会形成光栅。程序按设计机位逐格挑纹理，让闪光灯照出的颜色尽量接近原图。手机或盘一动，颜色就会变。实盘颜色目前只在 RITEKF1 DVD-R 搭配 GH70N 上验证过。
 
-<img src="docs/showcase/roses_source.jpg" width="42%" alt="GPT Image 生成的玫瑰原图"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="刻好的玫瑰 DVD-R 数据面的照片，部分花瓣显紫色">
+<img src="docs/showcase/colour4_photo_dark.jpg" width="62%" alt="彩色测试盘实拍，红绿色块和亮蓝光带同时可见">
 
-左边是 GPT Image 生成的原图，右边是刻好的 DVD-R 的照片，背景已遮掉。这张盘按紫色设计，找对角度时，部分花瓣接近原图的紫色，只是暗一些。它只在一个角度看起来对，手机一动花瓣就变色，也不能任意指定颜色，目前只做过紫色。详情见 [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168)。同一张盘还存了 1.38 GB 数据，整盘读回零错误，见 [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170)。这些都是一张盘的早期结果，玫瑰盘的工具还没公开。
+这是早期彩色测试盘的实拍。想用自己的图，见[彩色 DVD 刻图](docs/colour.zh.md)。指南包含网页截图、从图片到刻录的命令、手机机位和常见问题。
 
-<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="闪光灯下同一朵花上显出多种颜色的花瓣">
-
-能自己刻的是这张花盘，同一朵花上有 3 到 4 种颜色，我们只在 RITEKF1 DVD-R 上刻过。先按[快速开始](#快速开始)测盘，再生成图案。这一步不碰光驱：
-
-```bash
-python tools/compose_rosettes.py
-```
-
-它会打印下一条命令，填好就能生成镜像：
-
-```bash
-python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
-```
-
-预览图的颜色只用来区分纹理，和盘上的颜色对不上是正常的。拍的时候关灯，只开手机闪光灯，手机往旁边偏开一点，步骤见 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
+第一次可用轮廓清楚、色块较大的 PNG 或 JPEG。导出 Display P3、Adobe RGB 或 Rec.2020 图片时，保留内嵌的 ICC 配置文件。「彩色图」导入时会提示用哪个配置文件转换为 sRGB。配置文件读不了时，会提示并按 sRGB 读取。没有内嵌配置的图片也按 sRGB 读取。
 
 ### 其他光驱和盘
 
@@ -298,6 +310,7 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 |---|---|---|---|
 | HL-DT-ST GH70N（NYA2） | Ritek F1 DVD-R | 测量和刻图都已验证，首刻约 0.1° | 本仓库 |
 | HL-DT-ST GH70N（NYA2） | CMC CD-R | 用 `--speed 1411`；沿轨道常数已用两张网格盘验证 | 本仓库 |
+| HL-DT-ST DVDRAM GH24NSD1 | Verbatim DVD+R AZO | 默认写入速度刻测量盘时光驱卡住，改成 4x 就刻完了；用 disc-probe 标定后，图几乎完全对齐（用户反馈，无量化图像误差） | SLJ，DIS Discord |
 | HL-DT-ST GU70N（LS20） | 换过标签的 Ritek DVD+R（`RITEK/F16/1`，内圈 `VR5F16-01294`） | 标定一张，把系数填进 DIS，第二张就刻出了图（用户反馈，4x，无量化图像误差） | LTVA1，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19461627) |
 | MATSHITA BD-MLT UJ260AF（macOS） | RITEKF1 DVD-R | `geo` 和 `disexport` 跑通，已有人用它刻图成功 | NaiveTomcat，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | MATSHITA BD-MLT UJ272 | RITEKF1 DVD-R | 预设直接填进 DIS，十字线又直又垂直（目测），也刻出了成品图 | domerawind，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
@@ -452,6 +465,8 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 | [`evidence/`](evidence/README.md) | 原始测量数据和图，可复现 |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor 的 C# 探测程序、拟合脚本和原始数据（在他们的 fork 里） |
 
+想做彩色 DVD，见[彩色 DVD 刻图](docs/colour.zh.md)。指南末尾附有给 agent 的检查清单。
+
 ## 前人工作与致谢
 
 用读取计时测扇区角度，并不是这里首创：
@@ -463,6 +478,8 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 本仓库做的是：在普通消费级光驱上可复现的开源实现，处理实机的各种问题，用协方差驱动的逐级测量加不确定度估计，做实盘网格验证和跨盘修正，并能导出 DiscImageStudio 预设。
 
 其中实验性 BD/CD 几何计算的部分算法与实现，以及 `--install` 安装功能，由 domerawind 与 DeepSeek-v41F 共同完成；相关 PR 见仓库历史，便于追踪代码来源。
+
+感谢 WindowsNoEditor 在 PR #29 中为 `geo` 贡献中位数剪切和离线重放工具。
 
 数据面刻图的编码参考了 [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio)，`discprobe/efmplus.py` 移植自它。感谢 NaiveTomcat 和 bczhc 的移植，也感谢报告实测结果的 anyezhixie、bczhc、Disappear9、domerawind、FanJZSS、kasumikira、Lakida0、li-yifei、MasterMT9、moodyos、NaiveTomcat、NO-ob、pugod124、ShiroiTree、Sliicy、WindowsNoEditor 和 zhajial。
 

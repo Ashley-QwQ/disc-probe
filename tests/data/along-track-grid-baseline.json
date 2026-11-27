@@ -1,0 +1,250 @@
+{
+  "base_commit": "e7f51a6b243ba4414cb4b377cf46f4ad2186f59b",
+  "dvd20": [
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": false,
+      "lba": 0,
+      "sha256": "9ed60e86244e23ade5bb0f02277a98ff1d8a23a886054c53ab72c84bacb96acd"
+    },
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": false,
+      "lba": 40000,
+      "sha256": "d01933132610ca0df3c188620df0abcb651055c0b05d1ad501a09327cbaa4cb7"
+    },
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": false,
+      "lba": 500003,
+      "sha256": "6e4d0b31147448f4e2133095f34cfd115e75436b112bae8d88e335d84fecb287"
+    },
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": false,
+      "lba": 2145149,
+      "sha256": "9b46c2b222d509195eb84a7e8fbf1b23ccc84966267df6a4fcb864b6c2098ac3"
+    },
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": true,
+      "lba": 0,
+      "sha256": "5ad18d9811ce35df04595157bc5840e649f29bfad64e07c3fc01ec045091c957"
+    },
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": true,
+      "lba": 40000,
+      "sha256": "e8786a0e9ab15542b36a3878725f1b532041382ff289d18720a07ab4f7e6a5a1"
+    },
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": true,
+      "lba": 500003,
+      "sha256": "90123182883e27ae7de5dcaf237e0270b1259e3301401c14df5c6d9807c7ff2e"
+    },
+    {
+      "textures": [
+        "B9",
+        "A5",
+        "92"
+      ],
+      "corrected": true,
+      "lba": 2145149,
+      "sha256": "fbdc0553a08569466017bdbd739d6e503d6a5f575a0c25bb01e47b0ba22640b2"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": false,
+      "lba": 0,
+      "sha256": "21e3a1957c415d7f8d0d9c4633a6930e80ed40d957a141ab825cb60e725c4d65"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": false,
+      "lba": 40000,
+      "sha256": "e9bf33e85298ae1657c05224edf9d7cce6f9ccaddb07117e519a9e95e0e5fbb2"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": false,
+      "lba": 500003,
+      "sha256": "1b618e1598d44a40fb42ec52ae687225c4d70ffa96d15b47daabc3e0fbf3ec85"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": false,
+      "lba": 2145149,
+      "sha256": "3a4841addc0db7a53fd0d42bf850c26f76c05205a91f3e2e047ce13d10fe096b"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": true,
+      "lba": 0,
+      "sha256": "e3b0ad2d238fafac11d724ccebe3621113b3653c9aa68f429419b636fd2c34b8"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": true,
+      "lba": 40000,
+      "sha256": "3cf8b1f3254f9cb1583f7b46bc6b98d6559b0c1bd7119e859c0ced4f7b6a4211"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": true,
+      "lba": 500003,
+      "sha256": "d3620aa55807930aa043af459fde202107d644dab44cc915116b5705f9f45116"
+    },
+    {
+      "textures": [
+        "8B00",
+        "A5",
+        "4F92"
+      ],
+      "corrected": true,
+      "lba": 2145149,
+      "sha256": "2340ff40d88f0807a13ea9e461aa24aed5fba575c0ac91d25d19d124d4d39de8"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": false,
+      "lba": 0,
+      "sha256": "9e6c551d139ee174aa7c98f764f0f0a3e8a8f2cd67cec60d35287d8f002d03cf"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": false,
+      "lba": 40000,
+      "sha256": "80c6f008a75f07ee2120de7dacbd7a13c20601cf435fb638153e93b865677472"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": false,
+      "lba": 500003,
+      "sha256": "7edda0d85b0723d4dba4b5330decbc6c5e4e68abeff1e947708781bdfc37c300"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": false,
+      "lba": 2145149,
+      "sha256": "93b0cbe396d36dabc7ca4e15c9a00dddca3278d42c10ec7adfacf77e740dc830"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": true,
+      "lba": 0,
+      "sha256": "aa8121052f1ce9c9d242f6b1f23457ddf2657f56c2ac9f88e2f7b449d8ca00cf"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": true,
+      "lba": 40000,
+      "sha256": "3196a9975bc3b79cf171610635a83f4c4f56f9487983ef237f5ef581e95ce6d3"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": true,
+      "lba": 500003,
+      "sha256": "6750db6374a50dd8025f31d77473929e032485cea5d60ab8d9352be89883d4d4"
+    },
+    {
+      "textures": [
+        "RND",
+        "MIX:92,4F",
+        "A5"
+      ],
+      "corrected": true,
+      "lba": 2145149,
+      "sha256": "c73a667d15a5662120b8ba2c91c57620d25f902cbbe2466180ff408f46689ef0"
+    }
+  ],
+  "randomlabel": {
+    "text": "GRID BASELINE",
+    "lba": 1971024,
+    "sha256": "2aceb80d9b5cba6e94dd9e0e5a0b0e87b115d222ee938e63c8d6d14c3055fa76"
+  }
+}

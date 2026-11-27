@@ -1,0 +1,460 @@
+"""Offline photo policy and the actual CD/DVD image samplers."""
+import copy
+import datetime
+import hashlib
+import json
+import math
+from pathlib import Path
+import subprocess
+import sys
+from unittest.mock import Mock, patch
+
+import numpy as np
+import pytest
+
+from discprobe import cd, cdimage, imagedisc, pcal, photo, rings, webui
+from discprobe import __main__ as cli
+from discprobe.calib import theta, SECTOR_BITS
+from tests.iso_fixture import write_checked_iso
+
+
+def run_files(root, media="dvd"):
+    folder = root / "geo-H-20261112-010101"
+    folder.mkdir(parents=True)
+    bit = cd.BIT_NM if media == "cd" else 133.3
+    fit = dict(media=media, u=25 / (bit * 1e-6), v=.016 / (bit * 1e-6), bit_nm_assumed=bit)
+    geo = dict(fit=fit, identity=dict(drive="test drive", device_id="H:"))
+    summary = folder / "summary.json"
+    summary.write_text(json.dumps(geo), encoding="utf-8")
+    shots = [dict(id=str(i), disc_id="physical-target-01", status="ok", L_mm=20., zone_spread_mm=.2,
+                  c_deg=30 * i, input_sha256=str(i + 1) * 64) for i in range(2)]
+    record = dict(path=str(folder), media=media, verdict="ok", offset_mm=20.,
+                  L_frames=20 / pcal.CD_FRAME_MM if media == "cd" else None,
+                  disc_id="physical-target-01", photos=shots, reader_version="v1",
+                  reader_sha256=photo.READER_SHA256,
+                  burn_path=dict(burner="H:", path="recorded writer", mode="recorded mode"),
+                  source_geo=dict(run_id=folder.name, sha256=hashlib.sha256(summary.read_bytes()).hexdigest(),
+                                  drive_identity=photo.drive_identity(geo, folder)))
+    target = folder / "photo.json"
+    target.write_text(json.dumps(record), encoding="utf-8")
+    return summary, target, record, fit
+
+
+@pytest.mark.parametrize("media", ["cd", "dvd"])
+def test_photo_manual_cli_overrides_then_freezes_for_image_and_preset(tmp_path, media):
+    from discprobe import disexport
+
+    summary, reader, _, fit = run_files(tmp_path, media)
+    reader_bytes = reader.read_bytes()
+    result = subprocess.run([sys.executable, "-m", "discprobe", "photo", "--run", str(summary.parent),
+                             "--media", media, "--manual-l", "-2.291"], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert reader.read_bytes() == reader_bytes
+    decision = photo.photo_l(summary)
+    assert decision["written"] and decision["origin"] == "manual-cli" and decision["L_mm"] == -2.291
+    with patch.object(disexport, "fit_preset", wraps=disexport.fit_preset) as fitter:
+        # Use an exact fit output here; preset fitting itself is covered by the disexport tests.
+        fitter.return_value = dict(innerRadiusMm=25, outerRadiusMm=55, pitchLinear=0,
+                                  pitchQuadratic=0, pitchCubic=0, max_angle_diff_deg=0, full_angle_diff_deg=0)
+        preset = disexport.export(str(summary), 300000, None, None, 26, 55, "manual", "Manual")
+    assert fitter.call_args.args[0] == photo.shifted_u(fit, decision)
+    assert preset["source"]["photo_shift"] == decision
+    assert "manual-cli" in preset["preset"]["description"]
+
+    iso = tmp_path / "picture.iso"
+    iso.with_suffix(".image.json").write_text(json.dumps(dict(photo_l=decision)), encoding="utf-8")
+    photo.save_manual_l(summary.parent, media, 0)
+    assert photo.photo_l(summary)["L_mm"] == 0
+    assert photo.image_photo_l(summary, iso, media=media) == decision
+    assert photo.image_photo_l(summary, iso, media=media, device_id="I:")["reason"] == "different_drive"
+    summary.write_bytes(summary.read_bytes() + b"\n")
+    assert photo.image_photo_l(summary, iso, media=media)["reason"] == "different_run"
+
+
+@pytest.mark.parametrize("media", ["cd", "dvd"])
+@pytest.mark.parametrize("change,reason", [
+    ("none", None), ("absent", "no_photo"), ("refused", "verdict_not_ok"),
+    ("unknown", "missing_L"), ("group", "verdict_not_ok"), ("one", "one_photo_provisional"),
+    ("disagree", "photos_disagree"), ("pose", "same_pose"),
+    ("duplicate", "duplicate_photo"), ("spread", "unknown_spread_or_pose"),
+    ("other_drive", "different_drive"), ("other_run", "different_run"),
+    ("burn", "unknown_burn_path"), ("disc", "unknown_disc"), ("other_disc", "different_disc"),
+    ("reader", "unknown_reader"), ("BD", "unsupported_media"), ("CLV", "unsupported_model"),
+])
+def test_application_rules(tmp_path, media, change, reason):
+    summary, target, record, fit = run_files(tmp_path, media)
+    if change == "absent":
+        target.unlink()
+    elif change == "refused":
+        record['verdict'] = 'unsure'
+    elif change == "unknown":
+        record['offset_mm'] = None
+    elif change == "group":
+        record['group'] = dict(status='unknown')
+    elif change == "one":
+        record['photos'] = record['photos'][:1]
+    elif change == "disagree":
+        record['photos'][1]['L_mm'] += 1
+    elif change == "pose":
+        record['photos'][1]['c_deg'] = 5
+    elif change == "duplicate":
+        record['photos'][1]['input_sha256'] = record['photos'][0]['input_sha256']
+    elif change == "spread":
+        record['photos'][1]['zone_spread_mm'] = None
+    elif change == "other_drive":
+        record['source_geo']['drive_identity']['device_id'] = 'I:'
+    elif change == "other_run":
+        record['source_geo']['sha256'] = '0' * 64
+    elif change == "burn":
+        record['burn_path']['mode'] = None
+    elif change == "disc":
+        record.pop('disc_id')
+    elif change == "other_disc":
+        record['photos'][1]['disc_id'] = 'physical-target-02'
+    elif change == "reader":
+        record.pop('reader_sha256')
+    elif change in ("BD", "CLV"):
+        data = json.loads(summary.read_text())
+        data['fit'].update(media='bd' if change == 'BD' else media, model='clv')
+        summary.write_text(json.dumps(data))
+    if change != "absent":
+        target.write_text(json.dumps(record))
+    decision = photo.photo_l(summary, media=media)
+    if reason is None:
+        assert decision['written'] and decision['L_mm'] == 20
+        assert decision['provenance']['disc_id'] == record['disc_id']
+        assert decision['provenance']['photo_sha256'] == hashlib.sha256(target.read_bytes()).hexdigest()
+        assert decision['reader_version'] == 'v1'
+    else:
+        assert not decision['written'] and decision['reason'].startswith(reason)
+        assert not {'L_mm', 'frames', 'sectors', 'channel_bits'} & decision.keys()
+        assert photo.shifted_u(fit, decision) == fit['u']
+
+
+def test_majority_excludes_outlier_and_refused_shots():
+    shots = [dict(status='ok', L_mm=x, zone_spread_mm=.1, c_deg=i * 30,
+                  id=str(i), input_sha256=str(i + 1) * 64) for i, x in enumerate([1, 1.02, 1.4])]
+    decision = photo.photo_agreement(shots)
+    assert decision['written'] and decision['L_mm'] == 1.01
+    assert decision['photo_ids'] == ['0', '1']
+    assert decision['outliers'] == [dict(id='2', name='2', L_mm=1.4, reason='outside_common_interval',
+                                        suggestion='Turn the disc and reshoot this photo.')]
+    # Refused shots, however, cannot supply a second acceptable input.
+    shots[1]['status'] = shots[2]['status'] = 'poor_angle_coverage'
+    assert photo.photo_agreement(shots)['reason'] == 'one_photo_provisional'
+
+
+def shots_at(values, spreads=None, poses=None):
+    return [dict(status='ok', id=str(i), L_mm=x,
+                 zone_spread_mm=spreads[i] if spreads else .1,
+                 c_deg=poses[i] if poses else i * 30,
+                 input_sha256=hashlib.sha256(str(i).encode()).hexdigest())
+            for i, x in enumerate(values)]
+
+
+@pytest.mark.parametrize('total,required', [(2, 2), (3, 2), (4, 3), (5, 4), (6, 4)])
+def test_two_thirds_ceiling(total, required):
+    shots = shots_at([1.] * required + [10. + i for i in range(total - required)])
+    decision = photo.photo_agreement(shots)
+    assert decision['written'] and decision['agreeing_count'] == required
+    assert decision['ok_count'] == total and decision['required_count'] == required
+    shots[0]['L_mm'] = -10
+    assert not photo.photo_agreement(shots)['written']
+
+
+def test_touching_closed_endpoints_and_zero_width():
+    decision = photo.photo_agreement(shots_at([0., 2., 1.], [2., 2., 0.]))
+    assert decision['written'] and decision['L_mm'] == 1.
+    assert decision['common_interval_mm'] == [1., 1.]
+
+
+def test_median_then_clip_uses_only_members():
+    decision = photo.photo_agreement(shots_at([0., 0., 3., 20.], [8., 8., 2., .1]))
+    assert decision['written'] and decision['L_mm'] == 2.
+    assert decision['common_interval_mm'] == [2., 4.]
+    # Within the overlap, the median differs from the former mean.
+    decision = photo.photo_agreement(shots_at([0., 1., 3.], [10., 10., 10.]))
+    assert decision['L_mm'] == 1.
+
+
+def test_tied_majorities_with_bridge_refuse_in_every_order():
+    import itertools
+    shots = shots_at([0., 1., 2.], [.2, 3., .2])
+    for order in itertools.permutations(shots):
+        decision = photo.photo_agreement(order)
+        assert not decision['written'] and decision['reason'] == 'ambiguous_majority'
+        assert 'L_mm' not in decision
+    # Equal disconnected groups also cannot be chosen arbitrarily.
+    assert not photo.photo_agreement(shots_at([0., 0., 3., 3.]))['written']
+
+
+def test_outlier_pose_cannot_satisfy_member_pose_gate():
+    assert photo.photo_agreement(shots_at([0., 0., 5.], poses=[0., 9., 90.]))['reason'] == 'same_pose'
+    assert photo.photo_agreement(shots_at([0., 0.], poses=[355., 5.]))['written']
+    assert photo.photo_agreement(shots_at([0., 0.], poses=[355., 4.]))['reason'] == 'same_pose'
+
+
+def test_two_distinct_hashes_are_required_inside_chosen_set():
+    shots = shots_at([0., 0., 8.])
+    shots[1]['input_sha256'] = shots[0]['input_sha256']
+    assert photo.photo_agreement(shots)['reason'] == 'duplicate_photo'
+    shots = shots_at([0., 0., 0., 8.])
+    shots[2]['input_sha256'] = shots[0]['input_sha256']
+    assert photo.photo_agreement(shots)['written']
+
+
+def test_unique_set_reports_outliers_even_when_below_two_thirds():
+    result = photo.photo_agreement(shots_at([0., 0., 2., 4.]))
+    assert not result['written'] and result['reason'] == 'photos_disagree'
+    assert [p['id'] for p in result['outliers']] == ['2', '3']
+    assert 'L_mm' not in result
+
+
+def test_sweep_matches_exhaustive_subsets():
+    import itertools
+    import random
+    rng = random.Random(419)
+    for _ in range(100):
+        shots = shots_at([rng.randrange(7) for _ in range(6)], [rng.randrange(5) for _ in range(6)])
+        subsets = []
+        for n in range(1, 7):
+            for indices in itertools.combinations(range(6), n):
+                lo = max(shots[i]['L_mm'] - shots[i]['zone_spread_mm'] / 2 for i in indices)
+                hi = min(shots[i]['L_mm'] + shots[i]['zone_spread_mm'] / 2 for i in indices)
+                if lo <= hi:
+                    subsets.append(indices)
+        size = max(map(len, subsets))
+        winners = [s for s in subsets if len(s) == size]
+        result = photo.photo_agreement(shots)
+        assert result['written'] == (size >= 4 and len(winners) == 1)
+        if result['written']:
+            assert result['photo_ids'] == [str(i) for i in winners[0]]
+
+
+@pytest.mark.parametrize('media', ['cd', 'dvd'])
+def test_majority_provenance_and_saved_evidence(tmp_path, media):
+    summary, target, record, fit = run_files(tmp_path, media)
+    record['photos'].append(dict(record['photos'][0], id='stray', L_mm=40., input_sha256='a' * 64))
+    record['application_agreement'] = photo.photo_agreement(record['photos'])
+    record['group'] = dict(status='photos_disagree')  # Raw reader diagnostic is retained.
+    target.write_text(json.dumps(record))
+    decision = photo.photo_l(summary, media=media)
+    assert decision['written'] and decision['L_mm'] == 20.
+    assert decision['provenance']['photo_ids'] == ['0', '1']
+    assert len(decision['provenance']['photos']) == 3
+    assert decision['outliers'][0]['id'] == 'stray'
+    assert decision['provenance']['outliers'] == decision['outliers']
+    target.unlink()
+    assert photo.photo_l(summary, media=media, frozen=decision) == decision
+
+
+def test_original_saved_policy_keeps_its_mean(tmp_path):
+    summary, target, record, fit = run_files(tmp_path)
+    record['photos'] = [dict(p, disc_id=record['disc_id']) for p in shots_at([0., 1., 3.], [10.] * 3)]
+    record['offset_mm'] = 4 / 3
+    target.write_text(json.dumps(record))
+    with patch.object(photo, 'PHOTO_L_POLICY', 'two-poses-v1'), \
+         patch.object(photo, 'photo_agreement', lambda p: dict(
+             **photo._all_photo_agreement(p), outliers=[], common_interval_mm=[-2., 5.])):
+        # Build exactly the schema emitted by the former policy.
+        legacy = photo.photo_l(summary)
+    assert legacy['written']
+    legacy['provenance'].pop('outliers', None)
+    legacy['provenance'].pop('common_interval_mm', None)
+    for shot in legacy['provenance']['photos']:
+        shot.pop('name', None)
+    legacy.pop('outliers', None)
+    legacy['provenance_sha256'] = hashlib.sha256(json.dumps(
+        legacy['provenance'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    target.unlink()
+    assert photo.photo_l(summary, frozen=legacy) == legacy
+
+
+@pytest.mark.parametrize("media", ["cd", "dvd"])
+@pytest.mark.parametrize("sign", [-1, 1])
+def test_geometry_and_actual_iso_bytes(tmp_path, media, sign, monkeypatch):
+    monkeypatch.setenv('DISCPROBE_WORKERS', '1')
+    from discprobe import iso9660
+    class FixedDate(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 11, 12, 12, 0, 0, tzinfo=tz)
+    # ISO 9660 carries wall-clock timestamps; compare at the same instant.
+    monkeypatch.setattr(iso9660.datetime, 'datetime', FixedDate)
+    summary, target, record, fit = run_files(tmp_path, media)
+    if sign < 0:
+        record['offset_mm'] *= -1
+        if record['L_frames'] is not None:
+            record['L_frames'] *= -1
+        for shot in record['photos']:
+            shot['L_mm'] *= -1
+        target.write_text(json.dumps(record))
+    decision = photo.photo_l(summary, media=media)
+    u, v = fit['u'], fit['v']
+    shifted = photo.shifted_u(fit, decision)
+    bits = cd.SECTOR_BITS if media == 'cd' else SECTOR_BITS
+    L = record['offset_mm']
+    d = L / pcal.CD_FRAME_MM * cd.FRAME_BITS if media == 'cd' else L / (133.3e-6)
+    assert decision['channel_bits'] == pytest.approx(d)
+    assert decision['sectors'] == pytest.approx(d / bits)
+    n = np.array([100, 1000, 4095]) * bits
+    expected = theta(n - d, u, v) - theta(-d, u, v)
+    np.testing.assert_allclose(theta(n, shifted, v), expected, atol=1e-10, rtol=0)
+    assert np.max(np.abs(theta(n, shifted, v) - theta(n, u, v))) > .01
+
+    coords = (np.arange(600) + .5) * .2 - 60
+    x, y = np.meshgrid(coords, coords)
+    design = ((np.floor(np.arctan2(y, x) * 60).astype(int) % 2) != 0) & (np.hypot(x, y) > 26)
+    writer = cdimage if media == 'cd' else imagedisc
+    opts = dict(log=lambda *a: None)
+    if media == 'cd':
+        opts.update(dark='0D', light='AA')
+    before, after, without = [tmp_path / f'{s}.iso' for s in ('before', 'after', 'without')]
+    writer.write_iso(str(before), design, u, v, fit['bit_nm_assumed'], 4096, **opts)
+    saved = writer.write_iso(str(after), design, shifted, v, fit['bit_nm_assumed'], 4096,
+                             meta=dict(photo_l=decision), **opts)
+    assert before.read_bytes() != after.read_bytes()
+    target.unlink()
+    refused = photo.photo_l(summary, media=media)
+    writer.write_iso(str(without), design, photo.shifted_u(fit, refused), v,
+                     fit['bit_nm_assumed'], 4096, meta=dict(photo_l=refused), **opts)
+    assert before.read_bytes() == without.read_bytes()
+    # Reopening the output uses its captured evidence, even after photo.json is removed.
+    reloaded = json.loads(Path(saved).read_text())
+    same = photo.image_photo_l(summary, after, media=media)
+    assert same == decision == reloaded['photo_l']
+    assert photo.shifted_u(fit, same) == reloaded['u']
+    assert photo.image_photo_l(summary, after, media=media, disabled=True)['reason'] == 'opted_out'
+    assert photo.image_photo_l(summary, after, media=media, device_id='I:')['reason'] == 'different_drive'
+    broken = copy.deepcopy(decision)
+    broken['L_mm'] += 1
+    assert not photo.photo_l(summary, media=media, frozen=broken)['written']
+
+
+@pytest.mark.parametrize('media', ['cd', 'dvd'])
+@pytest.mark.parametrize('disabled', [False, True])
+def test_image_cli_hands_the_shift_to_writer(tmp_path, media, disabled):
+    summary, target, record, fit = run_files(tmp_path, media)
+    parser, _, _ = cli._build_parser()
+    args = parser.parse_args(['image', '--geo', str(summary), '--media', media,
+                              '--output', str(tmp_path / 'cli.iso')] + (['--no-photo-l'] if disabled else []))
+    design = np.zeros((600, 600), bool)
+    writer = cdimage if media == 'cd' else imagedisc
+
+    def write_image(path, *args, **kwargs):
+        image = Path(path)
+        image.write_bytes(bytes(4096))
+        return str(image.with_suffix('.image.json'))
+
+    with patch.object(imagedisc, 'grid_design', return_value=design), \
+         patch.object(writer, 'sectors_to_radius', return_value=128), \
+         patch.object(writer, 'write_iso', side_effect=write_image) as write, \
+         patch.object(writer, 'verify_iso', return_value=[]), patch.object(imagedisc, 'preview'), \
+         patch.object(cli, '_warn_other_run'), patch.object(cli, '_image_ready'):
+        cli.cmd_image(args)
+    decision = write.call_args.kwargs['meta']['photo_l']
+    assert decision['written'] is not disabled
+    assert write.call_args.args[2] == photo.shifted_u(fit, decision)
+    receipt = Path(str(write.call_args.args[0]) + '.verification.json')
+    assert json.loads(receipt.read_text(encoding='utf-8'))['status'] == 'passed'
+
+
+@pytest.mark.parametrize('media', ['cd', 'dvd'])
+def test_rings_cli_uses_and_persists_shift(tmp_path, media):
+    from discprobe import cdrings
+    summary, target, record, fit = run_files(tmp_path, media)
+    parser, _, _ = cli._build_parser()
+    args = parser.parse_args(['rings', '--geo', str(summary), '--media', media, '--describe'])
+    if media == 'cd':
+        args.textures = '0D,AA'
+        args.filler = 'AA'
+    args.start_mm = 27
+    args.groups = 2
+    args.ring_width_mm = .2
+    cls = cdrings.RingLayout if media == 'cd' else rings.RingLayout
+    built = []
+    original = cls.build
+    def capture(layout):
+        built.append(layout)
+        return original(layout)
+    with patch.object(cls, 'build', capture):
+        cli.cmd_rings(args)
+    layout = built[-1]
+    decision = photo.photo_l(summary, media=media)
+    assert layout.r0_mm == photo.shifted_u(fit, decision) * fit['bit_nm_assumed'] * 1e-6
+    saved = tmp_path / 'rings.rings.json'
+    layout.save(saved)
+    restored = rings.RingLayout.load(saved)
+    assert restored.photo_l == decision
+    assert restored.rings == layout.rings
+
+
+def test_web_command_needs_no_client_L(tmp_path):
+    summary, target, record, fit = run_files(tmp_path)
+    argv, drive = webui.command(dict(action='image', media='dvd', args=dict(
+        geo=str(summary), design_npy='designs/picture.npy', output='iso/picture.iso', r_max=52)), tmp_path, [])
+    assert drive is None and '--along-track-frames' not in argv
+    assert argv[argv.index('--geo') + 1] == str(summary.resolve())
+
+
+def test_web_image_result_contains_server_decision(tmp_path):
+    summary, target, record, fit = run_files(tmp_path)
+    decision = photo.photo_l(summary, media='dvd')
+    output = tmp_path / 'iso/picture.iso'
+    output.parent.mkdir()
+    output.write_bytes(bytes(4096))
+    output.with_suffix('.image.json').write_text(json.dumps(dict(photo_l=decision)))
+    class FinishedChild:
+        def __init__(self, argv, **kwargs):
+            assert '--along-track-frames' not in argv
+            assert argv[argv.index('--reading-drive') + 1] == 'H:'
+        def wait(self):
+            return 0
+        def close(self):
+            pass
+        def cancel(self):
+            pass
+    backend = webui.Backend(tmp_path, runner=FinishedChild,
+                            drive_provider=lambda: [dict(id='H:', disc=None)])
+    try:
+        started = backend.start(dict(action='image', media='dvd', drive='H:', args=dict(
+            geo=str(summary), design_npy='designs/picture.npy', output='iso/picture.iso')))
+        job = backend.get_job(started['job'])
+        assert job.finished.wait(5)
+        assert job.exit == 0
+        assert job.result['photo_l'] == decision
+        assert job.result['path'] == 'iso/picture.iso'
+        assert any(e.get('step') == 'image' and e.get('photo_l') == decision for e in job.history)
+    finally:
+        backend.close()
+
+
+def test_burn_log_reuses_iso_evidence_without_reading_new_photo(tmp_path):
+    from discprobe import burner
+    summary, target, record, fit = run_files(tmp_path)
+    decision = photo.photo_l(summary, media='dvd')
+    image = write_checked_iso(tmp_path / 'picture.iso', bytes(4096))
+    image.with_suffix('.image.json').write_text(json.dumps(dict(photo_l=decision)))
+    target.unlink()
+    recorder = Mock()
+    recorder.inspect.return_value = dict(blank=True, media='dvd', free_sectors=20, speeds_x=[4])
+    recorder.write.return_value = 4
+    with patch.object(burner, 'adapter', side_effect=AssertionError('no drive access')), \
+         patch.object(burner.ui, 'event') as event:
+        for _ in range(2):
+            burner.burn('H:', image, yes_write=True, no_verify=True, recorder=recorder, state_checker=lambda *a, **k: dict(status='completed'))
+    rows = [json.loads(line) for line in Path(str(image) + '.burn.jsonl').read_text().splitlines()]
+    assert len(rows) == 6 and all(row['photo_l'] == decision for row in rows)
+    assert event.call_args.kwargs['photo_l'] == decision
+
+
+def test_saved_decision_rechecks_run_and_policy(tmp_path):
+    summary, target, record, fit = run_files(tmp_path)
+    decision = photo.photo_l(summary, media='dvd')
+    changed = copy.deepcopy(decision)
+    changed['provenance']['policy'] = 'other-policy'
+    assert not photo.photo_l(summary, media='dvd', frozen=changed)['written']
+    data = json.loads(summary.read_text())
+    data['fit']['u'] += 1
+    summary.write_text(json.dumps(data))
+    assert photo.photo_l(summary, media='dvd', frozen=decision)['reason'] == 'different_run'

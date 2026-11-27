@@ -1,0 +1,27 @@
+{
+  "kind": "blu-ray-calibration",
+  "media": "bd",
+  "u": 322684.56375838927,
+  "v": 4.29530201342282,
+  "bit_nm": 74.5,
+  "total_sectors": 512,
+  "first_lba": 0,
+  "lead_lba": 0,
+  "textures": [
+    "B9",
+    "A5"
+  ],
+  "cell_mm": 0.02,
+  "r0_mm": 24.04,
+  "pitch_um": 0.32,
+  "rings": [
+    26.0,
+    40.0,
+    55.0
+  ],
+  "line_deg": 90.0,
+  "split": false,
+  "note": "burned with the nominal numbers; the line's far end points at the twist",
+  "dark": "A5",
+  "light": "B9"
+}

@@ -17,7 +17,7 @@ import sys
 
 from . import i18n, iso9660, mmc
 
-RESULT_DIR = re.compile(r"^(?P<kind>[a-z]+)-(?:(?P<tag>.+)-)?(?P<stamp>\d{8}-\d{6})$")
+RESULT_DIR = re.compile(r"^(?P<kind>[a-z]+)-(?:(?P<tag>.+)-)?(?P<stamp>\d{8}-\d{6})(?:_(?P<suffix>\d+))?$")
 PROG = "python -m discprobe"
 # `latest` must not pick these. Results now say when they stopped early; these catch older ones, as far as they can:
 # one stopped after 8 rungs says nothing, and looks complete.
@@ -42,14 +42,16 @@ BAD_SIGMA_DEG = 0.6
 MIN_BD_ZONES = 5
 MIN_BD_R2 = 0.99
 MATCH_INFO_S = 24 * 3600    # how far from a measurement an `info` run can be and still be taken for the same disc
-ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234"), "bd": ("8990", "17980", "35960")}
+ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"),
+                      "cd": ("1411", "2822", "4234", "5645", "7056", "8467"),
+                      "bd": ("8990", "17980", "35960")}
 RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
 # Spare room a random disc needs. CD: on a 359,847-sector disc 359,800 was refused and 359,600 went through.
 # DVD: the usual 2,295,104 has burned many times on 2,295,104-sector discs, so it only has to fit. A smaller
 # image for a smaller disc still leaves room: a 713,936-sector miniDVD refused its full count by 4 KB.
 BURN_ROOM_SECTORS = {"dvd": 0, "cd": 200}
 BURN_FILL = 0.98
-INSTALL = "python -m pip install numpy pillow scipy"
+INSTALL = "python -m pip install numpy pillow scipy opencv-python-headless"
 PORTS = ("This repository drives real hardware on Windows and Linux. macOS port: "
          "github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.")
 
@@ -93,6 +95,8 @@ class Result:
         self.path, self.kind, self.tag = path, kind, tag or ""
         self.when = datetime.datetime.strptime(stamp, "%Y%m%d-%H%M%S")
         self.summary = _load(os.path.join(path, "summary.json")) or {}
+        if kind == "geo" and not self.summary:
+            self.summary = _load(os.path.join(path, "partial.json")) or {}
         self.simulated = self.tag.startswith("SIM") or self.summary.get("simulated") is True
 
     @property
@@ -101,22 +105,27 @@ class Result:
 
     @property
     def is_clv(self) -> bool:
-        """A Blu-ray result: periods against LBA, not angles."""
+        """A period fit against LBA, rather than an angle map."""
         return self.kind == "geo" and self.fit.get("model") == "clv"
 
     @property
     def media(self) -> str:
         if self.kind == "geo":
             media = self.fit.get("media")
-            return media if media in ("cd", "dvd", "bd") else "dvd"
+            if media in ("cd", "dvd", "bd"):
+                return media
         if self.kind == "info":
             report = _load(os.path.join(self.path, "info.json")) or {}
             family = mmc.media_family(_parsed(report, "configuration").get("current_profile"))
             if family in ("cd", "dvd", "bd"):
                 return family
-        return "cd" if (self.summary.get("args") or {}).get("media") == "cd" else "dvd"
+        family = (self.summary.get("setup") or {}).get("family")
+        media = family if family in ("cd", "dvd", "bd") else (self.summary.get("args") or {}).get("media")
+        return media if media in ("cd", "dvd", "bd") else "dvd"
 
     def rungs(self) -> int:
+        if checkpoint := self.summary.get('checkpoint'):
+            return checkpoint['rungs']
         try:
             with open(os.path.join(self.path, "targets.csv"), encoding="utf-8") as f:
                 return max(0, sum(1 for _ in f) - 1)
@@ -140,11 +149,14 @@ class Result:
             return False
         reached = self.fit.get("completion_status", "target_reached") == "target_reached"
         if self.is_clv:
+            if self.media == "cd":
+                return False  # experimental radius fit, not a calibrated CD angle map
             r2 = self.fit.get("r2")
             return ("r0_mm" in self.fit and not self.stopped and reached and self.zones() >= 5
                     and isinstance(r2, (int, float)) and not isinstance(r2, bool) and r2 >= 0.99)
         return ("u" in self.fit and not self.stopped and reached and self.rungs() >= MIN_RUNGS
-                and self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2)
+                and (self.fit.get('correction_validation', {}).get('repeat_cv_rms_deg', float('inf')) <= BAD_SIGMA_DEG
+                     or self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2))
 
     @property
     def sigma(self) -> float | None:
@@ -155,12 +167,20 @@ class Result:
         """The check points read at the start and again at the end disagreed (geo.Ladder.check_state)."""
         return drive_changed(self.fit)
 
-    def reliable(self) -> bool:
+    def reliable(self, radius_range=None) -> bool:
         """Complete, not judged too noisy, and the drive did not change state during the run."""
-        return (self.geo_complete() and (self.sigma is None or self.sigma <= BAD_SIGMA_DEG)
+        from .coverage import range_warning
+        local_use = radius_range is not None and self.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')
+        complete = self.geo_complete() or (local_use and 'u' in self.fit and not self.stopped and self.rungs() >= MIN_RUNGS)
+        validation = self.fit.get('correction_validation')
+        sigma = validation.get('repeat_cv_rms_deg') if validation else self.sigma
+        return (complete and (sigma is None or sigma <= BAD_SIGMA_DEG)
+                and (radius_range is None or range_warning(self.fit, radius_range) is None)
                 and not self.drive_changed())
 
     def quality(self) -> str:
+        if self.is_clv and self.media == "cd":
+            return "experimental"
         if not self.geo_complete():
             return "stopped early"
         if self.is_clv:
@@ -172,6 +192,9 @@ class Result:
         span = self.fit.get("measured_span_mm") or [0, NARROW_SPAN_MM]
         if span[1] - span[0] < NARROW_SPAN_MM:
             return "narrow span"
+        validation = self.fit.get('correction_validation')
+        if validation:
+            return 'good' if validation.get('repeat_cv_rms_deg', float('inf')) <= GOOD_SIGMA_DEG else 'usable'
         return "good" if self.sigma is not None and self.sigma <= GOOD_SIGMA_DEG and self.fit.get("chi2_per_dof", 0) <= 2 else "usable"
 
     def rotation(self) -> str | None:
@@ -179,6 +202,8 @@ class Result:
 
     def describe(self) -> str:
         if self.kind == "geo":
+            if self.summary.get('checkpoint'):
+                return f"measurement interrupted after {self.rungs()} rungs"
             f = self.fit
             if self.is_clv:
                 if "r0_mm" not in f:
@@ -190,6 +215,10 @@ class Result:
                 return "stopped before the first fit"
             state = "" if self.geo_complete() else "  (stopped early)"
             span = f.get("measured_span_mm") or ["?", "?"]
+            if f.get('correction_validation'):
+                validation = f['correction_validation']
+                return (f"{self.rungs()} rungs, corrected rms {validation['residual_rms_deg']:.2f} deg, "
+                        f"repeat CV {validation['repeat_cv_rms_deg']:.2f} deg, {span[0]}-{span[1]} mm{state}")
             return (f"{self.rungs()} rungs, rms {f.get('residual_rms_deg', 0):.2f} deg, "
                     f"chi2/dof {f.get('chi2_per_dof', 0):.1f}, {span[0]}-{span[1]} mm{state}")
         if self.kind == "timing":
@@ -220,14 +249,15 @@ def scan(out: str = "results") -> list[Result]:
         m = RESULT_DIR.match(name)
         path = os.path.join(out, name)
         if m and "blind" not in name.lower() and os.path.isdir(path):
-            found.append(Result(path, m["kind"], m["tag"], m["stamp"]))
-    return sorted(found, key=lambda r: r.when, reverse=True)
+            found.append((Result(path, m["kind"], m["tag"], m["stamp"]), int(m["suffix"] or 0)))
+    return [run for run, _ in sorted(found, key=lambda entry: (entry[0].when, entry[1]), reverse=True)]
 
 
-def latest_geo(media: str | None = None, out: str = "results") -> Result | None:
+def latest_geo(media: str | None = None, out: str = "results", radius_range=None) -> Result | None:
     """The newest measurement of a real disc that can be relied on, or failing that the newest complete one."""
-    runs = [r for r in scan(out) if r.geo_complete() and not r.simulated and (media is None or r.media == media)]
-    return next((r for r in runs if r.reliable()), runs[0] if runs else None)
+    runs = [r for r in scan(out) if (r.geo_complete() or (radius_range is not None and r.reliable(radius_range)))
+            and not r.simulated and (media is None or r.media == media)]
+    return next((r for r in runs if r.reliable(radius_range)), runs[0] if runs else None)
 
 
 def passed_over(chosen: Result, media: str | None = None, out: str = "results") -> int:
@@ -267,7 +297,7 @@ DRIVE_CHANGED_BLOCK = ("the drive changed during this run (its check points read
                        "whose check points held.")
 
 
-def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | None:
+def install_blocker(geo_summary: str, allow_simulated: bool = False, radius_range=None) -> str | None:
     """Why a geo result must not be installed as a DiscImageStudio preset, or None when it may.
 
     A preset outlives the run it came from: it is used to cut discs, and nothing later says it
@@ -294,6 +324,13 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | No
         return (f"this run stopped before the end ({i18n.tr(str(stopped))}), so the ladder never reached the "
                 f"fit. Run geo again and install a run that finished.")
     fit = summary.get("fit") or {}
+    if fit.get("model") == "clv" and fit.get("media") == "cd":
+        return CD_CLV_LIMIT
+    from .coverage import range_warning
+    if radius_range is not None:
+        warning = range_warning(fit, radius_range)
+        if warning and (fit.get('measured_span_mm') or 'coverage' in fit):
+            return warning
     if fit.get("model") == "clv":
         # A Blu-ray run is judged by the T^2 line it fitted, not by an angle ladder: the figures are
         # the zone count and R^2 (`clv.ClvFit`), and a run of that kind has no chi2/dof or angle sigma.
@@ -334,7 +371,8 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | No
         return None
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
-    if fit.get("completion_status", "target_reached") != "target_reached":
+    status = fit.get('completion_status', 'target_reached')
+    if status != 'target_reached' and not (radius_range is not None and status in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')):
         return "this run exhausted its candidates before reaching the target; measure again before installing a preset."
     rungs = None
     try:
@@ -345,11 +383,13 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | No
     if rungs is not None and rungs < MIN_RUNGS:
         return (f"this run measured {rungs} points, fewer than the {MIN_RUNGS} `results` needs before it trusts a "
                 f"fit. A preset is not the place to try one, and another run is the way to get there.")
-    chi2 = _quality_number(fit, "chi2_per_dof")
+    validation = fit.get('correction_validation')
+    chi2 = _quality_number(fit, "chi2_per_dof") if not validation else None
     if chi2 is not None and chi2 > MAX_LATEST_CHI2:
         return (f"this run's fit leaves chi2/dof {chi2:.1f}; `results` already treats it as unusable, and a "
                 f"preset is not the place to try it.")
-    sigma = _quality_number(fit, "angle_sigma_measured_span_deg")
+    sigma = (_quality_number(validation, 'repeat_cv_rms_deg') if validation else
+             _quality_number(fit, "angle_sigma_measured_span_deg"))
     if sigma is not None and sigma > BAD_SIGMA_DEG:
         return (f"this run is too noisy to rely on: angles are known to only {sigma:.2f} deg over the measured "
                 f"span ({_angle(sigma)}). Another speed usually helps; `results` lists what you have.")
@@ -409,12 +449,18 @@ def identity_of(run: Result, infos: list[Result] | None = None) -> dict:
     return {"disc": disc or "unknown disc", "drive": drive or (f"drive {tag}" if tag else "unknown drive"), "inferred": True}
 
 
-def resolve_geo(value: str, media: str | None = None, out: str = "results") -> str:
+def resolve_geo(value: str, media: str | None = None, out: str = "results", radius_range=None) -> str:
     """--geo takes a summary.json, a geo result folder, or `latest`. Raises ValueError with what to do."""
     if value.lower() == "latest":
-        r = latest_geo(media, out)
+        r = latest_geo(media, out, radius_range=radius_range)
         if r is None:
             have = any(x.kind == "geo" for x in scan(out))
+            partial = [x for x in scan(out) if x.kind == 'geo' and not x.simulated and
+                       x.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')]
+            if partial:
+                spans = [(x.fit.get('coverage') or {}).get('measured_intervals_mm', x.fit.get('measured_span_mm')) for x in partial]
+                raise ValueError(f'--geo latest: only partial measurements cover radii {spans} mm. '
+                                 'Use an explicit summary.json within its measured intervals; outside is extrapolation.')
             why = "only simulated or stopped runs were found" if have else "there is no geo result yet"
             raise ValueError(f"--geo latest: {why} in {out}. Run geo first, or give a summary.json path.")
         return os.path.join(r.path, "summary.json")
@@ -430,7 +476,7 @@ def describe_chosen(path: str) -> str:
 
 
 def missing_packages() -> list[str]:
-    return [pip for module, pip in (("numpy", "numpy"), ("PIL", "pillow"), ("scipy", "scipy"))
+    return [pip for module, pip in (("numpy", "numpy"), ("PIL", "pillow"))
             if importlib.util.find_spec(module) is None]
 
 
@@ -451,11 +497,14 @@ def drive_flag(args=None) -> str:
     return f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
 
-def _carry(args) -> str:
+def _carry(args, media: str | None = None) -> str:
     """Options the next drive command should repeat."""
     parts = [drive_flag(args)]
-    if getattr(args, "media", "dvd") == "cd":
+    media = media or getattr(args, "media", "dvd")
+    if media == "cd":
         parts.append("--media cd")
+    elif media == "bd":
+        parts.append("--media bd")
     if getattr(args, "sectors", 1) == 16:
         parts.append("--sectors 16")
     if getattr(args, "transport", "auto") != "auto":
@@ -471,16 +520,86 @@ def _carry_geo(args) -> str:
     return _carry(args) + (f" --read-offset-bytes {offset:g}" if offset else "")
 
 
-def _other_speed(args, family: str | None = None) -> str:
-    media = "bd" if family == "bd" else getattr(args, "media", "dvd")
+CD_CLV_LIMIT = ("Experimental CD CLV geometry gives an anchored radius and constant pitch, not a calibrated "
+                "sector-angle map. It cannot determine the along-track constant or pitch variation. "
+                "Use another drive for CAV geometry and calibrate in DiscImageStudio before burning a picture.")
+
+
+def speed_advice(args, family: str | None = None, summary: dict | None = None) -> dict:
+    """Remember completed rotation tests in the selected results root; never open a drive."""
+    media = family if family in ALTERNATIVE_SPEEDS else getattr(args, "media", "dvd")
     current = str(getattr(args, "speed", ""))
-    return next(s for s in ALTERNATIVE_SPEEDS[media] if s != current)
+    sim = getattr(args, "sim", None)
+    endpoint = str(getattr(args, "drive", "") or "").casefold()
+    identity = (summary or {}).get("identity") or {}
+    tried = {}
+    for run in scan(getattr(args, "out", "results")):
+        old = run.summary.get("args") or {}
+        mode = (run.rotation() if run.kind == "timing" else
+                ((run.summary.get("rotation_measured") or run.summary.get("rotation_check") or {}).get("mode")))
+        reason = str(run.summary.get('stopped') or '')
+        if not mode and any(word in reason for word in ('never settled', 'speed is not steady', 'constant speed', 'no clear period')):
+            mode = 'unstable'
+        if run.kind not in ("timing", "geo") or run.media != media or not mode:
+            continue
+        if run.kind == "timing" and run.stopped and mode != 'unstable':
+            continue
+        if sim:
+            if old.get("sim") != sim:
+                continue
+        elif run.simulated or not endpoint or str(old.get("drive") or run.summary.get("device") or "").casefold() != endpoint:
+            continue
+        previous = run.summary.get("identity") or {}
+        if any(identity.get(k) and previous.get(k) and identity[k] != previous[k] for k in ("drive", "firmware")):
+            continue
+        speed = str(old.get("speed", ""))
+        if speed.isdigit():
+            tried.setdefault(speed, mode)  # newest verdict wins
+    rotation = (((summary or {}).get("period") or {}).get("rotation") or {}).get("mode")
+    if current.isdigit() and (not summary or (rotation and not summary.get("stopped"))):
+        tried[current] = rotation or tried.get(current)
+    rotation = rotation or tried.get(current)
+    choices = [s for s in ALTERNATIVE_SPEEDS[media] if s not in tried]
+    if media == "cd" and rotation == "CLV":
+        choices.sort(key=lambda s: (int(s) <= int(current) if current.isdigit() else False, int(s)))
+    return dict(media=media, tried=sorted(tried, key=int), next_speed=choices[0] if choices else None,
+                exhausted=not choices,
+                all_clv=all(tried.get(s) == "CLV" for s in ALTERNATIVE_SPEEDS[media]))
+
+
+def _other_speed(args, family: str | None = None) -> str | None:
+    return speed_advice(args, family)["next_speed"]
 
 
 def _speed_word(args) -> str:
     """How to name _other_speed. It is a higher one when this run is already at the lowest we list."""
     current = getattr(args, "speed", None)
-    return "a lower speed" if current and int(_other_speed(args)) < current else "a different speed"
+    other = _other_speed(args)
+    return "a lower speed" if current and other and int(other) < current else "a different speed"
+
+
+def _clv_next(args, advice: dict) -> list[str]:
+    media, other = advice["media"], advice["next_speed"]
+    carry = _carry(args, media)
+    lines = []
+    if other:
+        lines += ["Next, try an untried speed (kB/s):",
+                  f"  {PROG} timing {carry} --speed {other}"]
+        if media == "cd":
+            lines.append("A higher CD speed may allow CAV.")
+    elif advice["all_clv"]:
+        lines.append(f"This drive appears to keep a constant linear speed for {media.upper()}s at every speed tried.")
+    else:
+        lines.append("Every speed on the list has been tried. No untried speed remains; try another drive.")
+    if not other:
+        lines.append("Try another drive. timing --force only continues diagnostic sampling; it does not force CAV or make CLV sector angles valid.")
+    if media == "bd":
+        speed = f" --speed {args.speed}" if getattr(args, "speed", None) else " --speed keep"
+        lines += ["CLV can still give anchored Blu-ray geometry:", f"  {PROG} geo {carry}{speed} --bd-zones 25"]
+    elif media == "cd":
+        lines += [CD_CLV_LIMIT,
+                  "For research, geo --media cd --cd-clv needs an independently known --linear-mm-s or an explicit --pitch-um anchor. A requested read speed is not a measured anchor."]
+    return lines
 
 
 def sectors_from_info(report: dict) -> tuple[int, str] | None:
@@ -530,7 +649,8 @@ def _random_for_blank(report: dict) -> list[str]:
         sectors = int(found[0] * BURN_FILL) // 16 * 16
         return ["Nothing is recorded on this disc, so timing cannot use it. The usual random disc would not fit, so make a smaller one:",
                 f"  {PROG} random{flag} --sectors {sectors} --output {iso}"]
-    return ["Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:",
+    return ['An existing recorded plain-data disc can be measured without a new burn. '
+            'If none is available, nothing is recorded on this blank for timing; make a random-data disc:',
             f"  {PROG} random{flag} --output {iso}"]
 
 
@@ -577,13 +697,12 @@ def after_timing(args, summary: dict) -> list[str]:
         return []
     family = (summary.get("setup") or {}).get("family")
     blu_ray = family == "bd"
-    carry, other = _carry(args), _other_speed(args, family)
+    advice = speed_advice(args, family, summary)
+    carry, other = _carry(args, advice["media"]), advice["next_speed"]
     simulated = ["This was the simulated drive, so the verdict below says nothing about your own drive.", ""] if getattr(args, "sim", None) else []
     if rotation != "CAV":
         return simulated + [f"Verdict: rotation is {rotation}, not CAV, so sector angles cannot be read at this speed.",
-                "The Blu-ray drives reported so far kept a constant linear speed whatever was asked, so another speed may not change this. To try one:"
-                if blu_ray else "Next, try another speed. Some drives never leave one, and the rotation test will show that:",
-                f"  {PROG} timing {carry} --speed {other}"]
+                            *_clv_next(args, advice)]
     jitter = _jitter(summary)
     worst = max(jitter) if jitter else None
     span = f"{min(jitter):.2f}-{worst:.2f} deg" if jitter else ""
@@ -596,12 +715,13 @@ def after_timing(args, summary: dict) -> list[str]:
         lines.append(f"Verdict: CAV, but {span} jitter is noisy. Another speed may help:" if worst <= BAD_JITTER_DEG
                      else f"Verdict: CAV, but {span} jitter is too high: drives reported at this level stopped early "
                           "or gave a wrong geometry. Try another speed or another drive:")
-        lines.append(f"  {PROG} timing {carry} --speed {other}")
+        lines.append(f"  {PROG} timing {carry} --speed {other}" if other else
+                     "Every speed on the list has been tried. No untried speed remains; try another drive.")
         if media == "dvd" and not blu_ray and getattr(args, "sectors", 1) == 1:
             lines.append(f"  Or read whole ECC blocks, which was cleaner on one drive: {PROG} timing {carry} --sectors 16")
     if blu_ray:
         return lines + ["", "Next, measure the geometry (a straight T^2 line over 25 zones, about 2 minutes):",
-                        f"  {PROG} geo {carry} --media bd --bd-zones 25"]
+                        f"  {PROG} geo {carry} --bd-zones 25"]
     usual = 1411 if media == "cd" else None
     speed = f" --speed {args.speed}" if getattr(args, "speed", None) not in (None, usual) else ""
     note = ["  It sets 4x first. If that takes this drive out of constant rotation, it stops and says what to do."] if media == "dvd" and getattr(args, "speed", None) is None else []
@@ -613,15 +733,16 @@ def after_timing_stop(args, reason: str) -> list[str]:
     flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
     iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     if "cannot read" in reason or "recorded area" in reason or "fails on" in reason or "time limit" in reason:
-        return [f"Make a plain data disc: {PROG} random{flag} --output {iso}",
-                *burn_steps(iso, media),
-                "Then run timing on it."]
+        return ['First reuse an existing recorded data disc; close other drive software, reload and check the saved command errors.',
+                'Retry reading at an untried speed or with another available drive. Do not burn to fix a timeout.',
+                f'Only if no usable recorded data remains and no existing data disc is available, make one: {PROG} random{flag} --output {iso}']
     return []
 
 
 def compare_pitch(out: str, with_sigma: bool = False) -> tuple | None:
     """chi2/dof of the constant-pitch and quadratic-pitch fits of a finished run, by tools/geo_polyfit.py."""
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "geo_polyfit.py")
+    from .resources import tool
+    path = str(tool("geo_polyfit.py"))
     try:
         spec = importlib.util.spec_from_file_location("geo_polyfit", path)
         tool = importlib.util.module_from_spec(spec)
@@ -639,6 +760,14 @@ def compare_pitch(out: str, with_sigma: bool = False) -> tuple | None:
 
 def geo_summary(res: dict, rungs: int) -> str:
     span = res["measured_span_mm"]
+    if res.get('completion_status') == 'coverage_incomplete':
+        return f"Measured {rungs} points; some requested radii still need readings."
+    if res.get('correction_validation'):
+        validation = res['correction_validation']
+        value = validation.get('independent_rms_deg')
+        check = f'{value:.2f}' if value is not None else 'unknown'
+        return (f"Measured {rungs} points across {span[0]}-{span[1]} mm with a variable-pitch correction; "
+                f"independent check rms {check} deg. Model bias between samples is not bounded.")
     return (f"Measured {rungs} points across {span[0]}-{span[1]} mm: angles known to about "
             f"{res['angle_sigma_measured_span_deg']:.2f} deg, points {res['residual_rms_deg']:.2f} deg from the fit on average.")
 
@@ -693,16 +822,43 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     span = res.get("measured_span_mm") or [25.8, 54.4]
     correction = ""
     lines = []
+    if res.get('completion_status') == 'coverage_incomplete':
+        from .coverage import assess_range, default_range
+        required = default_range(args.media, span)
+        missing = assess_range(res, required)['extrapolated_mm']
+        bands = ', '.join(f'{a:.3f}-{b:.3f}' for a, b in missing)
+        lines = [f'Partial measurement: missing radii {bands} mm.']
+        if not res.get('varying_pitch'):
+            drive = f" --drive {args.drive}" if args.drive else ""
+            sim = f" --sim {args.sim}" if args.sim else ""
+            lines += ["Keep the same disc in the same drive to measure the missing radii:",
+                      f"  {PROG} geo{flag}{drive}{sim} --resume {short(out)}"]
+        return _state_lines(res, lines, [])
+    if res.get('correction_file'):
+        s = res['correction_validation']
+        correction = ' --correction ' + short(os.path.join(out, res['correction_file']))
+        lines = ["Track pitch varies. Extra repeated points were measured and a smooth angle correction was saved.",
+                 f"Correction residual: rms {s['residual_rms_deg']:.3f} deg, max {s['residual_max_deg']:.3f} deg; repeat CV {s['repeat_cv_rms_deg']:.3f} deg.",
+                 f"Extra probing took {s['elapsed_s']:.1f} s. Thin radius intervals (mm): {s['thin_intervals_mm']}.",
+                 f"Measured radius range: {span[0]}-{span[1]} mm. Outside measured intervals is extrapolation.",
+                 "The correction is used automatically with this geometry. To disable extra probing on a new run, use geo --no-auto-correction.",
+                 "A cubic-pitch DIS preset may not reproduce this spline; check its conversion error before use.",
+                 f"  {PROG} image{flag} --geo {short(out)}{correction} --picture my_picture.png --output iso/picture.iso"]
+        if res.get('completion_status', 'target_reached') != 'target_reached':
+            lines.insert(0, 'Partial measurement: the correction did not pass all coverage or independent checks.')
+        return _state_lines(res, lines, [])
     if getattr(args, "sim", None):
         lines.append("This was the simulated drive: the verdict and commands below show the flow, do not burn from them.")
     compared = compare_pitch(out) if res["chi2_per_dof"] > 2 else None
     sigma = res["angle_sigma_measured_span_deg"]
-    retry = [f"  {PROG} geo {_carry_geo(args)} --speed {_other_speed(args)}"]
+    other = _other_speed(args)
+    retry = ([f"  {PROG} geo {_carry_geo(args)} --speed {other}"] if other else
+             ["Every speed on the list has been tried. No untried speed remains; try another drive."])
     word = _speed_word(args)
     too_noisy = sigma > BAD_SIGMA_DEG
     if res["chi2_per_dof"] <= 2:
         if sigma <= GOOD_SIGMA_DEG:
-            lines.append(f"Verdict: good. Only noise is left after the fit, and {_angle(sigma)}.")
+            lines.append(f"Verdict: good. The model is compatible with the measured points, and {_angle(sigma)}.")
         else:
             lines += [f"Verdict: {_noisy(sigma)}", f"For a cleaner run, try {word} or another drive:", *retry]
     elif compared is None:
@@ -722,6 +878,9 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     lines = _state_lines(res, lines, retry)
     if span[1] - span[0] < NARROW_SPAN_MM:
         lines.append(f"This run only covers {span[0]}-{span[1]} mm, so angles outside that are extrapolated.")
+    lines.append(f"Measured radius range: {span[0]}-{span[1]} mm. Outside measured intervals is extrapolation.")
+    if res.get('completion_status', 'target_reached') != 'target_reached':
+        lines.insert(0, 'Partial measurement: candidates ran out; use only the measured radius intervals.')
     if res["chi2_per_dof"] > 2:
         if compared is None:
             lines += ["The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is",
@@ -771,6 +930,8 @@ def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
     if reason in mmc.NOT_READY:
         return []
     carry, other, word = _carry(args), _other_speed(args), _speed_word(args)
+    if other is None and any(s in reason for s in ("never settled", "near the reference", "whole-turn", "safe")):
+        return ["Every speed on the list has been tried. No untried speed remains; try another drive."]
     again = _carry_geo(args)
     if "not turning at a constant speed" in reason:
         if getattr(args, "speed", None) is None:
@@ -786,7 +947,8 @@ def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
                 "If this disc holds anything else (texture rings, a picture, a second session), measure only its random part:",
                 f"  {PROG} geo {again}{f' --speed {args.speed}' if getattr(args, 'speed', None) else ''} --ranges a-b,c-d",
                 "For a texture-ring disc, --rings-layout with its .rings.json file does that for you.",
-                f"If it is random data throughout, it may be damaged. Burn a new one: {PROG} random{flag} --output iso/random.iso"]
+                'First retry the failed reads on this same disc with another available drive or read speed.',
+                f"Only if recorded data is unreadable and no existing data disc is available, replace it: {PROG} random{flag} --output iso/random.iso"]
     if "never settled" in reason or "near the reference" in reason:
         return [f"The drive would not hold one speed. Check it with timing, then try geo at {word}:",
                 f"  {PROG} timing {carry}", f"  {PROG} geo {again} --speed {other}",
@@ -795,13 +957,13 @@ def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
         return [f"A whole-turn count went wrong, or the pitch varies more than the model allows. Try {word}:",
                 f"  {PROG} geo {again} --speed {other} --reps 32",
                 "If it keeps stopping near one LBA, leave that area out with --ranges a-b (see `geo -h`).",
-                "A disc whose pitch varies can take a higher limit, for example --chi2-abort 100."]
+                "Variable pitch is followed automatically, with closer rungs and repeated correction probes. Keep the whole-turn safety limit."]
     if "ranges" in reason:
         return ["--ranges has to overlap the recorded area. See the last LBA with:", f"  {PROG} info {carry}"]
     if "recorded area" in reason or "medium" in reason or "fails on" in reason:
         flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
-        return ["geo needs a burned disc of plain data. Make one, burn it and run geo again:",
-                f"  {PROG} random{flag} --output iso/random.iso"]
+        return ['geo needs readable plain data. Check an existing recorded disc and its saved info first; retry the read on the same disc.',
+                f"Only if no usable recorded data remains and no existing data disc is available, make one: {PROG} random{flag} --output iso/random.iso"]
     return [f"See how noisy this drive is: {PROG} timing {carry}"]
 
 
@@ -815,6 +977,13 @@ def burner_hint() -> list[str]:
 
 def burn_steps(output: str, media: str = "dvd") -> list[str]:
     """Platform-specific burn instructions; the caller supplies the ISO and disc type."""
+    if sys.platform == "win32" and media == "cd":
+        from .burner import imapi_cd_command
+        import subprocess
+        drive = drive_flag().removeprefix("--drive ")
+        return ["Burn it at 8x with the IMAPI script (Windows' own Burn disc image picks 40x, which failed on a GH70N with cheap CD-R):",
+                "  " + subprocess.list2cmdline(imapi_cd_command(drive, output)),
+                "The tray opens when it is done; -Reload pulls it back in."]
     if sys.platform == "win32":
         return ["(Windows: right-click the .iso, Burn disc image).", *burner_hint()]
     if sys.platform != "linux":
@@ -837,7 +1006,7 @@ def after_random(args) -> list[str]:
     if sys.platform not in ("win32", "linux"):
         return ["Burn it onto a blank disc with your system's burning tool, and keep some blanks of the same batch for pictures.",
                 fits, PORTS, f"  {PROG} timing --sim cav{flag}"]
-    if sys.platform == "linux":
+    if sys.platform == "linux" or getattr(args, "media", "dvd") == "cd":     # a CD on Windows: the IMAPI script, not the right-click
         return ["Burn it onto a blank disc, and keep some blanks of the same batch for pictures.",
                 *burn_steps(getattr(args, "output", "iso/random.iso"), getattr(args, "media", "dvd")), fits,
                 "Then check the drive with it (1 to 3 minutes):", f"  {PROG} timing {drive_flag()}{flag}"]
@@ -887,15 +1056,23 @@ AFTER_BURN = ("How to look at it, not straight on, which only shows your own ref
               "  The preview shows the data side, the side you are looking at.",
               "What you may see:",
               "  The picture, in the right place: done. More pictures from this batch start at `image`, with no new measurement.",
-              "  No picture: most likely the light, not the burn. Step 5 in README.md has more on this.",
+              "  No picture: check three things in this order before burning anything: the light (the most likely cause), then the burn report (written, closed, read back), then the geometry.",
               "  Twisted or broken lines: check it was the same batch and the same burner. If so, the geometry may be off.",
-              "  Burn the grid test on another blank and see if its lines come out straight:",
+              "  Burn the grid test on another blank only if the light and the burn report are fine and the lines are still twisted. Its straight lines tell a wrong geometry from a wrong picture:",
               f"  {PROG} image --geo latest --output iso/grid.iso",
-              "  The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try a lower burn speed.")
+              "  The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try another burn speed; slower is not always better.")
 
 
+# The web page's start-here guide (web/home/guidance.mjs) says the same four things in the same order.
 def tutorial_lines() -> list[str]:
-    return ["What you need: a burner on Windows or Linux, and a few blank discs from one box. DVD-R has worked best.",
+    return ["Before you start, four things:",
+            "  How the picture forms: the data side is a tight spiral of tracks, like a diffraction grating. Light on it spreads into a rainbow by angle,",
+            "  and disc-probe decides what is written where, so that at the right angle the picture shows. It shows in the dark, under a small light.",
+            "  What you need: a burner on Windows or Linux that can also read the disc, and blank discs from one box. DVD-R has worked best.",
+            "  How many discs: the goal is the finished picture on disc 3, or on disc 4 if the error is large. It is a goal, not a promise.",
+            "  Disc 1 measures, disc 2 is a check you photograph, disc 3 is the picture.",
+            "  A bad photo (too dark, not the whole disc, glare) is retaken, not re-burned.",
+            "Already use DiscImageStudio? Run the web page (python -m discprobe webui) and use Import / Export on the desk to bring its preset in.",
             "",
             "1. Put a blank disc in the drive and read its available sectors (a few seconds).",
             f"  {PROG} info {drive_flag()}",
@@ -910,7 +1087,9 @@ def tutorial_lines() -> list[str]:
             f"  {PROG} geo {drive_flag()}",
             "5. Turn your picture into an ISO, check the preview, and burn it on another blank from the same box.",
             f"  {PROG} image --geo latest --picture my_picture.png --output iso/picture.iso",
+            "  This is disc 2. Photograph it (the web page reads the photos) to see how far off it is; the finished picture is disc 3.",
             "6. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.",
+            "  No picture? Check the light, then the burn report, then the geometry. disc-probe says why before it suggests another burn.",
             "",
             "On a Blu-ray (experimental) the same shape comes out of read timing instead of a picture:",
             f"  {PROG} random --media bd --output iso/bd-random.iso",
@@ -987,6 +1166,101 @@ def after_cdprobe(project: str) -> list[str]:
             f"  {PROG} geo {drive_flag()} --media cd"]
 
 
+def result_verdict(run, media="dvd"):
+    if run is None:
+        return None
+    if run.kind == "geo":
+        return run.quality().replace(" ", "_")
+    if run.stopped:
+        return "stopped_early"
+    if not run.rotation():
+        return "unknown"
+    if run.rotation() != ("CLV" if media == "bd" else "CAV"):
+        return "too_noisy"
+    jitter = _jitter(run.summary)
+    return "good" if jitter and max(jitter) <= GOOD_JITTER_DEG else "usable"
+
+
+def blank_info(results, media):
+    """The newest blank-disc `info` run for this media and the available sector count it reports."""
+    info_runs = [r for r in results if r.kind == "info" and not r.simulated and r.media == media]
+    info_run = info_runs[0] if info_runs else None
+    info_sectors = None
+    for report_run in info_runs:
+        report = _load(os.path.join(report_run.path, "info.json")) or {}
+        track = _parsed(report, "track_1")
+        atip = _parsed(report, "atip")
+        disc = _parsed(report, "disc_information")
+        capacity = _parsed(report, "capacity")
+        profile = _parsed(report, "configuration").get("current_profile")
+        # A count off a disc that has been burned already can be larger than the blank's capacity.
+        # A CD's ATIP lead-out is fixed by the blank itself, so it stays a blank-disc count.  Some
+        # blank Blu-rays do not report track free blocks; an empty disc's capacity is the blank size.
+        if (track.get("blank") and track.get("free_blocks")) or \
+                (mmc.media_family(profile) == "cd" and atip.get("last_leadout_start_lba")) or \
+                (disc.get("disc_status") == "empty" and capacity.get("last_lba")):
+            info_sectors = sectors_from_info(report)
+            if info_sectors:
+                break
+    return info_run, info_sectors
+
+
+def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dict:
+    """Disk-derived workflow, shared by the CLI and HTTP service. No drive is opened."""
+    if media not in ("dvd", "cd", "bd"):
+        raise ValueError("media must be dvd, cd or bd")
+    random_iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
+    results = [r for r in scan(out) if not r.simulated and r.media == media]
+    missing = missing_packages()
+    drives = optical_drives() if drives is None else drives
+    drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
+
+    timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
+    # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
+    # that counts is the one that finished, and its own verdict says whether the disc is usable.
+    timing_good = timing is not None and (not timing.stopped if media == "bd" else timing.rotation() == "CAV")
+    geo = next((r for r in results if r.geo_complete()), None)
+    has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
+
+    info_run, info_sectors = blank_info(results, media)
+    picture = picture_iso()
+    latest_timing = timing or next((r for r in results if r.kind == "timing"), None)
+    latest_geometry = geo or next((r for r in results if r.kind == "geo"), None)
+    shown_geometry = geo or (latest_geometry if latest_geometry and latest_geometry.summary.get('checkpoint') else None)
+    verdict = lambda run: result_verdict(run, media)
+
+    steps = [
+        dict(id="packages", done=not missing, label="Python packages",
+             detail=", ".join(missing) + " missing" if missing else "numpy, pillow"),
+        dict(id="drive", done=bool(drives), label="Optical drive",
+             detail=" ".join(drives) if drives else "none found"),
+        # Reading a blank first only matters before the random-data disc; it never pulls a later user back.
+        dict(id="info", needed=not has_iso and timing is None, done=info_sectors is not None,
+             label="Blank disc (info)",
+             detail=f"{info_sectors[0]:,} sectors available" if info_sectors else
+             ("no blank-disc count; use a blank disc" if info_run is not None else "not run yet")),
+        dict(id="random_disc", done=timing is not None, label="Random-data disc",
+             detail="measured" if timing else f"{random_iso} written; burn it" if has_iso else "not made yet"),
+        dict(id="timing", done=timing_good, label="Drive check (timing)",
+             detail=timing.describe() if timing else "not run yet", verdict=verdict(latest_timing),
+             result=latest_timing.path if latest_timing else None),
+        dict(id="geo", done=geo is not None, label="Geometry (geo)",
+             detail=shown_geometry.describe() if shown_geometry else "not run yet", verdict=verdict(latest_geometry),
+             result=latest_geometry.path if latest_geometry else None),
+        # Batch identity and photo import do not exist yet; CD always needs this constant.
+        dict(id="photo_l", needed=media == "cd", done=False, label="Photograph L", detail="not measured yet"),
+        dict(id="picture_iso", done=picture is not None, label="Picture ISO (image)",
+             detail=short(picture) if picture else "not made yet"),
+        dict(id="burn", done=False, label="Burn it on a blank", detail="from the batch you measured")]
+    current = next(s["id"] for s in steps if not s["done"] and s.get("needed", True))
+    action = {"packages": None, "drive": "info", "info": "info", "random_disc": "timing" if has_iso else "random",
+              "timing": "timing", "geo": "geo", "photo_l": None, "picture_iso": "image", "burn": "burn"}[current]
+    return dict(media=media, drives=[dict(id=d, name=d, disc=None) for d in drives], steps=steps,
+                current=current, next=dict(action=action, label=i18n.tr(next(s["label"] for s in steps if s["id"] == current)),
+                                           minutes={"timing": 3, "geo": 5}.get(current)),
+                jobs=[], counter=None)
+
+
 class Task:
     """A step of the workflow: what `guide` prints, and what the console needs to run it.
 
@@ -1037,49 +1311,41 @@ class Plan:
         return None
 
 
-def workflow(media: str = "dvd", out: str = "results", notes: bool = True) -> Plan:
+def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, drives=None) -> Plan:
     """The steps as objects, for `guide` to print and for the console to show and run."""
     flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
     media_args = ["--media", media] if media in ("cd", "bd") else []
     random_iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     results = [r for r in scan(out) if not r.simulated and r.media == media]
     missing = missing_packages()
-    drives = optical_drives()
+    drives = optical_drives() if drives is None else drives
     drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
-    info_runs = [r for r in results if r.kind == "info" and not r.simulated and r.media == media]
-    info_run = info_runs[0] if info_runs else None
-    info_sectors = None
-    for report_run in info_runs:
-        report = _load(os.path.join(report_run.path, "info.json")) or {}
-        track = _parsed(report, "track_1")
-        atip = _parsed(report, "atip")
-        disc = _parsed(report, "disc_information")
-        capacity = _parsed(report, "capacity")
-        profile = _parsed(report, "configuration").get("current_profile")
-        # A count off a disc that has been burned already can be larger than the blank's capacity.
-        # A CD's ATIP lead-out is fixed by the blank itself, so it stays a blank-disc count.  Some
-        # blank Blu-rays do not report track free blocks; an empty disc's capacity is the blank size.
-        if (track.get("blank") and track.get("free_blocks")) or \
-                (mmc.media_family(profile) == "cd" and atip.get("last_leadout_start_lba")) or \
-                (disc.get("disc_status") == "empty" and capacity.get("last_lba")):
-            info_sectors = sectors_from_info(report)
-            if info_sectors:
-                break
+    info_run, info_sectors = blank_info(results, media)
     timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
     # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
     # that counts is the one that finished, and its own verdict says whether the disc is usable.
     timing_good = timing is not None and (not timing.stopped if media == "bd" else timing.rotation() == "CAV")
     geo = next((r for r in results if r.geo_complete()), None)
+    partial = next((r for r in results if r.kind == 'geo' and r.summary.get('checkpoint')), None)
+    selected_drive = drives[0] if drives else None
+    continuation = []
+    if geo is None and partial and not missing:
+        from .geo import resume_supported
+        if resume_supported(partial.summary, media):
+            selected_drive = (partial.summary.get('args') or {}).get('drive') or selected_drive
+            continuation = ["--resume", partial.path, "--out", str(out)]
+    geo_argv = ["geo", *(["--drive", selected_drive] if selected_drive else []), *media_args,
+                *(["--bd-zones", "25"] if media == "bd" else []), *continuation]
     has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
 
     # A written file is not yet a disc. Scripts keep the tick they always saw.
     disc_done = timing is not None or (has_iso and not notes)
     tasks = [
         Task("packages", "Python packages", not missing,
-             ", ".join(missing) + " missing" if missing else "numpy, pillow, scipy",
+             ", ".join(missing) + " missing" if missing else "numpy, pillow",
              action="shell", shell=INSTALL,
-             why="disc-probe measures and draws with numpy, Pillow and scipy. Without them only the plain text commands work.",
+             why="Timing and drawing use numpy and Pillow; photo reading also needs SciPy and OpenCV.",
              takes="once, about a minute"),
         Task("drive", "Optical drive", bool(drives),
              " ".join(drives) if drives else
@@ -1106,9 +1372,8 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True) -> Pl
              why="Reads the disc at several speeds and radii to see whether this drive reports clean times and keeps a steady speed.",
              takes="1 to 3 minutes"),
         Task("geo", "Geometry (geo)", geo is not None,
-             geo.describe() if geo else "not run yet",
-             argv=["geo", *(["--drive", drives[0]] if drives else []), *media_args,
-                   *(["--bd-zones", "25"] if media == "bd" else [])],
+             (geo or partial).describe() if geo or partial else "not run yet",
+             argv=geo_argv,
              why="Finds how the disc's spiral is laid out, so a picture can be put where it will actually appear.",
              takes="about 5 minutes"),
     ]
@@ -1139,6 +1404,9 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True) -> Pl
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
     elif sys.platform not in ("win32", "linux"):
         commands = [("Try the flow on the simulated drive:", f"{PROG} timing --sim cav{flag}"), (None, PORTS)]
+    elif continuation:
+        resume_command = next(t.command() for t in tasks if t.key == 'geo')
+        commands = [("Put the same disc in the original drive and continue the measurement:", resume_command)]
     elif info_sectors is None and not has_iso and timing is None:
         commands = [("Put a blank disc of the kind you plan to use in the drive, then read its available sectors (a few seconds):",
                      f"{PROG} info {drive}".rstrip())]
@@ -1149,8 +1417,11 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True) -> Pl
     elif timing is None:
         commands = [(f"Burn {random_iso} to a disc and load it, then check this drive (1 to 3 minutes):", f"{PROG} timing {drive}{flag}")]
     elif not timing_good:
-        commands = [("This speed did not work; try another (1 to 3 minutes):",
-                     f"{PROG} timing {drive}{flag} --speed {ALTERNATIVE_SPEEDS[media][0]}")]
+        from argparse import Namespace
+        saved_args = {**(timing.summary.get("args") or {}), "media": media, "out": out}
+        saved_args.setdefault("drive", drives[0] if drives else None)
+        args = Namespace(**saved_args)
+        commands = [(None, line.strip()) for line in after_timing(args, timing.summary)]
     elif geo is None:
         measure = (f"{PROG} geo {drive} --media bd --bd-zones 25" if media == "bd"
                    else f"{PROG} geo {drive}{flag}")
@@ -1168,6 +1439,8 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True) -> Pl
 
 def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
     """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
+    from .geo_speed import notice
+
     plan = workflow(media, out, notes)
     current = plan.current() if notes else None
     if current is not None:
@@ -1177,7 +1450,14 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     for task in plan.tasks:
         detail = f"{i18n.tr(task.detail)}  <- {i18n.tr('you are here')}" if task.current else task.detail
         lines.append(f"  [{'x' if task.done else ' '}] {i18n.pad(i18n.tr(task.name), 22)} {i18n.tr(detail)}")
+        if task.key == "geo" and plan.geo:
+            note = notice(plan.geo.summary.get("speed_check"))
+            if note:
+                lines.append(f"      {note}")
     lines += ["", "Next:"]
+    if plan.geo is None:
+        lines += ["  Community hints are starting points, not DP measurements of this batch:",
+                  f"  {PROG} community --media {media}"]
     for note, command in plan.commands:
         lines += ([f"  {note}"] if notes and note else []) + ([f"  {command}"] if command else [])
     if media == "bd" and plan.geo is not None:

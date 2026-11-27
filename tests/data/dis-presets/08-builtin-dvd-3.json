@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [
+    {
+      "id": "verbatim-dvd-plus-r-azo-43498",
+      "displayName": "威宝 DVD+R AZO (43498)（实测）",
+      "description": "威宝 DVD+R AZO (43498) 实测标定参数：23.954070–57.981456 mm，共 2,295,104 个扇区；采用三次轨距分布。",
+      "totalSectors": 2295104,
+      "usableSectors": 2295104,
+      "innerRadiusMm": 23.954070288547207,
+      "outerRadiusMm": 57.981456053451275,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -1.1055153059816393e-05,
+      "pitchQuadratic": -1.7233535436312236e-06,
+      "pitchCubic": 5.55123860136712e-06,
+      "displayNameResourceKey": "DiscPreset_VerbatimDvdPlusRAzo43498_DisplayName",
+      "descriptionResourceKey": "DiscPreset_VerbatimDvdPlusRAzo43498_Description",
+      "contributor": "Disappear9"
+    }
+  ],
+  "bluRayPresets": []
+}

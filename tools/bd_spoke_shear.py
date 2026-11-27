@@ -157,13 +157,9 @@ def detrended_darkness(image, centre, scale, radii, n_theta):
     samples, _ = scan.polar_rings(image, centre[0], centre[1], scale, scale,
                                   np.asarray(radii, dtype=np.float64), n_theta=n_theta)
     dark = 1.0 - np.nan_to_num(np.asarray(samples, dtype=np.float64))
-    try:
-        from scipy import ndimage
-    except ImportError:
-        dark = dark - dark.mean(axis=1, keepdims=True)
-    else:
-        dark = dark - ndimage.uniform_filter(dark, size=(41, 1), mode="nearest")
-        dark = dark - ndimage.uniform_filter(dark, size=(1, 61), mode="nearest")
+    from discprobe.numerics import uniform_filter
+    dark = dark - uniform_filter(dark, size=(41, 1), mode="nearest")
+    dark = dark - uniform_filter(dark, size=(1, 61), mode="nearest")
     sigma = float(dark.std()) or 1.0
     return dark / sigma
 

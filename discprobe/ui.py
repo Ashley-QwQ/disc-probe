@@ -16,6 +16,8 @@ import collections
 import contextlib
 import functools
 import math
+import json
+import uuid
 import os
 import re
 import shutil
@@ -23,7 +25,7 @@ import sys
 import threading
 import time
 
-from . import i18n, iso9660, snake
+from . import i18n, image_output, iso9660, snake
 from .i18n import display_width, tr
 
 SPINNER_ASCII = ("(|)", "(/)", "(-)", "(\\)")
@@ -134,6 +136,15 @@ class Term:
         self.color = self.ansi and not env.get("NO_COLOR")
         self.animate = self.ansi and not env.get("CI") and not env.get("DISCPROBE_NO_ANIMATION")
         self.truecolor = self.color and (env.get("COLORTERM", "") in ("truecolor", "24bit") or bool(env.get("WT_SESSION")))
+        # `reader`: a person reads this stream, so the lines meant for people (say()) are printed. At a
+        # terminal, always. FORCE_COLOR (the common convention) asks for colour codes even into a file or a
+        # pipe, for a reader that draws them (the web page's terminal): the person's lines and their colours,
+        # but nothing redrawn in place (no animation, no cursor moves) and no prompts.
+        self.forced = env.get("FORCE_COLOR", "") not in ("", "0", "false") and not self.interactive
+        if self.forced:
+            if not env.get("NO_COLOR"):
+                self.color = True
+                self.truecolor = env.get("FORCE_COLOR") == "3" or env.get("COLORTERM", "") in ("truecolor", "24bit")
         # Few terminals say what is behind the text. Told it is dark, use bright green; otherwise
         # the theme's own green, which its author made readable on that theme.
         background = env.get("COLORFGBG", "").rpartition(";")[2]
@@ -145,6 +156,10 @@ class Term:
         self.blocks = self.unicode or (self.ansi and utf8 and modern)
         self.sync = self.ansi and modern
         self.taskbar = self.ansi and (modern or env.get("ConEmuANSI") == "ON")
+
+    @property
+    def reader(self) -> bool:
+        return self.interactive or getattr(self, "forced", False)
 
     def style(self, text: str, name: str) -> str:
         return f"\x1b[{_code(name, self)}m{text}\x1b[0m" if self.color else text
@@ -170,15 +185,81 @@ def clock(seconds: float) -> str:
 
 
 def say(text: str = "", style: str | None = None) -> None:
-    """A line only people at a terminal see."""
+    """A line only people see: at a terminal, or through a page that draws one (Term.reader)."""
     t = term()
-    if t.interactive:
+    if getattr(t, "reader", t.interactive):
         text = tr(text)
         print(t.style(text, style) if style else text, flush=True)
 
 
-def ask(question: str, default: bool = True) -> bool:
+_event_lock = threading.Lock()
+_event_stream = None
+
+
+def events_enabled():
+    return _event_stream is not None or bool(os.environ.get("DISCPROBE_EVENTS"))
+
+
+@contextlib.contextmanager
+def json_events():
+    """Write the same records to stdout and keep the command's human log on stderr."""
+    global _event_stream, _term
+    old_stream, old_term = _event_stream, _term
+    _event_stream = sys.stdout
+    _term = Term(sys.stderr, env={**os.environ, 'DISCPROBE_PLAIN': '1'})
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            yield
+    finally:
+        _event_stream, _term = old_stream, old_term
+
+
+def event(event_type: str, **fields) -> None:
+    """Optional JSONL outlet. The terminal path does no I/O when it is disabled."""
+    path = os.environ.get("DISCPROBE_EVENTS")
+    if path or _event_stream is not None:
+        record = dict(type=event_type, job=os.environ.get("DISCPROBE_JOB"), **fields)
+        with _event_lock:
+            if _event_stream is not None:
+                print(json.dumps(record, allow_nan=False), file=_event_stream, flush=True)
+            if path:
+                with open(path, "a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
+
+
+def result_event(step: str, path: str, stopped=None) -> None:
+    event("result", step=step, path=os.path.abspath(path),
+          verdict="stopped_early" if stopped else "unknown", summary={})
+    if stopped:
+        event("stopped", reason=stopped)
+    event("state")
+
+
+def ask(question: str, default: bool = True, *, kind: str = "confirm") -> bool:
     """Yes or no at the terminal; the default wherever nobody can answer."""
+    if os.environ.get("DISCPROBE_EVENTS"):
+        ident = uuid.uuid4().hex
+        event("ask", id=ident, question=tr(question), default=default, kind=kind)
+        answer_path = os.environ.get("DISCPROBE_ANSWERS", os.environ["DISCPROBE_EVENTS"] + ".answers")
+        deadline = time.monotonic() + float(os.environ.get("DISCPROBE_ASK_TIMEOUT", "30"))
+        answer = default
+        while time.monotonic() < deadline:
+            try:
+                with open(answer_path, encoding="utf-8") as stream:
+                    for line in stream:
+                        try:
+                            reply = json.loads(line)
+                        except ValueError:
+                            continue
+                        if reply.get("id") == ident and type(reply.get("yes")) is bool:
+                            answer = reply["yes"]
+                            event("answer", id=ident, yes=answer)
+                            return answer
+            except FileNotFoundError:
+                pass
+            time.sleep(0.05)
+        event("answer", id=ident, yes=answer, timeout=True)
+        return answer
     if not term().can_prompt():
         return default
     try:
@@ -218,6 +299,7 @@ def burn_warning(t: Term | None = None, pause=time.sleep) -> None:
 
     Drawn by the clock, as terminals differ on whether they blink. The flash is skipped by Ctrl+C or --no-animation.
     """
+    event("log", text=tr(BURN_WARNING), level="warning")
     t = t or term()
     if not t.interactive:
         return
@@ -372,6 +454,8 @@ class Progress:
         self.percent_changed = 0.0
         self.interval = 1 / (ANIMATED_FPS if self.t.animate else PLAIN_FPS)
         self.closed = False
+        self.event_at = None
+        self.location = getattr(status, "location", None)
         self.keys = keys
         self.game = None        # the one on show; `games` keeps each one's board and best score
         self.games = {}
@@ -460,6 +544,7 @@ class Progress:
         now = time.monotonic()
         fraction, label, left = self.status()
         self.fraction = None if fraction is None else max(0.0, min(1.0, fraction))
+        left = None if left is None else max(0.0, left)
         self.left = left
         label = tr(label)
         glyph = self._spinner(now)
@@ -501,6 +586,16 @@ class Progress:
         if self.closed:
             return
         now = time.monotonic()
+        if events_enabled():
+            if self.event_at is None or now - self.event_at >= 0.25:
+                fraction, stage, eta = self.status()
+                fraction = None if fraction is None else max(0.0, min(1.0, fraction))
+                eta = None if eta is None else max(0.0, eta)
+                event("progress", fraction=fraction, stage=stage, eta_s=eta,
+                      **(self.location() if self.location else {}))
+                self.event_at = now
+            if not self.t.interactive:
+                return
         if not force and now - self.last_draw < (interval if interval is not None else self.interval):
             return
         self.last_draw = now
@@ -546,6 +641,7 @@ class Progress:
 
     def log(self, *parts) -> None:
         """Print a line above the progress line."""
+        event("log", text=tr(" ".join(str(p) for p in parts)), level="info")
         self._wipe()
         print(tr(aligned(" ".join(str(p) for p in parts))), file=self.t.stream, flush=True)
         if self.playing:
@@ -555,6 +651,9 @@ class Progress:
     def close(self) -> None:
         if self.closed:
             return
+        if events_enabled():
+            self.event_at = None
+            self.tick(force=True)
         self.closed = True
         self._wipe()
         self.playing = False
@@ -706,6 +805,9 @@ class ProgressDevice:
         return getattr(self._dev, name)
 
     def execute(self, *args, **kwargs):
+        cdb = args[0] if args else kwargs.get("cdb", b"")
+        if events_enabled() and cdb and cdb[0] in (0x28, 0xA8, 0xBE):
+            self.event_lba = int.from_bytes(cdb[2:6], "big")
         res = self.last = self._dev.execute(*args, **kwargs)
         if self.progress:
             self.progress.tick(interval=OUTSIDE_PAUSE_INTERVAL_S)
@@ -742,7 +844,7 @@ class _Rate:
             self.start, self.done_at_start = now, done
             return None
         finished = done - self.done_at_start
-        return (now - self.start) / finished * (total - done) if finished >= self.MIN_DONE else None
+        return (now - self.start) / finished * max(0.0, total - done) if finished >= self.MIN_DONE else None
 
 
 def timing_status(probe, dev: ProgressDevice):
@@ -773,24 +875,42 @@ def timing_status(probe, dev: ProgressDevice):
 
 
 def geo_status(ladder, dev: ProgressDevice):
-    """Progress of `geo`, in rungs of the ladder. A retried rung takes longer, so the time left is a guess."""
-    per_rung = max(2 * ladder.reps, 1)
+    """Planned read pairs: fitted rungs and both weighted check-point passes.
+
+    Retry/settle reads consume time but do not advance completed work.
+    """
     rate = _Rate()
-    state = {"rungs": -1, "mark": 0}
 
     def status():
         rungs = len(ladder.targets)
-        if getattr(ladder, "T", None) is None:
+        total = getattr(ladder, "progress_total", 0)
+        if not total:
             stage = "cache test" if not hasattr(ladder, "ref") else "waiting for a steady spindle"
-            done = rungs / max(ladder.max_targets, 1)
-            return (done if rungs else None), f"rung {rungs}/{ladder.max_targets}: {stage}" if rungs else stage, None
-        if rungs != state["rungs"]:
-            state.update(rungs=rungs, mark=dev.pauses)
-        current = min((dev.pauses - state["mark"]) / per_rung, 1.0)
-        done = (rungs + current) * per_rung
-        total = ladder.max_targets * per_rung
-        label = f"rung {min(rungs + 1, ladder.max_targets)}/{ladder.max_targets}"
-        return done / total, label, rate.left(done, total)
+            return None, stage, None
+        stage = ladder.progress_stage
+        # Extra probes reserve their budget up front. Count completed blocks so
+        # settling and restarting a read cannot rewind their progress.
+        current = 0 if stage == 'measuring angle correction' else ladder.progress_current
+        done = (rungs * ladder.reps + ladder.progress_checks_done + current
+                + getattr(ladder, 'progress_probe_done', 0))
+        done = min(max(done, 0), total)
+        if stage == "ladder":
+            stage = f"rung {min(rungs + 1, ladder.max_targets)}/{ladder.max_targets}"
+        if ladder.progress_finished:
+            return 1.0, "geometry complete", 0.0
+        # A final measurement still has to be accepted, fitted and checked.
+        return min(done / total, 0.999), stage, rate.left(done, total)
+    def location():
+        lba = getattr(dev, "event_lba", None)
+        if lba is None:
+            return {}
+        values = dict(lba=lba)
+        # The initial prior is not a measured geometry. Wait for fitted targets.
+        if getattr(ladder, "cov", None) is not None:
+            b = ladder.prior.bit_nm * 1e-6
+            values["radius_mm"] = b * math.sqrt(ladder.u ** 2 + ladder.v * ladder._n_end(lba) / math.pi)
+        return values
+    status.location = location
     return status
 
 
@@ -846,43 +966,62 @@ def _whole_or_gone(path: str):
 
     If the write fails or is stopped, what it left goes. A file it never touched stays: a check can fail before
     the writer opens anything. A killed process or closed window cleans up nothing, so a marker beside the
-    image says it isn't whole, for `guide` and for the next write.
+    image says it isn't whole. A subsequent job must choose a new path or the interrupted output must be checked.
     """
-    marker = path + iso9660.UNFINISHED
-    if os.path.exists(marker) and _remove(path):
+    with image_output.exclusive(path) as image:
+        path = str(image)
+        marker = path + iso9660.UNFINISHED
+        before = _file_stamp(path)
+        try:
+            with open(marker, "x", encoding="utf-8") as stream:
+                stream.write(f"{os.getpid()}\n")
+        except FileExistsError:
+            raise ValueError('镜像有未完成的任务标记，请先检查该文件或选择另一个路径。 / '
+                             'This image has an unfinished-task marker. Inspect it or choose another path.') from None
+        try:
+            yield
+        except BaseException:
+            if _file_stamp(path) == before:
+                _remove(marker)
+            elif _remove(path):  # A file we cannot remove must keep its unfinished marker.
+                _remove(marker)
+                say("The unfinished image was removed.")
+            raise
         _remove(marker)
-    before = _file_stamp(path)
-    try:
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        with open(marker, "w", encoding="utf-8"):
-            pass
-    except OSError:
-        pass        # the writer will say what is wrong with this folder
-    try:
-        yield
-    except BaseException:
-        if _file_stamp(path) == before:
-            _remove(marker)
-        elif _remove(path):     # if it can't be removed, the marker stays and still says so
-            _remove(marker)
-            say("The unfinished image was removed.")
-        raise
-    _remove(marker)
 
 
 @contextlib.contextmanager
-def writing(path: str, sectors: int):
+def writing(path: str, sectors: int, *, writer_owns_output=False):
     """`log` for the ISO writers. At a terminal their percentage lines become a progress line.
 
     The writers report only every 10 or 20 %, so between reports the bar follows the file's real
     size. Only a report can say 100 %. Pipes get the writers' lines as they always did.
     """
-    with _whole_or_gone(path):
+    with contextlib.nullcontext() if writer_owns_output else _whole_or_gone(path):
         if not term().interactive:
-            yield print
+            yield _report_lines() if os.environ.get("DISCPROBE_EVENTS") else print
             return
         with _writing_line(path, sectors) as log:
             yield log
+
+
+def _report_lines():
+    """The writers' log for the web UI: each percentage report (asked for every 1 %) is a progress event; the
+    printed lines stay as a pipe always had them, one per 20 %."""
+    shown = [-1.0]
+
+    def log(message):
+        match = re.search(r"([\d.]+) %", message)
+        if not match:
+            print(message, flush=True)
+            return
+        fraction = float(match.group(1)) / 100
+        event("progress", fraction=round(fraction, 4), stage="writing the image")
+        if fraction >= 0.999 or fraction - shown[0] >= 0.2 - 1e-9 or shown[0] < 0:
+            shown[0] = fraction
+            print(message, flush=True)
+    log.every = 0.01
+    return log
 
 
 @contextlib.contextmanager
@@ -905,6 +1044,7 @@ def _writing_line(path: str, sectors: int):
                 reported[0] = float(match.group(1)) / 100
             else:
                 show(message)
+        log.every = 0.01        # the bar moves with each 1 % the writer reports
         yield log
     say(f"Finished in {clock(time.monotonic() - progress.started)}", "dim")
 

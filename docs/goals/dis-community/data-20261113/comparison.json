@@ -1,0 +1,110 @@
+{
+ "baseline_last_file_mtime_utc": "2026-11-12T06:59:16.678160+00:00",
+ "capture_started_at_utc": "2026-11-13T00:44:53.285275+00:00",
+ "capture_completed_at_utc": "2026-11-13T00:46:21.815253+00:00",
+ "counts": {
+  "discussions.json": {
+   "threads": 101,
+   "messages": 735,
+   "new_thread_numbers": [
+    323,
+    322
+   ],
+   "recent_thread_numbers_without_prior_snapshot": []
+  },
+  "issues.json": {
+   "threads": 170,
+   "messages": 639,
+   "new_thread_numbers": [
+    324,
+    325,
+    326,
+    327
+   ],
+   "recent_thread_numbers_without_prior_snapshot": []
+  },
+  "pull_requests.json": {
+   "threads": 53,
+   "messages": 115,
+   "new_thread_numbers": [],
+   "recent_thread_numbers_without_prior_snapshot": [
+    298
+   ]
+  },
+  "dp_issues.json": {
+   "threads": 17,
+   "messages": 99,
+   "new_thread_numbers": [],
+   "recent_thread_numbers_without_prior_snapshot": [
+    33
+   ]
+  },
+  "dp_pull_requests.json": {
+   "threads": 17,
+   "messages": 63,
+   "new_thread_numbers": [],
+   "recent_thread_numbers_without_prior_snapshot": [
+    32,
+    34
+   ]
+  }
+ },
+ "new_messages": 29,
+ "edited_messages": 0,
+ "changed_dis_threads": [
+  "D107",
+  "D108",
+  "D209",
+  "D231",
+  "D267",
+  "D270",
+  "D307",
+  "D316",
+  "D322",
+  "D323",
+  "I232",
+  "I242",
+  "I251",
+  "I311",
+  "I319",
+  "I324",
+  "I325",
+  "I326",
+  "I327",
+  "I81",
+  "I86"
+ ],
+ "historical_recovered_messages": 57,
+ "removed_messages": 0,
+ "thread_metadata_changes": [
+  {
+   "thread": "I81",
+   "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/81",
+   "changes": {
+    "state": {
+     "before": "OPEN",
+     "after": "CLOSED"
+    }
+   }
+  },
+  {
+   "thread": "I92",
+   "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/92",
+   "changes": {
+    "state": {
+     "before": "OPEN",
+     "after": "CLOSED"
+    }
+   }
+  }
+ ],
+ "limitations": [
+  "Prior DIS snapshot has no updatedAt, stable comment IDs or capture timestamp. Baseline file modification times are used only to separate recovered older messages from recent additions. Exact old capture time is unknown.",
+  "No previous PR or DP snapshot was supplied. Those files are complete inventories; recent activity is selected by updatedAt and message timestamps, without claiming edit deltas.",
+  "Sequential API capture is not atomic; see capture start and end. Attachments and external links were not downloaded."
+ ],
+ "recent_pr_dp_created_messages": {
+  "dis_pr": 1,
+  "dp": 9
+ }
+}

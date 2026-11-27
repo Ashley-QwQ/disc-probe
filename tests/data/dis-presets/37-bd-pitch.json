@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [],
+  "bluRayPresets": [
+    {
+      "id": "bd-r-sl-25gb",
+      "displayName": "标准 25GB 单层 BD",
+      "description": "ISO/IEC 30190 标准单层 BD-R 数据区：24–58 mm，共 12,219,392 个扇区。",
+      "totalSectors": 12219392,
+      "usableSectors": 12219392,
+      "innerRadiusMm": 24.0,
+      "outerRadiusMm": 58.0,
+      "invertMapping": true,
+      "pitchLinear": 0.0002
+    }
+  ]
+}

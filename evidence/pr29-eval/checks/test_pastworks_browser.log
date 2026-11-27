@@ -1,0 +1,4 @@
+COMMAND: node tests/test_pastworks_browser.mjs
+Past works browser integration passed (1440px, file URLs)
+Past works browser integration passed (390px, file URLs)
+PASS: real lobby capture entry, return focus and new work

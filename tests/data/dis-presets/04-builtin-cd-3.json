@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [
+    {
+      "id": "cd-74",
+      "displayName": "标准 74min CD",
+      "description": "ECMA-130／ISO/IEC 10149 标准速度 1200 mm/s；120 mm 盘、约 74 分钟，333,000 扇区（24.5–56.8 mm）。",
+      "sectors": 333000,
+      "usableSectors": 332998,
+      "innerRadiusMm": 24.5,
+      "outerRadiusMm": 56.8,
+      "linearVelocityMmPerSecond": 1200,
+      "displayNameResourceKey": "DiscPreset_Cd74_DisplayName",
+      "descriptionResourceKey": "DiscPreset_Cd74_Description"
+    }
+  ],
+  "dvdPresets": [],
+  "bluRayPresets": []
+}

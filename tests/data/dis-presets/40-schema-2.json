@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "cdPresets": [],
+  "dvdPresets": [
+    {
+      "id": "dvd-5-120mm",
+      "displayName": "标准 12cm 单层 DVD",
+      "description": "ISO/IEC 16448 标准单层 120 mm DVD（DVD-5）数据区：24–58 mm，共 2,295,104 个扇区。",
+      "totalSectors": 2295104,
+      "usableSectors": 2295104,
+      "innerRadiusMm": 24.0,
+      "outerRadiusMm": 58.0,
+      "channelBitLengthNm": 133.3,
+      "displayNameResourceKey": "DiscPreset_Dvd120Mm_DisplayName",
+      "descriptionResourceKey": "DiscPreset_Dvd120Mm_Description"
+    }
+  ]
+}

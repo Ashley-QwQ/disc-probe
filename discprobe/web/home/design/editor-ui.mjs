@@ -1,0 +1,365 @@
+import { isActionEnter } from "../kit/shared.js";
+import * as O from './editor-ops.mjs';
+import {controls,TOOL_KEYS} from './editor-controls.mjs';
+import {materialPose,identityRGB} from './editor-materials.mjs';
+import {held,visible} from './editor-texlib.mjs';
+import {LampPreview} from './editor-lamp.mjs';
+import {ColourPreview} from './colour-preview.mjs';
+import {lampPose} from './lamp-pose.mjs';
+import {LampControls} from './lamp-controls.mjs';
+import {ExactView} from './exact-view.mjs';
+import {decodeSet,setKey,rigScene,rigLabel,rigWords,needsCustom,customMM,flashMM,example} from './editor-rig.mjs';
+import directionArrow from './direction-arrow.json' with {type:'json'};
+
+const WORDS={
+  zh:{selection:'选区',rectangle:'矩形选区',lasso:'套索',ring:'圆环',sector:'扇形',colour:'按颜色',shape:'简单形状',rectangleShape:'矩形',ellipse:'椭圆',polygon:'多边形',line:'直线',pen:'手绘',materials:'材质',model:'仅预览实验：颜色是模型预测，没有照片验证。刻录默认按黑白刻，上了颜色、彩色图案和特效的地方刻成深色。',target:'填充对象',layer:'当前图层',mask:'当前选区',material:'单材质',pattern:'图案填充',effect:'特效',diamond:'菱格',dots:'点阵',stripes:'条纹',cartesian:'直角坐标',polar:'绕盘心',inner:'内半径',outer:'外半径',start:'起始角',end:'结束角',tolerance:'颜色容差',contiguous:'只选相连部分',apply:'建立选区',clear:'取消选区',name:'选区名称',saveMask:'保存命名选区',restore:'恢复选区',removeMask:'删除选区',hint:'Shift 加 · Alt 减 · Shift+Alt 交',snap:'吸附盘心和半径尺',rename:'重命名图层',up:'上移图层',down:'下移图层',remove:'删除图层',pitch:'间距 mm',size:'线宽 / 点径 mm',angle:'旋转 °',fill:'应用填充',flow:'流光',ox:'O/X 切换',merge:'两点合成环',sync:'整片同时亮',y1:'手机起点 mm',y2:'手机终点 mm',history:'选区和填充均可撤销',none:'先选图层或建立选区',swatch:'筛选材质：周期或纹理',details:'材质详情',empty:'没有匹配的材质',draw:'拖动绘制，多边形松手闭合。画布上用方向键移动、空格起笔、Enter 完成。',operation:'选区运算',replace:'替换',add:'相加',subtract:'相减',intersect:'相交',radiusNote:'选区蒙版 0.2 mm；刻录格子 20 / 10 / 5 µm。',gesture:'拖动选取；也可填写数值',choose:'选区记录',layerName:'图层名称',opacity:'不透明度',busy:'正在合成…',toneH:'影调',dither:'抖动方式',modes:{'floyd-steinberg':'误差扩散','blue-noise':'蓝噪声',ordered:'有序',clustered:'网点',threshold:'不抖动'},strength:'抖动强度',brightness:'亮度',contrast:'对比度',highlights:'高光',shadows:'阴影',toneReset:'恢复默认',toneNote:um=>`灰度在 ${um} µm 刻录格子上抖动成深浅两种纹理。放大到 100% 以上，画布上就是刻进去的那些格子。`},
+  en:{selection:'Selection',rectangle:'Rectangle selection',lasso:'Lasso',ring:'Ring',sector:'Sector',colour:'By colour',shape:'Basic shapes',rectangleShape:'Rectangle',ellipse:'Ellipse',polygon:'Polygon',line:'Line',pen:'Freehand',materials:'Materials',model:'Preview experiment only: the colours are a model prediction, not checked against photos. The burn is black and white by default; coloured, colour-patterned and effect areas burn dark.',target:'Fill target',layer:'Selected layer',mask:'Active selection',material:'Single material',pattern:'Pattern fill',effect:'Effect',diamond:'Diamond grid',dots:'Dot matrix',stripes:'Stripes',cartesian:'Cartesian',polar:'Around disc',inner:'Inner radius',outer:'Outer radius',start:'Start angle',end:'End angle',tolerance:'Colour tolerance',contiguous:'Contiguous only',apply:'Create selection',clear:'Clear selection',name:'Selection name',saveMask:'Save named selection',restore:'Restore selection',removeMask:'Delete selection',hint:'Shift adds · Alt subtracts · Shift+Alt intersects',snap:'Snap to centre and radius ruler',rename:'Rename layer',up:'Raise layer',down:'Lower layer',remove:'Delete layer',pitch:'Pitch mm',size:'Width / diameter mm',angle:'Rotation °',fill:'Apply fill',flow:'Flowing band',ox:'O/X switch',merge:'Two spots into ring',sync:'Whole area at once',y1:'Phone start mm',y2:'Phone end mm',history:'Selections and fills can be undone',none:'Select a layer or create a selection first',swatch:'Filter: period or texture',details:'Material details',empty:'No matching materials',draw:'Drag to draw; polygons close on release. On canvas: arrows move, Space starts, Enter finishes.',operation:'Mask operation',replace:'Replace',add:'Add',subtract:'Subtract',intersect:'Intersect',radiusNote:'Selection masks: 0.2 mm; burn cells: 20 / 10 / 5 µm.',gesture:'Drag to select, or enter values',choose:'Saved selections',layerName:'Layer name',opacity:'Opacity',busy:'Composing…',toneH:'Tone',dither:'Dither',modes:{'floyd-steinberg':'Error diffusion','blue-noise':'Blue noise',ordered:'Ordered',clustered:'Halftone',threshold:'No dither'},strength:'Dither strength',brightness:'Brightness',contrast:'Contrast',highlights:'Highlights',shadows:'Shadows',toneReset:'Reset',toneNote:um=>`Greys are dithered into the two textures on the ${um} µm burn grid. Zoomed to 100% or more, the canvas shows the cells that are burned.`}
+};
+// a picture's pixels as base64, once per ImageData (an edit makes a new one): document() runs once per revision
+let RASTER=new WeakMap();
+const raster64=px=>{let b=RASTER.get(px);if(b===undefined){b=O.base64(px.data);RASTER.set(px,b);}return b;};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COLOUR_WORDS={
+  zh:{label:'彩色图',note:'预览是模型估计，混色还没实刻验证。',about:'说明',
+    poseWarning:'预测只代表这一个机位，手机角度偏一两度，颜色就会变。',unseen:'正对闪光灯的那条带看不到图，预览用斜线标出。',
+    advice:'插画、平涂、色块分明的图效果最好；大片亮白和饱和的红做不出来。盘面会有一层底光让颜色发灰，拍的时候让盘面倒影的方向保持暗（背对灯，或者用深色东西挡住倒影那边）。',
+    calibrated:'用 6 张色卡盘实拍校准的模型；盘面会叠一层随拍法变化的灰，让镜面方向保持暗效果更好。',picture:'先选择一张未锁定的图片。',unavailable:'彩色图的色表或材质集无法加载。',loading:'正在加载彩色材质…'},
+  en:{label:'Colour picture',note:'The preview is a model estimate. Colour mixing has yet to be checked on a burned disc.',about:'About',
+    poseWarning:'This prediction is for this shooting position. Tilting the phone by a degree or two changes the colours.',unseen:'The picture is not visible in the band facing the flash. Hatching marks this area.',
+    advice:'Illustrations with flat, distinct areas of colour work best. Broad areas of bright white and saturated red are out of reach. Reflected light gives the disc a grey cast. Keep the area reflected in the disc dark when shooting: face away from the light or shade that area with something dark.',
+    calibrated:'This model was calibrated with photos of six colour-chart discs. A grey cast varies with how you shoot. Keep the area reflected in the disc dark for better colour.',picture:'Select an unlocked picture first.',unavailable:'The colour table or material set could not be loaded.',loading:'Loading colour materials…'}
+};
+const ARROW_WORDS={
+  zh:{label:'加方向箭头（12 点）',name:'方向箭头',ring:'可刻环带太窄，未加方向箭头。',
+    slots:'图层或材质填充已达上限，未加方向箭头。'},
+  en:{label:"Add direction arrow (12 o'clock)",name:'Direction arrow',
+    ring:'The writable ring is too narrow for the direction arrow.',
+    slots:'There is no room for another layer or material fill. The direction arrow was skipped.'}
+};
+
+function arrowShape([inner,outer]){
+  const points=directionArrow.data_side_mm;
+  const xs=points.map(([x])=>x),ys=points.map(([,y])=>y);
+  const left=Math.min(...xs),right=Math.max(...xs),tail=Math.min(...ys),tip=Math.max(...ys);
+  const shift=Math.max(0,tip-(outer-directionArrow.rim_margin_mm));
+  if(tail-shift<inner-1e-9)return null;
+  const width=right-left,height=tip-tail;
+  return {x:(left+right)/2,y:shift-(tip+tail)/2,width,w:Math.round(width*100),h:Math.round(height*100),
+    shape:{type:'polygon',directionArrow:true,points:points.map(([x,y])=>[(x-left)/width-.5,(tip-y)/height-.5])}};
+}
+
+export class Editor {
+  constructor(host){this.h=host;this.palette=null;this.tool='move';this.options={inner:30,outer:46,start:15,end:120,tolerance:18,feather:0,contiguous:true,operation:'replace',snap:true,fillKind:'material',pattern:'diamond',coordinates:'cartesian',pitch_mm:5,size_mm:.75,angle_deg:0,effect:'flow',y1:55,y2:100,target:'layer'};this.revision=0;
+    fetch(new URL('./swatches.json',import.meta.url)).then(r=>r.json()).then(p=>{p.swatches=Object.entries(p.swatches).map(([name,m])=>({...m,name:name.split(' ')[0],rgb:m.srgb,period_um:m.periods_um[0]}));this.palette=p;this.lightCache=new Map();this.init();this.panels();this.invalidate();this.h.draw();}).catch(e=>this.h.error(String(e)));
+    this.rigState='loading';this.rigData=null;this.rigSets={};
+    fetch(new URL('./pose-swatches.json',import.meta.url)).then(r=>{if(!r.ok)throw Error(r.status);return r.json();}).then(d=>{this.rigData=d;this.rigState='ready';this.addSets(d);this.rigSync();this.panels();})
+      .catch(e=>{this.rigState='error';this.rigError=String(e.message??e);this.panels();});
+  }
+  // Pose first, colour second (editor-rig.mjs): the chosen phone and height, kept in the work's scene.
+  rig(){return this.s?.scene?.rig??{};}
+  addSets(d){for(const [k,v] of Object.entries(d.sets))this.rigSets[k]=v;this.rigDecoded=null;}
+  loadCustom(){if(this.customLoad)return;this.customLoad=fetch(new URL('./'+this.rigData.custom.file,import.meta.url)).then(r=>{if(!r.ok)throw Error(r.status);return r.json();})
+    .then(d=>{this.addSets(d);this.rigSync();this.panels();this.h.draw();}).catch(e=>{this.customLoad=null;this.rigState='error';this.rigError=String(e.message??e);this.panels();});}
+  // the chosen set, once the pose is complete and its file is here
+  rigSet(){const rig=this.rig(),data=this.rigData,k=setKey(rig,data);if(k)return this.rigSets[k]??null;
+    const cm=rig.height_cm,mm=flashMM(rig,data);
+    if(!data||mm==null||!Number.isFinite(cm)||cm*10<=data.rig.disc_and_sheet_mm)return null;
+    const y=data.rig.lens_offset_mm,z=cm*10-data.rig.disc_and_sheet_mm;return {camera:[0,y,z],flash:[0,y+mm,z]};}
+  rigOpen(){return !!this.rigSet();}
+  shootingSetup(){
+    const set=this.rigSet();
+    if(!set||this.s.media!=='dvd')return null;
+    const rig=this.rig(), height=this.rigData.heights.find(h=>h.id===rig.height)?.ruler_cm??rig.height_cm;
+    return {height,lensOffset:set.camera[1],flashOffset:set.flash[1]};
+  }
+  rigLights(){const k=setKey(this.rig(),this.rigData);if(!k||!this.rigSets[k])return null;if(this.rigDecoded?.key!==k)this.rigDecoded={key:k,lights:decodeSet(this.rigData.order,this.rigSets[k])};return this.rigDecoded.lights;}
+  // the scene follows the rig: the lamp view and the swatches then speak of the same pose
+  rigSync(){const s=this.s,rig=this.rig();if(!s?.scene||!this.rigData)return;if(needsCustom(rig)&&customMM(rig.flash_mm,this.rigData)!=null&&!this.rigSet())this.loadCustom();
+    const set=this.rigSet();if(!set)return;const next=rigScene(s.scene,rig,this.rigData,set);
+    if(JSON.stringify(next)!==JSON.stringify(s.scene)){s.scene=next;s.lookY=set.camera[1];}}
+  setRig(patch){const s=this.s;if(!s)return;this.h.checkpoint();s.scene={...(s.scene??{}),rig:{...this.rig(),...patch}};delete s.scene.deltaScale;this.panelState().rigExpanded=false;this.rigSync();this.invalidate();this.h.changed();this.right();this.h.status?.();this.h.draw();}
+  rigExample(){if(!this.rigData)return null;if(this.rigExampleCache===undefined){const sets={};for(const k of ['iphone17pro@21','iphone17pro@40'])if(this.rigSets[k])sets[k]=decodeSet(this.rigData.order,this.rigSets[k]);this.rigExampleCache=example(this.rigData,sets);}return this.rigExampleCache;}
+  // the lamp view's note
+  poseNote(){const w=rigWords(this.h.lang());return this.rigOpen()?w.lampNote(rigLabel(this.rig(),this.rigData,this.h.lang())):w.lampNone;}
+  get s(){return this.h.state();} get t(){return WORDS[this.h.lang()]??WORDS.zh;}
+  get colourWords(){return COLOUR_WORDS[this.h.lang()]??COLOUR_WORDS.zh;}
+  get arrowWords(){return ARROW_WORDS[this.h.lang()]??ARROW_WORDS.zh;}
+  hasColour(){return this.s?.assignments?.some(a=>a.colour)??false;}
+  loadColourPalette(){
+    if(this.colourPaletteLoading)return;
+    this.colourPaletteLoading=true;this.colourPaletteError=null;
+    fetch('/api/editor-colour-palette').then(async r=>{
+      const data=await r.json();if(!r.ok)throw Error(data.error??r.statusText);this.colourPalette=data;
+    }).catch(e=>{this.colourPaletteError=String(e.message??e);}).finally(()=>{this.colourPaletteLoading=false;this.right();});
+  }
+  init(){const s=this.s;if(!s)return;s.maskGrid??=O.grid();s.selections??=[];s.assignments??=[];
+    if(!s.materials&&this.palette)s.materials=[{id:'background',spec:'B9',rgb:[205,200,190]},...this.palette.swatches];
+    s.activeMask??=null;this.material??=this.palette?.swatches.find(m=>m.rgb[1]>200&&m.rgb[0]<100)?.id??s.materials?.[1]?.id;
+  }
+  // the ring a picture may use: the burnable ring, or the measured part of it once a geometry is known (design.js)
+  ring(){const s=this.s;return s?.ring??(s?.media==='cd'?[26,58]:[24,58]);}
+  invalidate(){this.revision++;this.previewCache=null;this.overlayCache=null;}
+  releaseView(){
+    clearTimeout(this.motionTimer);clearTimeout(this.lightTimer);
+    this.lamp?.dispose();this.lamp=null;
+    this.colourRenderer?.dispose();this.colourRenderer=null;
+    this.exact?.off();this.exact=null;
+    this.lampControls=null;
+    // The preview page can still own the cached projection returned by preview().
+    for(const canvas of [this.overlayCache?.canvas,this.fillsCache?.canvas])
+      if(canvas)canvas.width=canvas.height=0;
+    this.previewCache=this.labelCache=this.overlayCache=this.fillsCache=this.motionPreview=null;
+    this.lightCache?.clear();this.lightPose=null;this.liveMask=null;this.drag=null;
+    RASTER=new WeakMap();
+  }
+  // During layer manipulation, show the last burn bitmap and the moving source; compose after idle.
+  deferPreview(){this.motionPreview??=this.previewCache?.canvas;clearTimeout(this.motionTimer);this.motionTimer=setTimeout(()=>{this.motionPreview=null;this.h.draw();},150);}
+  mutate(fn){this.h.checkpoint();fn();this.invalidate();this.h.changed();this.panels();}
+  document(){this.init();const s=this.s;return O.migrate({format:'disc-probe design',version:2,media:s.media,cell:s.cell,annulus_mm:this.ring(),maskGrid:s.maskGrid,selections:s.selections,activeMask:s.activeMask,assignments:s.assignments,materials:s.materials,...(this.hasColour()?{scene:s.scene}:{}),
+      layers:s.layers.map(l=>({id:l.id,kind:l.kind,name:l.name,visible:l.visible,locked:l.locked,opacity:l.opacity,x:l.x,y:l.y,width:l.width,height:l.kind==='fx'?l.height:l.width*l.h/l.w,rot:l.rot,w:l.w,h:l.h,sourceKind:l.sourceKind??(l.kind==='fx'?'shape':'bitmap'),fxKind:l.fxKind,y1:l.y1,y2:l.y2,shape:l.shape,svg:l.svg,raster:l.px&&!l.shape?{width:l.px.width,height:l.px.height,rgba:raster64(l.px)}:undefined,tone:l.px&&!l.shape&&l.tone?l.tone:undefined}))});}
+  panels(){if(!this.s)return;this.init();this.left();this.right();}
+  n(key,label,min,max,step=1){return `<label>${label}<input data-ed="${key}" type="number" min="${min}" max="${max}" step="${step}" value="${this.options[key]}" class="num"></label>`;}
+  input(e){const el=e.target;
+    if(el.matches('[data-tone]')){this.toneInput(el);return;}
+    if(el.matches('[data-ed-shape]')){this.options.shape=el.value;this.h.tool(el.value);return;}
+    if(el.matches('[data-ed-search]')){this.search=el.value;this.swatches();return;}
+    if(el.matches('[data-ed-rig-mm]')){if(e.type==='change')this.setRig({flash_mm:el.value===''?null:+el.value});return;}
+    if(el.matches('[data-ed-name]')){this.maskName=el.value;return;}
+    if(el.matches('[data-ed-layer-name]')){const l=this.s.layers.find(l=>l.id===this.s.selected);if(l&&!l.locked)this.mutate(()=>{l.name=el.value.trim()||l.name;this.h.rebuild();});return;}
+    if(!el.dataset.ed)return;
+    if(el.dataset.ed==='directionArrow'){this.panelState().directionArrow=el.checked;return;}
+    this.options[el.dataset.ed]=el.type==='checkbox'?el.checked:el.type==='number'?+el.value:el.value;
+    if(['fillKind','target'].includes(el.dataset.ed))this.right();
+  }
+  click(e){const b=e.target.closest('[data-ed-tool],[data-ed-action],[data-ed-material],[data-ed-rig],[data-ed-tab],[data-ed-choice]');if(!b)return;e.preventDefault();e.stopPropagation();
+    if(b.disabled)return;
+    if(b.dataset.edTab){this.showTab(b.dataset.edTab);this.h.dom().right.querySelector(`[data-ed-tab="${b.dataset.edTab}"]`)?.focus();return;}
+    if(b.dataset.edChoice){const key=b.dataset.edChoice;if(key==='target'&&b.dataset.value==='mask'&&!this.hasFillSelection())return;this.options[key]=b.dataset.value;if(key==='fillKind'&&b.dataset.value==='colour')this.loadColourPalette();this.right();this.h.dom().right.querySelector(`[data-ed-choice="${key}"][data-value="${b.dataset.value}"]`)?.focus();return;}
+    if(b.dataset.edTool){this.h.tool(b.dataset.edTool);this.left();this.h.dom().canvas.focus();return;}
+    if(b.dataset.edMaterial){const all=!!b.closest('.ed-all');this.material=b.dataset.edMaterial;this.swatches();this.h.dom().right.querySelector(`${all?'.ed-all ':'.ed-shown '}[data-ed-material="${this.material}"]`)?.focus({preventScroll:true});return;}
+    if(b.dataset.edRig){if(b.disabled)return;const v=b.dataset.value;this.setRig(b.dataset.edRig==='phone'?{phone:v}:{height:v});return;}
+    const a=b.dataset.edAction,l=this.s.layers.find(l=>l.id===this.s.selected);
+    if(['copy','cut','delete','keep'].includes(a))return this.h.selectionEdit(a);
+    if(a==='rig-change'){this.panelState().rigExpanded=!this.panelState().rigExpanded;this.right();this.h.dom().right.querySelector('[data-ed-action=rig-change]')?.focus();return;}
+    if(a==='fill')return this.fill();
+    if(a==='tone-reset'){const l=this.pictureLayer();if(l&&!l.locked)this.mutate(()=>{l.tone=undefined;});return;}
+    if(a==='select'){const tool=['rectangle','ring','sector'].includes(this.tool)?this.tool:'ring';return this.select({tool,...this.options,a:[-30,-30],b:[30,30]},this.options.operation);}
+    if(a==='clear')return this.mutate(()=>{this.s.activeMask=null;});
+    if(a==='save-mask'){const current=this.s.selections.find(s=>s.id===this.s.activeMask);if(current)this.mutate(()=>{this.s.selections.push({...current,id:crypto.randomUUID(),named:true,name:this.maskName?.trim()||this.t.selection+' '+(this.s.selections.filter(m=>m.named!==false).length+1)});this.s.activeMask=this.s.selections.at(-1).id;});return;}
+    const id=this.h.dom().left.querySelector('[data-ed-mask]')?.value;
+    if(a==='restore-mask'&&id)return this.mutate(()=>{this.s.activeMask=id;this.options.target='mask';});
+    if(a==='delete-mask'&&id)return this.mutate(()=>{this.s.selections=this.s.selections.filter(s=>s.id!==id);this.s.assignments=this.s.assignments.filter(a=>a.selection!==id);if(this.s.activeMask===id)this.s.activeMask=null;});
+    if(l&&!l.locked&&['up','down','remove'].includes(a))this.mutate(()=>{const i=this.s.layers.indexOf(l);if(a==='remove'){this.s.layers.splice(i,1);this.s.assignments=this.s.assignments.filter(a=>a.layer!==l.id);this.s.selected=null;}else{const j=Math.max(0,Math.min(this.s.layers.length-1,i+(a==='up'?1:-1)));this.s.layers.splice(i,1);this.s.layers.splice(j,0,l);}this.h.rebuild();});
+  }
+  layerKey(e){const li=e.target.closest('.lay');if(!li||e.target.closest('button,input'))return;const l=this.s.layers.find(l=>String(l.id)===li.dataset.id);
+    if(isActionEnter(e)||e.key===' '){e.preventDefault();li.click();return;}
+    if(e.key==='F2'){e.preventDefault();this.s.selected=l.id;this.h.rebuild();this.h.rename(l.id);return;}
+    if(e.altKey&&['ArrowUp','ArrowDown'].includes(e.key)&&!l.locked){e.preventDefault();e.stopPropagation();this.s.selected=l.id;const action=e.key==='ArrowUp'?'up':'down';this.click({target:{closest:()=>({dataset:{edAction:action}})},preventDefault(){},stopPropagation(){}});this.h.dom().left.querySelector(`[data-id="${l.id}"]`)?.focus();}
+  }
+  select(def,op='replace',rgba=null){this.init();this.selectionOptions(def);const mask=O.selection(def,this.s.maskGrid,rgba),prior=this.s.selections.find(s=>s.id===this.s.activeMask);this.mutate(()=>{const bits=O.booleanMask(prior?O.bytes(prior.bits):new Uint8Array(mask.length),mask,op),id=crypto.randomUUID();this.s.selections.push({id,name:this.maskName?.trim()||this.t[def.tool],bits:O.base64(bits),named:false,definition:def});this.s.activeMask=id;this.options.target='mask';});}
+  fill(){this.init();if(!this.rigOpen()){this.h.error(rigWords(this.h.lang()).locked);return;}const o=this.options;
+    if(o.fillKind==='colour'&&this.s.media==='dvd')return this.fillColour();
+    const target=o.target==='mask'&&this.s.activeMask?{selection:this.s.activeMask}:{layer:this.s.selected},l=this.s.layers.find(l=>l.id===target.layer);if(!target.selection&&(!l||l.locked)){this.h.error(this.t.none);return;}
+    const added=!this.s.materials.some(m=>m.id===this.material)?this.palette?.swatches.find(m=>m.id===this.material):null;
+    if(added&&this.s.materials.length>=256){this.h.error(this.h.lang()==='zh'?'一件作品最多使用 256 种材质，请先减少材质。':'A work can use at most 256 materials. Reduce its materials first.');return;}
+    if(!added&&!this.s.materials.some(m=>m.id===this.material)){this.h.error(this.t.empty);return;}
+    const a={id:crypto.randomUUID(),...target};
+    if(o.fillKind==='pattern'){if(!(o.size_mm>0&&o.size_mm<=o.pitch_mm/2)){this.h.error('0 < size ≤ pitch / 2');return;}a.pattern={version:1,pattern:o.pattern,coordinates:o.coordinates,pitch_mm:o.pitch_mm,size_mm:o.size_mm,angle_deg:o.angle_deg,origin_mm:[0,0],phase_mm:[0,0],reference_radius_mm:40,materials:[this.material,'background']};}
+    else if(o.fillKind==='effect')a.effect={kind:o.effect,y1:o.y1,y2:o.y2,wavelength_um:.53};else a.material=this.material;
+    this.mutate(()=>{if(added){const {colour,texture_ids,...m}=added;this.s.materials.push(m);}this.s.assignments.push(a);});
+  }
+  fillColour(){
+    const s=this.s,l=this.pictureLayer(),palette=this.colourPalette;
+    if(s.media!=='dvd'||!l||l.locked||!palette)return;
+    const assignments=s.assignments.filter(a=>!(a.layer===l.id&&a.colour));
+    const ids=new Set(s.materials.map(m=>m.id));
+    const added=palette.materials.filter(m=>!ids.has(m.id));
+    let materials=s.materials;
+    if(materials.length+added.length>256&&!assignments.some(a=>a.effect)){
+      const needed=new Set([...palette.materials.map(m=>m.id),...assignments.flatMap(a=>a.colour?.materials??a.pattern?.materials??[a.material])]);
+      const dark=s.materials.some(m=>m.id==='dark')?'dark':s.materials.find(m=>m.spec==='A5')?.id??s.materials[1]?.id;
+      materials=materials.filter((m,i)=>i===0||m.id===dark||m.template_name||needed.has(m.id)||m.id===this.material);
+    }
+    if(materials.length+added.length>256){this.h.error(this.h.lang()==='zh'?'一件作品最多使用 256 种材质，请先减少材质。':'A work can use at most 256 materials. Reduce its materials first.');return;}
+    materials=[...materials,...added];
+    let arrow=null,arrowMaterial,skipped;
+    if(this.panelState().directionArrow&&!s.layers.some(layer=>layer.shape?.directionArrow===true)){
+      const shape=arrowShape(this.ring());
+      const existing=materials.find(m=>m.spec===directionArrow.material.spec);
+      if(!shape)skipped=this.arrowWords.ring;
+      else if(s.layers.length>=16||assignments.length>=1023||(!existing&&materials.length>=256))skipped=this.arrowWords.slots;
+      else {
+        arrow=this.h.shapeLayer(this.arrowWords.name,shape,directionArrow.material.rgb);
+        const id=materials.some(m=>m.id===directionArrow.material.id)?crypto.randomUUID():directionArrow.material.id;
+        arrowMaterial=existing??{...directionArrow.material,id};
+        if(!existing)materials.push(arrowMaterial);
+      }
+    }
+    this.mutate(()=>{
+      s.materials=materials;
+      s.assignments=[...assignments,{id:crypto.randomUUID(),layer:l.id,
+        colour:{materials:palette.materials.map(m=>m.id),dither:'ordered',table:palette.table}}];
+      if(arrow){
+        s.layers.splice(s.layers.indexOf(l)+1,0,arrow);
+        s.assignments.push({id:crypto.randomUUID(),layer:arrow.id,material:arrowMaterial.id});
+        this.h.rebuild();
+      }
+    });
+    if(skipped)this.h.error(skipped);
+  }
+  snap(p){if(!this.options.snap)return p;const v=this.h.view(),tol=7/v.s;let [x,y]=p;if(Math.abs(x)<tol)x=0;if(Math.abs(y)<tol)y=0;const r=Math.hypot(x,y),near=[7.5,17,...(this.s.media==='cd'?[26,58]:[24,58]),30,40,50,60].find(n=>Math.abs(r-n)<tol);if(near&&r){x*=near/r;y*=near/r;}return [O.q(x),O.q(y)];}
+  pointer(type,e,mm){if(this.tool==='move'&&!this.drag&&!this.selectionHit(mm))return false;
+    if(!['move','rectangle','lasso','ring','sector','colour','rectangleShape','ellipse','polygon','line','pen'].includes(this.tool))return false;
+    const p=this.snap(mm),o=this.options;
+    const selectionTool=['move','rectangle','lasso','ring','sector','colour'].includes(this.tool);
+    if(type==='move'&&!this.drag){this.h.dom().canvas.style.cursor=selectionTool&&this.selectionHit(mm)?'move':'';}
+    if(type==='down'&&selectionTool&&!e.shiftKey&&!e.altKey&&this.selectionHit(mm)){
+      const l=this.s.layers.find(l=>l.id===this.s.selected);
+      if(l?.px&&!l.locked){this.drag={kind:'pixels',start:mm,points:[mm],history:{past:[...this.s.past],future:this.s.future,dirty:this.s.dirty}};if(e.pointerId!==undefined)this.h.dom().canvas.setPointerCapture(e.pointerId);return true;}
+    }
+    if(this.drag?.kind==='pixels'){
+      const d=this.drag;
+      if(type==='move'){
+        if(!d.layer&&Math.hypot(mm[0]-d.start[0],mm[1]-d.start[1])*this.h.view().s>=3){d.layer=this.h.selectionEdit('cut');if(d.layer){d.x=d.layer.x;d.y=d.layer.y;}}
+        if(d.layer){d.layer.x=d.x+mm[0]-d.start[0];d.layer.y=d.y+mm[1]-d.start[1];this.h.changed();}this.h.dom().canvas.style.cursor='move';
+      }else if(type==='cancel'){this.cancelGesture();}else if(type==='up'){this.drag=null;this.h.dom().canvas.style.cursor='';this.h.draw();}
+      return true;
+    }
+    if(this.tool==='move'&&!this.drag)return false;
+    if(type==='down'){
+      this.drag={points:[p],start:p,op:e.shiftKey&&e.altKey?'intersect':e.altKey?'subtract':e.shiftKey?'add':o.operation};if(e.pointerId!==undefined)this.h.dom().canvas.setPointerCapture(e.pointerId);
+      if(this.tool==='colour'){const g=this.s.maskGrid,{g:ctx}=this.h.raster(g);Object.assign(this.drag,{clientX:e.clientX??0,tolerance:o.tolerance,rgba:ctx.getImageData(0,0,g.width,g.height).data});this.colourPreview(e);}
+    }else if(type==='move'&&this.drag){if(this.tool==='colour')this.colourPreview(e);else{this.drag.points.push(p);this.h.draw();}}
+    else if(type==='up'&&this.drag){const d=this.drag;this.drag=null;d.points.push(p);
+      if(this.tool==='colour'){this.liveMask=null;this.select(d.definition,d.op,d.rgba);this.h.draw();return true;}
+      if(['rectangleShape','ellipse','polygon','line','pen'].includes(this.tool)){this.h.shape(this.tool,d.points);return true;}
+      const def={tool:this.tool};if(this.tool==='rectangle')Object.assign(def,{a:d.start,b:p});
+      if(this.tool==='lasso')def.points=d.points;
+      if(this.tool==='ring'){const radii=[Math.hypot(...d.start),Math.hypot(...p)].sort((a,b)=>a-b);Object.assign(def,{inner:O.q(radii[0]),outer:O.q(radii[1])});this.options.inner=def.inner;this.options.outer=def.outer;}
+      if(this.tool==='sector')Object.assign(def,{inner:o.inner,outer:o.outer,start:Math.atan2(d.start[1],d.start[0])*180/Math.PI,end:Math.atan2(p[1],p[0])*180/Math.PI});
+      this.select(def,d.op);
+    }else if(type==='cancel'){this.cancelGesture();}
+    return true;
+  }
+  selectionHit(mm){const m=this.s.selections.find(m=>m.id===this.s.activeMask);if(!m)return false;if(this.hitMask?.bits!==m.bits)this.hitMask={bits:m.bits,data:O.bytes(m.bits)};return !!O.sampleMask(this.hitMask.data,this.s.maskGrid,...mm);}
+  cancelGesture(){const d=this.drag;this.drag=null;this.liveMask=null;clearTimeout(this.motionTimer);this.motionPreview=null;this.h.dom().canvas.style.cursor='';if(d?.kind==='pixels'&&d.layer)this.h.rollback(d.history);this.h.draw();}
+  colourPreview(e){const d=this.drag,g=this.s.maskGrid;this.options.tolerance=Math.max(0,Math.min(255,Math.round(d.tolerance+((e.clientX??d.clientX)-d.clientX))));
+    d.definition={tool:'colour',seed:[Math.floor((d.start[0]-g.left_mm)/g.cell_mm),Math.floor((d.start[1]-g.top_mm)/g.cell_mm)],tolerance:this.options.tolerance,contiguous:this.options.contiguous};
+    const bits=O.selection(d.definition,g,d.rgba),prior=this.s.selections.find(m=>m.id===this.s.activeMask);
+    this.liveMask={id:crypto.randomUUID(),bits:O.base64(O.booleanMask(prior?O.bytes(prior.bits):new Uint8Array(bits.length),bits,d.op))};
+    const input=this.h.dom().cv.querySelector('[data-ed="tolerance"]');if(input)input.value=this.options.tolerance;this.h.draw();
+  }
+  key(e){if(e.target!==this.h.dom().canvas)return false;
+    if(!['rectangle','lasso','ring','sector','colour','rectangleShape','ellipse','polygon','line','pen'].includes(this.tool))return false;
+    this.cursor??=[-40,-20];
+    if(e.key.startsWith('Arrow')){const n=e.shiftKey?5:1;if(e.key==='ArrowLeft')this.cursor[0]-=n;if(e.key==='ArrowRight')this.cursor[0]+=n;if(e.key==='ArrowUp')this.cursor[1]-=n;if(e.key==='ArrowDown')this.cursor[1]+=n;this.cursor=this.cursor.map(v=>Math.max(-60,Math.min(60,v)));if(this.drag)this.pointer('move',e,this.cursor);this.h.draw();return true;}
+    
+    if(isActionEnter(e)){this.pointer(this.drag?'up':'down',e,this.cursor);this.h.draw();return true;}
+    if(e.key==='Escape'&&this.drag){this.cancelGesture();return true;}return false;
+  }
+  // What was painted on the pictures (fills on selections, shapes, effects) without the pictures themselves:
+  // the same composer on a document whose image layers are left out, the background transparent.
+  fillsOverlay(size){const s=this.s;if(!s.assignments?.length&&!s.layers.some(l=>l.kind!=='image'))return null;
+    const dark=false/* the disc is not the interface: the same light face and dark marks in both themes (2026-11-16) */,key=JSON.stringify([size,this.revision,dark]);if(this.fillsCache?.key===key)return this.fillsCache.canvas;
+    const d=this.document(),doc={...d,layers:d.layers.filter(l=>l.kind!=='image')},labels=O.compose(doc,O.grid(size)),canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+    const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
+    for(let i=0;i<labels.length;i++){if(!labels[i])continue;const m=doc.materials[labels[i]]??doc.materials[0],rgb=identityRGB(m,i%size,Math.floor(i/size),dark);im.data.set([...rgb,235],i*4);}
+    ctx.putImageData(im,0,0);this.fillsCache={key,canvas};return canvas;}
+  // what the preview page needs for its lamp view: the same work, revision and pose as this page's
+  lampProject(){return {document:()=>this.document(),revision:()=>this.revision,pose:()=>lampPose(this.s),colour:this.hasColour()};}
+  colourFrame(size,view){
+    this.colourRenderer??=new ColourPreview(()=>{if(this.h.active?.()===false)return;this.h.status?.();this.h.draw();});
+    const pose=view==='lamp'?lampPose(this.s):undefined;
+    const image=this.colourRenderer.view({rev:this.revision,document:()=>this.document(),pose,view,screen:size});
+    this.h.status?.();return image;
+  }
+  // the lamp view: frames from the lamp worker (editor-lamp.mjs), null until the first one; never composed here
+  lampFrame(size){this.lamp??=new LampPreview({onChange:()=>{if(this.h.active?.()===false)return;this.h.status?.();this.h.draw();}});
+    const image=this.lamp.view({rev:this.revision,document:()=>this.document(),pose:lampPose(this.s),screen:size});this.h.status?.();return image;}
+  preview(size=420,identityOnly=false){const lamp=!identityOnly&&this.s.view==='lamp',dark=false,key=JSON.stringify([size,this.revision,dark,this.s.view!=='proj'&&!identityOnly]);
+    if(!identityOnly&&this.hasColour()&&(lamp||this.s.view==='burn'))return this.colourFrame(size,this.s.view);
+    if(this.motionPreview&&this.s.view==='burn'&&!identityOnly)return this.motionPreview;
+    if(lamp)return this.lampFrame(size);else if(!identityOnly)this.lamp?.pause();
+    if(this.previewCache?.key===key)return this.previewCache.canvas;
+    const labelKey=`${size}:${this.revision}`;if(this.labelCache?.key!==labelKey){const d=this.document(),share=new Float32Array(size*size).fill(NaN);this.labelCache={key:labelKey,materials:d.materials,labels:O.compose(d,O.grid(size),{share}),share};}
+    const {labels,materials,share}=this.labelCache,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
+    // As burned: the eye cannot see 20 um cells, so a dithered picture is the share of the two textures in each
+    // screen pixel, mixed in linear light. A map, not the look: light/ink for the black-and-white burn, and for
+    // colour textures the colour each shows when it lights up (A3 v3, as on the Disc Neo card). The look is the
+    // lamp view's.
+    const lin=v=>(v/255)**2.2,enc=v=>Math.round(255*v**(1/2.2));
+    const light=dark?[58,64,62]:[218,214,205],ink=dark?[200,198,190]:[62,60,56],burnColour=m=>m.id==='background'?light:m.spec==='A5'||m.id==='dark'?ink:this.burnLights?.[m.id]??this.burnLights?.[String(m.spec).toUpperCase()]??identityRGB(m,1,0,dark);
+    // also what the lamp view shows until its render arrives
+    const burn=!identityOnly&&this.s.view!=='proj',colours=materials.map(burnColour),L=lin;
+    for(let i=0;i<labels.length;i++){let rgb;
+      if(burn){const t=share[i];rgb=t===t?light.map((v,c)=>enc(L(v)*(1-t)+L(ink[c])*t)):colours[labels[i]]??light;}
+      else{const m=materials[labels[i]]??materials[0];rgb=identityRGB(m,i%size,Math.floor(i/size),dark);}
+      im.data.set([...rgb,255],i*4);}
+    ctx.putImageData(im,0,0);this.previewCache={key,canvas};return canvas;
+  }
+  // At a cell a pixel or more, the burn cells on screen, from the composer the core uses (exact-view.mjs).
+  exactCells(v){const s=this.s,cell=s.cell||.02;
+    if(v.s*cell<1){this.exact?.off();return null;}
+    const side=Math.round(120/cell),at=(px,c)=>Math.floor((((px-c)/v.s)+60)/cell),clamp=n=>Math.max(0,Math.min(side,n));
+    const cols=[clamp(at(0,v.cx)),clamp(at(v.w,v.cx)+1)],rows=[clamp(at(0,v.cy)),clamp(at(v.h,v.cy)+1)];
+    if(cols[1]<=cols[0]||rows[1]<=rows[0])return null;
+    this.exact??=new ExactView(()=>{this.h.status?.();this.h.draw();});
+    const dark=false;   // one look in both themes, as above
+    const paint=(labels,w,h)=>{const mats=this.labelCache?.materials??s.materials??[],c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),im=g.createImageData(w,h);
+      const light=dark?[58,64,62]:[218,214,205],ink=dark?[200,198,190]:[62,60,56];
+      for(let i=0;i<labels.length;i++){const m=mats[labels[i]];im.data.set([...(labels[i]===0?light:m&&m.id!=='background'&&m.spec!=='A5'&&m.id!=='dark'?identityRGB(m,1,0,dark):ink),255],i*4);}
+      g.putImageData(im,0,0);return c;};
+    return this.exact.request(JSON.stringify([this.revision,side,rows,cols,dark]),()=>this.document(),{side,rows,cols},paint);
+  }
+  requestLights(pose){const key=JSON.stringify(pose);if(this.lightPose===key)return;this.lightPose=key;clearTimeout(this.lightTimer);this.lightTimer=setTimeout(async()=>{
+    try{const r=await fetch('/api/editor-swatches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pose})});if(!r.ok)return;const result=await r.json();if(this.lightPose===key){
+      const changed=this.textureSignature!==result.signature;
+      if(result.source==='texlib'){
+        if(!this.legacyPalette)this.legacyPalette=this.palette;
+        this.palette={...this.palette,swatches:result.materials,source:'texlib'};
+        // A new empty work needs slots for the materials it actually uses. Saved works keep their full table.
+        if(!this.textureSignature&&!this.s.layers.length&&!this.s.assignments.length)this.s.materials=this.s.materials.filter(m=>m.id==='background'||m.spec==='A5').slice(0,2);
+        if(!this.s.materials.some(m=>m.id===this.material)&&!result.materials.some(m=>m.id===this.material))this.material=(result.materials.find(m=>this.options.viewMode==='held'?held(m):visible(m))??result.materials[0])?.id;
+      }else if(this.legacyPalette){this.palette=this.legacyPalette;this.legacyPalette=null;}
+      this.textureSignature=result.signature;this.poseLights=result.colours;this.appliedLightPose=key;
+      if(changed){this.lamp?.dispose();this.lamp=null;this.invalidate();this.right();}
+      if(result.burn){this.burnLights=result.burn;this.previewCache=null;this.h.draw();}this.swatches();}}catch{}},220);
+  }
+  paint(ctx){const s=this.s,v=this.h.view(),g=s.maskGrid;if(!g)return;
+    this.requestLights(materialPose(s.scene,s.lookY));
+    // Design: the pictures themselves are drawn under this by design.js; only what was painted on them (fills,
+    // shapes, effects) is laid over, so an imported picture is never replaced by its burned two-texture form.
+    // As burned / under the lamp: the composed disc at screen resolution.
+    const screen=Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr)));
+    if(s.view==='lamp')(this.lampControls??=new LampControls({parent:this.h.dom().canvas.parentElement,state:()=>this.s,lang:()=>this.h.lang(),changed:()=>this.h.draw(),z:()=>lampPose({...this.s,lampLook:null}).camera[2],mark:cm=>{const h=this.rigData?.heights.find(h=>Math.abs(h.ruler_cm-cm)<.01);if(!h||!this.rigOpen())return false;this.setRig({height:h.id});return true;}})).show(true);else this.lampControls?.show(false);
+    if(s.view==='proj'||!this.hasColour())this.colourRenderer?.pause();
+    if(s.view==='proj'&&this.hasColour())this.h.status?.();
+    if(this.hasColour()){this.lamp?.pause();this.exact?.off();}
+    if(s.view==='proj'){const over=this.fillsOverlay(Math.min(1024,screen));if(over){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');ctx.drawImage(over,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);ctx.restore();}this.lamp?.pause();}
+    else if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');const shown=this.preview(screen);if(shown)ctx.drawImage(shown,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
+      if(shown&&s.view==='lamp'&&this.hasColour()&&this.panelState().compare)this.compareSource(ctx,v);
+      const exact=s.view==='burn'&&!this.hasColour()&&s.layers.length&&!this.motionPreview?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}
+      if(this.motionPreview){const l=s.layers.find(l=>l.id===s.selected),source=l?.visible&&this.h.source(l);if(source){ctx.save();ctx.globalAlpha=l.opacity;ctx.filter='grayscale(1)';ctx.translate(v.cx+l.x*v.s,v.cy+l.y*v.s);ctx.rotate(l.rot*Math.PI/180);ctx.drawImage(source,-l.width*v.s/2,-l.width*l.h/l.w*v.s/2,l.width*v.s,l.width*l.h/l.w*v.s);ctx.restore();}}
+      ctx.restore();}else this.lamp?.pause();
+    const m=this.liveMask??s.selections.find(mask=>mask.id===s.activeMask);if(m){if(this.overlayCache?.id!==m.id){const b=O.bytes(m.bits),canvas=document.createElement('canvas');canvas.width=g.width;canvas.height=g.height;const c=canvas.getContext('2d'),im=c.createImageData(g.width,g.height);
+        for(let j=0;j<g.height;j++)for(let i=0;i<g.width;i++)if(b[j*g.width+i]){const edge=!b[j*g.width+i-1]||!b[j*g.width+i+1]||!b[(j-1)*g.width+i]||!b[(j+1)*g.width+i],stripe=(i+j)%20;if(edge||stripe<2)im.data.set(edge?(Math.floor((i+j)/7)%2?[255,255,255,255]:[18,18,18,255]):stripe===0?[255,255,255,36]:[18,18,18,36],4*(j*g.width+i));}c.putImageData(im,0,0);this.overlayCache={id:m.id,canvas};}
+      ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(this.overlayCache.canvas,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);ctx.restore();}
+    if(this.drag){const ps=this.drag.points;ctx.save();ctx.strokeStyle=this.h.colour('--ink');ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.beginPath();ps.forEach(([x,y],i)=>i?ctx.lineTo(v.cx+x*v.s,v.cy+y*v.s):ctx.moveTo(v.cx+x*v.s,v.cy+y*v.s));ctx.stroke();ctx.restore();}
+    if(this.cursor&&document.activeElement===this.h.dom().canvas){const [x,y]=this.cursor,xx=v.cx+x*v.s,yy=v.cy+y*v.s;ctx.save();ctx.strokeStyle=this.h.colour('--ink');ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xx-8,yy);ctx.lineTo(xx+8,yy);ctx.moveTo(xx,yy-8);ctx.lineTo(xx,yy+8);ctx.stroke();ctx.restore();}
+  }
+  compareSource(ctx,v){
+    ctx.save();ctx.beginPath();ctx.rect(v.cx-60*v.s,v.cy-60*v.s,60*v.s,120*v.s);ctx.clip();
+    ctx.fillStyle=this.h.colour('--face');ctx.fillRect(v.cx-60*v.s,v.cy-60*v.s,60*v.s,120*v.s);
+    ctx.translate(v.cx,v.cy);ctx.rotate(-lampPose(this.s).rotate*Math.PI/180);
+    for(const l of this.s.layers){
+      if(l.kind!=='image'||!l.visible)continue;
+      const source=this.h.source(l);if(!source)continue;
+      const width=l.width*v.s,height=width*l.h/l.w;
+      ctx.save();ctx.globalAlpha=l.opacity;ctx.translate(l.x*v.s,l.y*v.s);ctx.rotate(l.rot*Math.PI/180);
+      ctx.drawImage(source,-width/2,-height/2,width,height);ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+Object.assign(Editor.prototype,controls);

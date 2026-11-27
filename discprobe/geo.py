@@ -36,17 +36,19 @@ from __future__ import annotations
 import csv
 import json
 import math
-import os
+from pathlib import Path
+import time
 
 import numpy as np
 
-from . import analysis
+from . import analysis, geo_checkpoint, geo_speed, ui
 from .calib import SECTOR_BITS, CalLayout, theta
+from .coverage import RADIUS_TOL_MM, assess_range, default_range
 
 BD_SECTOR_PER_UNIT = 32           # a Blu-ray recording unit is 32 sectors, the way a DVD block is 16
 BD_SECTOR_BITS = 962136 / 32.0    # channel bits per Blu-ray sector
 from .calscan import _dtheta, _report
-from .timing import TimingProbe
+from .timing import READ_AHEAD_OFFSETS, READ_AHEAD_STOP, TimingProbe, read_ahead_hits
 
 SAFE_DEG = 25.0
 TURN_ABORT_DEG = 90.0       # any rung this far from the refit means a likely whole-turn error
@@ -75,7 +77,17 @@ CD_AUDIO_RANGE = (0.0125, 0.99)
 ROTATION_READS = 24
 ROTATION_COHERENCE = 0.8    # one outlier takes a clear period to about 0.93 in 24 reads
 MIN_ROTATION_RATIO = 1.1    # a span narrower than this can't tell CLV from constant rotation
+MAX_COVERAGE_READS = 12     # rung attempts, including unsuccessful reads and retries at a different LBA
+MAX_COVERAGE_SECONDS = 120
+MAX_DENSE_POINTS = 384      # distinct attempted LBAs, including independent checks
+MAX_DENSE_SECONDS = 4500    # stop starting drive reads after 75 minutes
+READ_NOISE_WARN_DEG = 1.0
 CLV_RATIO_SLACK = 0.03      # one report's CLV was 0.3 % off the nominal radii, and a period read as twice the turn must not pass
+CAV_RATIO_SLACK = 0.05      # outer/inner periods must agree within 5 % for constant rotation
+
+
+class _DenseDeadlineReached(Exception):
+    pass
 
 
 def looks_clv(ratio: float, expected: float) -> bool:
@@ -88,10 +100,28 @@ class Ladder:
     def __init__(self, dev, ranges=None, r0_mm=None, pitch_um=None, bit_nm=None, reps=None,
                  max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
                  host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT, sectors=1,
-                 read_offset_bytes: float = 0.0, state_check: bool = True):
+                 read_offset_bytes: float = 0.0, state_check: bool = True, completion_sectors: int = 0,
+                 auto_correct: bool = True, resume=None):
         self.media = media
+        from .read_completion import sectors as check_completion
+        self.completion_sectors = check_completion(completion_sectors)
+        if media != 'dvd' and completion_sectors:
+            raise ValueError('--completion-sectors is for DVD')
         self.state_check = state_check
         self.state = None
+        self.auto_correct = auto_correct
+        self.resume = resume
+        self.checkpoint = None
+        self.pending_identity_lbas = set()
+        self.bend = None
+        self.correction = None
+        self.probes = []
+        self.probe_failures = []
+        self.correction_checks = []
+        self.prediction_checks = []
+        self.progress_probe_done = 0
+        self.progress_dense_budget = 0
+        self._dense_deadline = None
         self.chi2_abort = chi2_abort
         self.read_offset_bytes = float(read_offset_bytes)
         self.audio = False  # set by run() when the CD turns out to be a CD-DA track
@@ -126,6 +156,13 @@ class Ladder:
         self.targets: list[dict] = []
         self.u, self.v, self.c = self.u0, self.v0, 0.0
         self.cov = None
+        # Progress counts reference/target pairs, not sectors or all device pauses.
+        # Settling and retries are elapsed time, not additional completed work.
+        self.progress_total = 0
+        self.progress_checks_done = 0
+        self.progress_current = 0
+        self.progress_stage = "starting"
+        self.progress_finished = False
         self.auto_ranges = None   # random stretches found on a disc that isn't all random data
 
     # ------------------------------------------------------------ geometry helpers
@@ -140,7 +177,7 @@ class Ladder:
             return float(read_end_bits(lba))
         if self.media == "bd":
             return float((lba // BD_SECTOR_PER_UNIT + 1) * BD_SECTOR_PER_UNIT * BD_SECTOR_BITS)
-        return float((lba // 16 + 1) * 16 * SECTOR_BITS)
+        return float(((lba // 16 + 1) * 16 + self.completion_sectors) * SECTOR_BITS)
 
     def _lba_at_turns(self, turns: float) -> int:
         th = theta(self.n_ref, self.u, self.v) + 2 * math.pi * turns
@@ -154,14 +191,22 @@ class Ladder:
             return int((n - READ_TAIL_FRAMES * FRAME_BITS) // CD_BITS) - 1
         if self.media == "bd":
             return int(n // BD_SECTOR_BITS) // BD_SECTOR_PER_UNIT * BD_SECTOR_PER_UNIT
-        return int(n // SECTOR_BITS) // 16 * 16
+        if not self.completion_sectors:
+            return int(n // SECTOR_BITS) // 16 * 16
+        return int((n / SECTOR_BITS - self.completion_sectors) // 16) * 16
 
     def _predict(self, n):
-        return float(theta(n, self.u, self.v) - theta(self.n_ref, self.u, self.v)) + self.c
+        base = float(theta(n, self.u, self.v) - theta(self.n_ref, self.u, self.v)) + self.c
+        return base if self.bend is None else base + math.radians(float(self.bend(self._fit_radius(n))))
+
+    def _fit_radius(self, n):
+        return self.prior.bit_nm * 1e-6 * np.sqrt(self.u ** 2 + self.v * np.asarray(n) / math.pi)
 
     def _sigma_pred_deg(self, n) -> float:
         if self.cov is None:
             return float("inf")
+        if self.bend is not None:
+            return self.bend.uncertainty(float(self._fit_radius(n)))
         du, dv = _dtheta(n, self.u, self.v)
         du0, dv0 = _dtheta(self.n_ref, self.u, self.v)
         g = np.array([du - du0, dv - dv0, 1.0])
@@ -187,8 +232,11 @@ class Ladder:
     def _allowed(self, lba: int) -> int | None:
         """Nearest block-aligned LBA inside the readable ranges."""
         best = None
+        span = math.ceil(getattr(self.tp, 'sectors', 1) / self.block) * self.block
         for a, b in self.ranges:
-            x = min(max(lba, a), b - self.block)
+            if b-a < span:
+                continue
+            x = min(max(lba, a), b - span)
             x -= x % self.block
             if best is None or abs(x - lba) < abs(best - lba):
                 best = x
@@ -204,9 +252,11 @@ class Ladder:
         return self.prior.bit_nm * 1e-6 * math.sqrt(self.u0 * self.u0 + self.v0 * self._n_end(lba) / math.pi)
 
     def check_rotation(self) -> None:
-        """Stop if the spindle slows towards the outside, as under CLV. A set speed can put a drive there, and phase
-        is no angle then: it still fits the few rungs near the reference, then gets nowhere. A period too unclear
-        to compare stops nothing here, and a whole number of turns apart isn't CLV, so only a clear match stops it."""
+        """Stop on clear CLV or inconsistent speeds before fitting any rungs.
+
+        A period too unclear to compare stops nothing here. Whole-turn aliases must
+        not be mistaken for CLV; they also cannot establish constant rotation.
+        """
         tp = self.tp
         inner = self._allowed(min(a for a, _ in self.ranges))
         outer = self._allowed(max(b for _, b in self.ranges) - self.block)
@@ -224,18 +274,33 @@ class Ladder:
         ratio = periods[1] / periods[0]
         tp.summary["rotation_check"] = {"inner_lba": inner, "outer_lba": outer, "period_ms": [p * 1e3 for p in periods], "ratio": ratio, "expected_clv": expected}
         if looks_clv(ratio, expected):
+            tp.summary["rotation_check"]["mode"] = "CLV"
             raise RuntimeError(f"the drive is not turning at a constant speed here ({periods[0] * 1e3:.2f} ms a turn at "
                                f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm), and geo needs it to")
+        # A whole-turn alias (one estimate locked onto every n-th turn) gives a ratio of n or 1/n.
+        # It says nothing against constant rotation, so fold it before calling the speed unsteady.
+        folds = round(ratio) if ratio >= 1 else round(1 / ratio)
+        if folds >= 2 and abs((ratio / folds if ratio >= 1 else ratio * folds) - 1) <= CAV_RATIO_SLACK:
+            tp.summary["rotation_check"]["alias_turns"] = folds
+            tp.summary["rotation_check"]["mode"] = "CAV"
+            return
+        if abs(ratio - 1) > CAV_RATIO_SLACK:
+            raise RuntimeError(f"the drive's speed is not steady ({periods[0] * 1e3:.2f} ms a turn at "
+                               f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm): "
+                               "the two periods differ and are not a whole number of turns apart")
+        tp.summary["rotation_check"]["mode"] = "CAV"
 
     def settle(self, max_rounds: int = 10) -> float:
         tp, prev = self.tp, None
+        read = tp._measure if self._dense_deadline is None else self._dense_read
         self.T = None
         for i in range(max_rounds):
-            times = [r.t_end_ns for r in (tp._measure(self.ref, "settle") for _ in range(SETTLE_READS))
+            times = [r.t_end_ns for r in (read(self.ref, "settle") for _ in range(SETTLE_READS))
                      if tp._usable(r)]
             fit = analysis.estimate_period(times) if len(times) >= 8 else None
             if fit and fit.coherence > SETTLE_COHERENCE and prev and abs(fit.period_s / prev - 1) < PERIOD_TOL:
                 self.T = fit.period_s
+                tp.reject_fake_period(self.T * 1e3)
                 tp.cover_one_turn(fit.period_s)
                 self.log(f"Spindle settled: T = {fit.period_s * 1e3:.4f} ms ({60 / fit.period_s:.1f} rpm), "
                          f"jitter {fit.residual_std_s * 1e6:.1f} us")
@@ -245,18 +310,26 @@ class Ladder:
 
     def measure(self, lba: int, reps: int | None = None) -> dict | None:
         tp = self.tp
-        ref_t, x_t = [], []
+        read = tp._measure if self._dense_deadline is None else self._dense_read
+        ref_t, x_t, pairs = [], [], []
         for _ in range(reps or self.reps):
-            r = tp._measure(self.ref, "ref")
+            r = read(self.ref, "ref")
             if tp._usable(r):
                 ref_t.append(r.t_end_ns)
-            x = tp._measure(lba, "target")
+            x = read(lba, "target")
+            if tp.strategy == "plain" and self.media in READ_AHEAD_OFFSETS:
+                pairs.append((r, x))
             if tp._usable(x):
                 x_t.append(x.t_end_ns)
+            self.progress_current += 1
+        if self.T and read_ahead_hits(pairs, self.T * 1e6):
+            raise RuntimeError(READ_AHEAD_STOP.format(lba=lba))
         fit = self._ref_period(ref_t) if len(ref_t) >= 8 else None
         if not fit or fit.coherence < MEASURE_COHERENCE or abs(fit.period_s / self.T - 1) > PERIOD_TOL or len(x_t) < 8:
             return None
-        ph = analysis.robust_circular_mean(analysis.phase_offsets(fit, x_t))
+        # Clipped about the median: real drives return some reads late, and a window centred on the
+        # mean lets part of that tail in (tools/geo_reanalyse.py compares the two on a finished run).
+        ph = analysis.robust_median_mean(analysis.phase_offsets(fit, x_t))
         if ph["mean_deg"] is None or ph["std_deg"] > MAX_PHASE_STD_DEG:
             return None
         self.T = fit.period_s  # follow slow drift of the regulated speed
@@ -265,11 +338,14 @@ class Ladder:
                 "used": ph["used"], "period_ms": round(fit.period_s * 1e3, 5)}
 
     def _measure_retry(self, lba: int, reps: int | None = None) -> dict | None:
+        self.progress_current = 0
         m = self.measure(lba, reps)
         if m is None:
             self.log(f"  LBA {lba}: spindle unsteady or reads failing; settling and retrying")
+            self.progress_current = 0
             self.settle()
             m = self.measure(lba, reps)
+        self.progress_current = 0
         return m
 
     # ------------------------------------------------------------ fitting
@@ -304,6 +380,14 @@ class Ladder:
         for t, m in zip(self.targets, model):
             t["model_deg"] = math.degrees(float(m))
             t["residual_deg"] = t["unwrapped_deg"] - t["model_deg"]
+        from .varpitch import Bend, TRIGGER_CHI2, exceeds_noise
+        # A turn-sized innovation is never explained away as a spline bend.
+        if self.auto_correct and (self.bend is not None or self.chi2_dof > TRIGGER_CHI2):
+            radii = self._fit_radius(n)
+            if ((self.bend is not None or exceeds_noise(self.targets, self.chi2_dof, radii))
+                    and len(np.unique(np.round(radii, 1))) >= 4):
+                self.bend = Bend(radii, [t['residual_deg'] for t in self.targets],
+                                 [t['sigma_deg'] for t in self.targets])
 
     # ------------------------------------------------------------ the ladder
 
@@ -318,6 +402,18 @@ class Ladder:
             x = self._allowed(int(lba))
             if x is not None and abs(x - self.ref) >= self.block:
                 out.add(x)
+        if self.bend is not None:
+            # Smaller bridges when the current bend makes a distant rung unsafe.
+            b = self.prior.bit_nm * 1e-6
+            for t in self.targets:
+                r = float(self._fit_radius(t['n']))
+                for delta in (-1., -.5, -.25, .25, .5, 1.):
+                    n = math.pi * (((r + delta) / b) ** 2 - self.u ** 2) / self.v
+                    # Invert the medium-specific read-end mapping locally.
+                    step = self._n_end(t['lba'] + self.block) - t['n']
+                    x = self._allowed(t['lba'] + round((n - t['n']) / step) * self.block)
+                    if x is not None:
+                        out.add(x)
         return sorted(out)
 
     def _add(self, m: dict, predicted_deg: float) -> None:
@@ -325,6 +421,222 @@ class Ladder:
         m["unwrapped_deg"] = m["phase_deg"] + 360.0 * k
         m["predicted_deg"] = predicted_deg
         self.targets.append(m)
+
+    def _emit_point(self, target):
+        if self.checkpoint:
+            self.checkpoint.save(self)
+        ui.event('geo_point', rung=len(self.targets), lba=target['lba'],
+                 radius_mm=float(self._fit_radius(target['n'])),
+                 residual_deg=target.get('residual_deg', target['unwrapped_deg'] - target['predicted_deg']),
+                 sigma_deg=target['sigma_deg'])
+
+    def _coverage_assessment(self):
+        coverage = self.coverage()
+        intervals = coverage['measured_intervals_mm']
+        span = (intervals[0][0], intervals[-1][1]) if intervals else None
+        return assess_range({'coverage': coverage}, default_range(self.media, span))
+
+    def _repair_ranges(self, gaps):
+        """Extend the default random-data search only as far as the picture needs."""
+        if self.ranges_arg or self.auto_ranges is not None:
+            return
+        from .content import is_random
+        tp = self.tp
+        radius = lambda lba: float(self._fit_radius(self._n_end(lba)))
+        empty = {c['lba'] // self.block * self.block for c in
+                 (tp.summary.get('disc_identity') or {}).get('copies', [])
+                 if self.media == 'dvd' and c['status'] == 'missing'}
+        for a, z in tp.reserved_lba[:]:
+            if a not in empty or not any(lo <= radius(a) <= hi for lo, hi in gaps):
+                continue
+            # A successful identity read without a header is only a candidate.
+            # Check the whole block is random before removing its metadata guard.
+            data = tp._read(a, z-a, label='disc-identity')
+            if data.ok and all(is_random(lba, data.data[(lba-a)*2048:(lba-a+1)*2048]) for lba in range(a, z)):
+                tp.reserved_lba.remove((a, z))
+                self.pending_identity_lbas.add(a)
+        if 'reserved_lba' in tp.summary:
+            tp.summary['reserved_lba'] = list(tp.reserved_lba)
+        lo, hi = self.base_range
+        for a, z in gaps:
+            # Limit any expansion to the edge of the requested annulus, with a
+            # small buffer for changes in the fit. Every new rung is content-checked.
+            if a < radius(lo):
+                lo = max(0, min(lo, self._lba_at_radius(a - .03)))
+            if z > radius(hi - self.block):
+                hi = min(tp.last_lba + 1, max(hi, self._lba_at_radius(z + .03) + self.block))
+        self.ranges = [(a, z) for a, z in tp.safe_ranges([(lo, hi)], self.completion_sectors) if z - a > 64]
+
+    def _lba_at_radius(self, radius):
+        bit = self.prior.bit_nm * 1e-6
+        n = math.pi * ((radius / bit)**2 - self.u**2) / self.v
+        step = self._n_end(self.ref + self.block) - self.n_ref
+        return self.ref + round((n - self.n_ref) / step) * self.block
+
+    def _coverage_candidate(self, assessment, tried):
+        inner, outer = assessment['requested_mm']
+        for lo, hi in sorted(assessment['extrapolated_mm'], key=lambda band: band[1] - band[0], reverse=True):
+            # Sample either side of genuine unreadable areas as closely as the
+            # reader allows. Retry a failed rung first if it lies in the hole.
+            left, right = self._lba_at_radius(lo), self._lba_at_radius(hi)
+            middle = self._lba_at_radius((lo + hi) / 2)
+            preferred = left if lo == inner else right if hi == outer else middle
+            choices = [*self.pending_identity_lbas, *self.failed_candidates]
+            for a, z in self.ranges:
+                if left < z and a <= right:
+                    choices.extend(min(z - self.block, max(a, lba)) for lba in
+                                   np.linspace(left, right, 5, dtype=int) // self.block * self.block)
+            for lba in sorted(set(choices), key=lambda x: (x not in self.pending_identity_lbas,
+                                                          x not in self.failed_candidates, abs(x-preferred), x)):
+                lba = int(lba)
+                n = self._n_end(lba)
+                if (lba not in tried and self._allowed(lba) == lba
+                        and lo - RADIUS_TOL_MM <= self._fit_radius(n) <= hi + RADIUS_TOL_MM
+                        and self._sigma_pred_deg(n) < SAFE_DEG):
+                    return lba
+        return None
+
+    def _fill_coverage(self, retry_lbas=()):
+        """Repair only missing intervals. Keep an honest partial result at either limit."""
+        missing = self._coverage_assessment()['extrapolated_mm']
+        if not missing and not retry_lbas:
+            return
+        self.progress_stage = 'reading missing radii'
+        self.tp.coverage_deadline = time.monotonic() + MAX_COVERAGE_SECONDS
+        try:
+            if missing:
+                self._repair_ranges(missing)
+            if retry_lbas:
+                self._repair_rungs(retry_lbas)
+            else:
+                self._repair_rungs()
+        except TimeoutError:
+            pass
+        finally:
+            self.tp.coverage_deadline = None
+        missing = self._coverage_assessment()['extrapolated_mm']
+        if missing:
+            self.completion_status = 'coverage_incomplete'
+            self.log('Missing radii (mm): ' + ', '.join(f'{a:.3f}-{z:.3f}' for a, z in missing))
+
+    def _repair_rungs(self, retry_lbas=()):
+        from .content import is_random
+        tried = {self.ref, *(t['lba'] for t in self.targets), *(p['lba'] for p in self.probes)}
+        pending = iter(lba for lba in retry_lbas if lba not in tried and self._allowed(lba) == lba
+                       and self._sigma_pred_deg(self._n_end(lba)) < SAFE_DEG)
+        for _ in range(MAX_COVERAGE_READS):
+            assessment = self._coverage_assessment()
+            lba = next(pending, None)
+            if (lba is None and assessment['covered']) or time.monotonic() >= self.tp.coverage_deadline:
+                break
+            if lba is None:
+                lba = self._coverage_candidate(assessment, tried)
+            if lba is None:
+                break
+            tried.add(lba)
+            if self.media == 'dvd' and not self.ranges_arg and self.auto_ranges is None:
+                data = self.tp._read(lba, 1, label='content')
+                if not data.ok or not is_random(lba, data.data):
+                    self.failed_candidates = sorted(set(self.failed_candidates) | {lba})
+                    continue
+            self.progress_total += self.reps
+            m = self._measure_retry(lba)
+            pred = math.degrees(self._predict(self._n_end(lba)))
+            sigma = self._sigma_pred_deg(self._n_end(lba))
+            if m is None or abs((m['phase_deg'] - pred + 180) % 360 - 180) > min(
+                    TURN_ABORT_DEG, max(SAFE_DEG, 3 * math.hypot(sigma, m['sigma_deg']))):
+                self.failed_candidates = sorted(set(self.failed_candidates) | {lba})
+                self.progress_probe_done += self.reps
+                continue
+            original = self.u, self.v, self.c, self.bend
+            self._add(m, pred)
+            self.fit()
+            if original[3] is None and (self.bend is not None or self.chi2_dof > self.chi2_abort
+                                       or max(abs(t['residual_deg']) for t in self.targets) > TURN_ABORT_DEG):
+                self.targets.pop()
+                self.u, self.v, self.c, self.bend = original
+                self.fit()
+                self.failed_candidates = sorted(set(self.failed_candidates) | {lba})
+                self.progress_probe_done += self.reps
+                continue
+            self.pending_identity_lbas.discard(lba)
+            if lba in self.failed_candidates:
+                self.failed_candidates.remove(lba)
+            self._emit_point(m)
+            self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} predicted +/- {sigma:6.2f} deg, "
+                     f"whole turns {round(m['unwrapped_deg'] / 360):>7}, residual {m['residual_deg']:+7.3f} deg, "
+                     f"chi2/dof {self.chi2_dof:.2f}")
+
+    def _resume_ladder(self):
+        source, targets = self.resume
+        old = source['fit']
+        checkpoint = source.get('checkpoint')
+        tp = self.tp
+        observed = tp.summary.get('identity') or {}
+        expected = source.get('identity') or {}
+        saved_record = (source.get('disc_identity') or {}).get('record')
+        record = (tp.summary.get('disc_identity') or {}).get('record')
+        if (tp.last_lba != (source.get('setup') or {}).get('last_lba') or
+                bool(source.get('simulated')) != bool(tp.summary.get('simulated')) or
+                (old.get('track') == 'audio') != self.audio or
+                any(expected.get(k) and expected[k] != observed.get(k) for k in ('drive', 'firmware', 'disc')) or
+                (saved_record and (record or {}).get('sha256') != saved_record.get('sha256')) or
+                abs(self.T * 1000 / old['period_ms'] - 1) > PERIOD_TOL):
+            raise RuntimeError('put the same measurement disc back in the original drive at the original speed')
+        self.u, self.v, self.c = old['u'], old['v'], math.radians(old['c_deg'])
+        restore = [float(self._fit_radius(self._n_end(t['lba']))) for t in targets if self._allowed(t['lba']) != t['lba']]
+        if restore:
+            self._repair_ranges([(r - .001, r + .001) for r in restore])
+        if self.ref != old['reference_lba'] or any(self._allowed(t['lba']) != t['lba'] for t in targets):
+            raise RuntimeError('the readable area changed; recheck this disc before measuring')
+        # For older discs with no identity record, compare several measured
+        # phases across the disc in addition to capacity, MID and reader.
+        targets = [{**t, 'n': self._n_end(t['lba'])} for t in targets]
+        indexed = sorted(targets, key=lambda t: t['lba'])
+        anchors = [indexed[i] for i in dict.fromkeys((0, len(indexed) // 2, len(indexed) - 1))]
+        if checkpoint and checkpoint.get('sentinels'):
+            anchors = checkpoint['sentinels']
+        self.progress_stage = 'checking the previous measurement'
+        self.progress_total = (len(targets) + 2 * len(anchors)) * self.reps
+        self.sentinels = anchors
+        self.check_state(reps=self.reps)
+        if self.state['verdict'] == 'changed' or any(
+                p['phase_again_deg'] is None or abs(p['change_deg']) > max(STATE_TOL_DEG, STATE_SIGMAS * p['sigma_deg'])
+                for p in self.state['points']):
+            raise RuntimeError('the saved check points did not match; put the same measurement disc back in the original drive')
+        self.pending_identity_lbas.difference_update(t['lba'] for t in targets)
+        self.targets = targets
+        if len(targets) >= len(self.first_turns):
+            self.fit()
+        self.completion_status = 'target_reached'
+        self.failed_candidates = list(old.get('failed_candidates') or [])
+        if checkpoint:
+            if old.get('varying_pitch') and self.bend is None:
+                from .varpitch import Bend
+                self.bend = Bend(self._fit_radius([t['n'] for t in targets]),
+                                 [t['residual_deg'] for t in targets], [t['sigma_deg'] for t in targets])
+            self.max_targets = checkpoint['max_targets']
+            self.prediction_checks = (old.get('coverage') or {}).get('prediction_checks', [])
+            self.progress_total = self.max_targets * self.reps + 2 * len(anchors) * self.reps
+            if self.checkpoint:
+                self.checkpoint.save(self)
+            return self._measure_ladder()
+        if source.get('refresh_excluded_ranges'):
+            # Letting two old islands share a readable range would silently
+            # bridge the hole. Sample inside each newly reopened gap first.
+            islands = (old.get('coverage') or {}).get('measured_intervals_mm') or []
+            reopened = [self._lba_at_radius((left[1] + right[0]) / 2)
+                        for left, right in zip(islands, islands[1:]) if left[1] < right[0]]
+            self.failed_candidates = sorted(set(self.failed_candidates + reopened))
+        if self.failed_candidates:
+            self._fill_coverage(self.failed_candidates)
+            if self.failed_candidates and self.completion_status == 'target_reached':
+                self.completion_status = 'partial_readable'
+        else:
+            self._fill_coverage()
+        self.check_state(reps=self.reps)
+        self.progress_finished = True
+        return self.result()
 
     def _random_parts(self, ranges):
         """Leave out what isn't random data (see content.py); a disc of random data keeps the default range."""
@@ -348,7 +660,15 @@ class Ladder:
         self.log(f"Only part of this disc is random data; measuring just those {len(found)} stretches")
         return found
 
+    def _label_parts(self, ranges):
+        """Compatibility entry point; all metadata uses the shared reservation path."""
+        tp = self.tp
+        if getattr(tp, 'reserved_lba', []) or tp.summary.get('random_label'):
+            return tp.safe_ranges(ranges, self.completion_sectors)
+        return ranges
+
     def run(self) -> dict:
+        self.started = time.monotonic()
         tp = self.tp
         tp.setup()
         self.audio = self.media == "cd" and tp.audio
@@ -366,10 +686,15 @@ class Ladder:
             self.ranges = [(max(0, a), min(b, last + 1)) for a, b in self.ranges_arg]
         elif self.audio:
             self.ranges = [(int(last * CD_AUDIO_RANGE[0]), int(last * CD_AUDIO_RANGE[1]))]
+        elif self.media in ("dvd", "cd"):
+            self.ranges = [(int(last * 0.01), int(last * 0.98))]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
-            if self.media == "dvd":
-                self.ranges = self._random_parts(self.ranges)
+        self.base_range = self.ranges[0]
+        if getattr(tp, 'reserved_lba', []) or tp.summary.get('random_label'):
+            self.ranges = tp.safe_ranges(self.ranges, self.completion_sectors)
+        if not self.ranges_arg and not self.audio and self.media == "dvd":
+            self.ranges = self._random_parts(self.ranges)
         self.ranges = [(a - a % self.block, b - b % self.block) for a, b in self.ranges if b - a > 64]
         if not self.ranges:
             raise RuntimeError(f"no readable {self.media.upper()} ranges longer than 64 sectors")
@@ -387,13 +712,21 @@ class Ladder:
         self.log(f"Reference LBA {self.ref}; readable ranges {self.ranges}")
         self.check_rotation()
         self.settle()
+        if self.resume:
+            return self._resume_ladder()
         self.sentinels = []
+        self.progress_total = self.max_targets * self.reps
         if self.state_check:
             self.sentinels_first()
+        return self._measure_ladder()
 
+    def _measure_ladder(self):
+        self.progress_stage = "ladder"
+        initial_count = len(self.targets)
         # First rungs: a turn or two away, where the nominal model is good to a few degrees.
-        used = {self.ref}
-        for i, turns in enumerate(self.first_turns):
+        used = {self.ref, *(t['lba'] for t in self.targets)}
+        for i in range(initial_count, len(self.first_turns)):
+            turns = self.first_turns[i]
             lba = self._allowed(self._lba_at_turns(turns))
             if min(abs(lba - t) for t in used) < self.block:
                 # Clamped onto the reference (or a rung) at a range edge: go the other way.
@@ -410,13 +743,18 @@ class Ladder:
                 self.c = math.radians(((m["phase_deg"] - pred + 180) % 360) - 180)
                 pred = math.degrees(self._predict(m["n"]))
             self._add(m, pred)
+            if i == 0:
+                self._emit_point(m)
             self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} ({turns:+.1f} turns) phase {m['phase_deg']:8.3f} "
                      f"+/- {m['sigma_deg']:.3f} deg")
-        self.fit()
+        if initial_count < len(self.first_turns):
+            self.fit()
+            self._emit_point(self.targets[-1])
 
-        tried = {t["lba"] for t in self.targets}
+        self.failed_candidates = getattr(self, 'failed_candidates', [])
+        tried = {t["lba"] for t in self.targets} | set(self.failed_candidates)
         self.completion_status = "target_reached"
-        self.failed_candidates = []
+        bridge_to = None
         while len(self.targets) < self.max_targets:
             # Skip candidates next to one already measured: a second point there adds little.
             cands = [c for c in self._candidates()
@@ -426,7 +764,13 @@ class Ladder:
                 break
             sig = {c: self._sigma_pred_deg(self._n_end(c)) for c in cands}
             safe = [c for c in cands if sig[c] < SAFE_DEG]
-            if safe and len(safe) == len(cands):
+            if safe and self.bend is not None:
+                # Grow towards an unmeasured edge, then fill the widest radius gap.
+                # Farthest-from-reference alone can spend every rung at the outer edge.
+                measured_r = self._fit_radius([t['n'] for t in self.targets])
+                outside = [c for c in safe if not measured_r.min() <= self._fit_radius(self._n_end(c)) <= measured_r.max()]
+                lba = max(outside or safe, key=lambda c: min(abs(self._fit_radius(self._n_end(c)) - measured_r)))
+            elif safe and len(safe) == len(cands):
                 # Reach is no longer the limit. Most rungs go where they shrink the uncertainty
                 # of the angle across the whole range the most (that favours the ends); every
                 # third fills the widest gap, so the middle is checked too (the first real run
@@ -446,6 +790,19 @@ class Ladder:
                     raise RuntimeError("no rung is within the safe 25-degree prediction limit; "
                                        "the whole-turn count is ambiguous; retry with lower noise")
                 lba = max(bridge, key=lambda c: abs(self._n_end(c) - self.n_ref))
+            if bridge_to is not None:
+                nearest = min([t['lba'] for t in self.targets], key=lambda x: abs(x - bridge_to))
+                lba = self._allowed((nearest + bridge_to) // 2)
+                while self.bend is not None and self._sigma_pred_deg(self._n_end(lba)) >= SAFE_DEG:
+                    closer = self._allowed((nearest + lba) // 2)
+                    if closer == lba or abs(closer - nearest) < self.block:
+                        self.completion_status = 'unwrap_ambiguous'
+                        raise RuntimeError('no safe bridge for ambiguous whole-turn prediction')
+                    lba = closer
+                if lba in tried or abs(lba - nearest) < self.block:
+                    self.completion_status = 'unwrap_ambiguous'
+                    raise RuntimeError('no closer bridge for ambiguous whole-turn prediction')
+                sig[lba] = self._sigma_pred_deg(self._n_end(lba))
             tried.add(lba)
             pred = math.degrees(self._predict(self._n_end(lba)))
             m = self._measure_retry(lba)
@@ -453,8 +810,46 @@ class Ladder:
                 self.failed_candidates.append(lba)
                 self.log(f"  LBA {lba}: skipped (no stable measurement)")
                 continue
+            innovation = abs((m['phase_deg'] - pred + 180) % 360 - 180)
+            innovation_limit = (min(TURN_ABORT_DEG, max(SAFE_DEG, 3 * math.hypot(sig[lba], m['sigma_deg'])))
+                                if len(self.targets) >= 7 else TURN_ABORT_DEG)
+            if innovation > innovation_limit:
+                # This observation supplies no safe whole-turn count yet. Measure a bridge,
+                # then revisit it with a better model; do not feed a guessed turn into fit().
+                tried.discard(lba)
+                self.prediction_checks.append(dict(lba=lba, predicted_deg=pred, phase_deg=m['phase_deg'],
+                                                   reason='large innovation; closer rung required'))
+                bridge_to = lba
+                self.progress_total += self.reps
+                self.log(f'  LBA {lba}: prediction differs by {innovation:.1f} deg; placing a closer rung')
+                continue
+            bridge_to = None
+            previous = (self.u, self.v, self.c, self.bend)
             self._add(m, pred)
             self.fit()
+            if previous[3] is None and self.bend is not None:
+                # A distant rung can absorb an entire wrong turn into u/v while
+                # leaving a small residual (especially on CD). Do not let that
+                # first suspicious rung teach the spline its own turn count.
+                self.targets.pop()
+                self.prediction_checks.append(dict(lba=lba, predicted_deg=pred, phase_deg=m['phase_deg'],
+                                                   reason='first bend; turn count not accepted before closer checks'))
+                self.u, self.v, self.c, self.bend = previous
+                self.fit()
+                from .varpitch import Bend
+                self.bend = Bend(self._fit_radius([t['n'] for t in self.targets]),
+                                 [t['residual_deg'] for t in self.targets],
+                                 [t['sigma_deg'] for t in self.targets])
+                tried.discard(lba)
+                bridge_to = lba
+                self.progress_total += (64 - self.max_targets) * self.reps + self.reps if self.max_targets < 64 else self.reps
+                self.max_targets = max(self.max_targets, 64)
+                self._reserve_dense_progress()
+                self.log('The first bend needs closer check points before assigning its whole-turn count.')
+                continue
+            if self.bend is not None and self.max_targets < 64:
+                self.progress_total += (64 - self.max_targets) * self.reps
+                self.max_targets = 64
             t = self.targets[-1]
             self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} predicted +/- {sig[lba]:6.2f} deg, "
                      f"whole turns {round((t['unwrapped_deg']) / 360):>7}, residual {t['residual_deg']:+7.3f} deg, "
@@ -463,12 +858,196 @@ class Ladder:
             # look fine; it shows as an exploding chi2 and large residuals elsewhere. Stop rather
             # than fit through it (simulated: chi2/dof jumps from ~1 to ~360 at the bad rung).
             worst = max(abs(x["residual_deg"]) for x in self.targets)
-            if self.chi2_dof > self.chi2_abort or worst > TURN_ABORT_DEG:
+            innovation = abs(m['unwrapped_deg'] - pred)
+            if (self.bend is None and (self.chi2_dof > self.chi2_abort or worst > TURN_ABORT_DEG)) or innovation > TURN_ABORT_DEG:
+                self.completion_status = "unwrap_ambiguous"
                 raise RuntimeError(f"after the rung at LBA {lba}: chi2/dof {self.chi2_dof:.1f}, worst residual "
                                    f"{worst:.1f} deg; a whole-turn count is probably wrong, so the fit was stopped")
+            self._emit_point(m)
+        check_coverage = self.media in ('dvd', 'cd') and not self.ranges_arg and self.completion_status == 'target_reached'
+        if check_coverage:
+            self._fill_coverage()
+        if self.bend is not None and self.auto_correct:
+            self.dense_correction()
+            if check_coverage and self.completion_status == 'coverage_incomplete' and self._coverage_assessment()['covered']:
+                self.completion_status = 'target_reached'
+        elif self.targets:
+            scatter = float(np.median([t['std_deg'] for t in self.targets]))
+            if scatter >= READ_NOISE_WARN_DEG or self.chi2_dof > 4:
+                self.log(f'Read noise is high (median scatter {scatter:.2f} deg per read). '
+                         'Use timing to check a lower read speed, or try another USB port or drive.')
+        if (self.failed_candidates or self.probe_failures) and self.completion_status == 'target_reached':
+            self.completion_status = 'partial_readable'
         if self.sentinels:
             self.check_state()
-        return self.result()
+        result = self.result()
+        self.progress_finished = True
+        return result
+
+    def _reserve_dense_progress(self):
+        if not self.progress_dense_budget:
+            self.progress_dense_budget = 2 * MAX_DENSE_POINTS * self.reps
+            self.progress_total += self.progress_dense_budget
+
+    def _dense_read(self, lba, label):
+        # A command already in flight still returns normally. Check before
+        # starting the next read, including when a block needs a settle retry.
+        if time.monotonic() >= self._dense_deadline:
+            raise _DenseDeadlineReached
+        return self.tp._measure(lba, label)
+
+    def dense_correction(self):
+        """Independent repeated, radius-spaced probes; refine steep residual intervals."""
+        from .varpitch import PROBE_GAP_MM, MIN_PROBE_GAP_MM, repeated_spline, refinement_mask
+        from scipy.interpolate import BSpline
+        start = time.monotonic()
+        deadline = start + MAX_DENSE_SECONDS
+        # Keep one sixth of the address budget for independent checks.
+        max_repeated = MAX_DENSE_POINTS - MAX_DENSE_POINTS // 6
+        limit = None
+        starting_work = self.progress_probe_done
+        self._reserve_dense_progress()
+        self.log('Track pitch varies: measuring extra points and choosing a smooth correction from repeat reads.')
+        self.progress_stage = 'measuring angle correction'
+        b = self.prior.bit_nm * 1e-6
+
+        def measure(lba):
+            nonlocal limit
+            last_period = self.T
+            self._dense_deadline = deadline
+            try:
+                result = self._measure_retry(lba)
+            except _DenseDeadlineReached:
+                self.progress_current = 0
+                self.T = last_period  # a settle retry may have cleared it
+                limit = 'time'
+                return None
+            finally:
+                self._dense_deadline = None
+            self.progress_probe_done += self.reps
+            return result
+
+        def at_radius(r):
+            n = math.pi * ((r / b) ** 2 - self.u ** 2) / self.v
+            step = self._n_end(self.ref + self.block) - self.n_ref
+            return self._allowed(self.ref + round((n - self.n_ref) / step) * self.block)
+        pending = set()
+        for a, z in self.ranges:
+            lo, hi = (float(self._fit_radius(self._n_end(l))) for l in (a, z - self.block))
+            pending.update(at_radius(r) for r in np.linspace(lo, hi, max(2, math.ceil((hi - lo) / PROBE_GAP_MM) + 1)))
+        done = set()
+        pts = []
+        for _ in range(5):
+            pending -= done
+            for lba in sorted(pending):
+                if time.monotonic() >= deadline:
+                    limit = 'time'
+                    break
+                if len(done) >= max_repeated:
+                    limit = 'points'
+                    break
+                done.add(lba)
+                pair = []
+                for repeat in range(2):
+                    if time.monotonic() >= deadline:
+                        limit = 'time'
+                        break
+                    m = measure(lba)
+                    if limit == 'time':
+                        break
+                    if m is None:
+                        self.probe_failures.append({'lba': lba, 'repeat': repeat, 'reason': 'no stable measurement'})
+                        continue
+                    pred = math.degrees(self._predict(m['n']))
+                    y = m['phase_deg'] + 360 * round((pred - m['phase_deg']) / 360)
+                    if abs(y - pred) > TURN_ABORT_DEG:
+                        self.completion_status = 'unwrap_ambiguous'
+                        raise RuntimeError('dense probe has ambiguous whole-turn count; correction not written')
+                    base = math.degrees(theta(m['n'], self.u, self.v) - theta(self.n_ref, self.u, self.v) + self.c)
+                    pair.append(dict(m, unwrapped_deg=y, phi_deg=base - y))
+                if len(pair) == 2:
+                    self.probes.append({'lba': lba, 'radius_mm': float(self._fit_radius(pair[0]['n'])),
+                                        'first': pair[0], 'again': pair[1]})
+            pts = sorted(self.probes, key=lambda p: p['radius_mm'])
+            pending = set()
+            if limit or len(pts) < 2:
+                break
+            for i in np.flatnonzero(refinement_mask(pts)):
+                left, right = pts[i:i + 2]
+                gap = right['radius_mm'] - left['radius_mm']
+                same_range = any(a <= left['lba'] <= right['lba'] < z for a, z in self.ranges)
+                if same_range and gap > MIN_PROBE_GAP_MM * 2:
+                    pending.add(at_radius((left['radius_mm'] + right['radius_mm']) / 2))
+            if not pending:
+                break
+        if len(pts) < 8:
+            self.completion_status = 'correction_incomplete'
+            self._finish_dense_progress(starting_work, limit, len(done), start)
+            self.log('Too few repeated points for an angle correction; keep this as a partial measurement.')
+            return
+        spline, stats = repeated_spline([p['radius_mm'] for p in pts],
+                                        [p['first']['phi_deg'] for p in pts],
+                                        [p['again']['phi_deg'] for p in pts],
+                                        [max(p['first']['sigma_deg'], p['again']['sigma_deg']) for p in pts])
+        radii = np.array([p['radius_mm'] for p in pts])
+        gaps = [[float(a), float(z)] for a, z in zip(radii, radii[1:]) if z - a > PROBE_GAP_MM * 1.1]
+        curve = BSpline(spline['t'], spline['c'], spline['k'])
+        stats.update(points=len(pts), elapsed_s=time.monotonic() - start, thin_intervals_mm=gaps,
+                     largest_gap_mm=float(np.max(np.diff(radii))),
+                     peak_to_peak_deg=float(np.ptp(curve(np.linspace(radii[0], radii[-1], 1000)))))
+        # New radii are independent of spline fitting and of repeat CV. They test
+        # interpolation, whereas a repeat at an existing radius only tests noise.
+        check_lbas = {at_radius((a + z) / 2) for a, z in zip(radii[:-1:5], radii[1::5])}
+        check_lbas -= done
+        for lba in sorted(check_lbas):
+            if time.monotonic() >= deadline:
+                limit = 'time'
+                break
+            if len(done) >= MAX_DENSE_POINTS:
+                limit = 'points'
+                break
+            done.add(lba)
+            m = measure(lba)
+            if limit == 'time':
+                break
+            if m is None:
+                self.probe_failures.append({'lba': lba, 'reason': 'independent check failed'})
+                continue
+            r = float(self._fit_radius(m['n']))
+            base = math.degrees(theta(m['n'], self.u, self.v) - theta(self.n_ref, self.u, self.v) + self.c)
+            expected = base - float(curve(r))
+            error = (m['phase_deg'] - expected + 180) % 360 - 180
+            self.correction_checks.append(dict(m, radius_mm=r, error_deg=error))
+        errors = [m['error_deg'] for m in self.correction_checks]
+        stats['independent_checks'] = len(errors)
+        stats['independent_rms_deg'] = float(np.sqrt(np.mean(np.square(errors)))) if errors else None
+        stats['independent_max_deg'] = max(map(abs, errors), default=None)
+        stats['elapsed_s'] = time.monotonic() - start
+        if limit:
+            stats['probe_limit'] = limit
+        if not errors or stats['independent_rms_deg'] > max(.5, 2 * np.median([m['sigma_deg'] for m in self.correction_checks])):
+            self.completion_status = 'correction_unvalidated'
+        self.correction = {'kind': 'angle-correction', 'spline': spline,
+                           'radius_valid_mm': [float(radii[0]), float(radii[-1])],
+                           'source': 'geo automatic repeated probes', 'geo_fit': {'u': self.u, 'v': self.v},
+                           'meaning': 'picture phi(r), degrees counter-clockwise; track angle is base minus phi',
+                           'validation': stats}
+        self._finish_dense_progress(starting_work, limit, len(done), start)
+        self.log(f"Angle correction: {len(pts)} repeated points, rms {stats['residual_rms_deg']:.3f} deg, "
+                 f"max {stats['residual_max_deg']:.3f} deg; repeat CV {stats['repeat_cv_rms_deg']:.3f} deg, "
+                 f"{stats['elapsed_s']:.1f} s. Thin intervals: {gaps}")
+
+    def _finish_dense_progress(self, starting_work, limit, points, start):
+        self.progress_total -= self.progress_dense_budget - (self.progress_probe_done - starting_work)
+        self.progress_dense_budget = 0
+        if limit:
+            elapsed = time.monotonic() - start
+            if limit == 'time':
+                self.log(f'Angle correction reached its time limit after {points} points and {elapsed:.1f} s. '
+                         'Kept the available measurements.')
+            else:
+                self.log(f'Angle correction reached its point limit after {points} points and {elapsed:.1f} s. '
+                         'Kept the available measurements.')
 
     def sentinels_first(self) -> None:
         """Before the ladder: read the raw phase of three far-apart points (near the inner end, a quarter of
@@ -481,27 +1060,42 @@ class Ladder:
         lo = min(a for a, _ in self.ranges)
         hi = max(b for _, b in self.ranges)
         self.sentinels = []
+        planned = []
         for f in (0.03, 0.25, 0.97):
             lba = self._allowed(int(lo + f * (hi - lo)))
-            if lba is None or any(abs(lba - s["lba"]) < self.spacing for s in self.sentinels) \
-                    or abs(lba - self.ref) < self.spacing:
+            if lba is None or abs(lba - self.ref) < self.spacing:
                 continue
-            m = self._measure_retry(lba, SENTINEL_REPS * self.reps)
+            planned.append(lba)
+        cost = SENTINEL_REPS * self.reps
+        self.progress_total += 2 * len(planned) * cost
+        self.progress_stage = "reading check points"
+        for lba in planned:
+            if any(abs(lba - s["lba"]) < self.spacing for s in self.sentinels):
+                self.progress_total -= 2 * cost
+                continue
+            m = self._measure_retry(lba, cost)
+            self.progress_checks_done += cost
             if m is not None:
                 self.sentinels.append(m)
+            else:
+                # Only successfully read check points will be read again.
+                self.progress_total -= cost
         if self.sentinels:
             self.log("Check points read: " + ", ".join(f"{self._radius(s['lba']):.1f} mm" for s in self.sentinels)
                      + " (read again at the end)")
 
-    def check_state(self) -> None:
+    def check_state(self, reps=None) -> None:
         b = self.prior.bit_nm * 1e-6
         sem = lambda x: x.get("sem_deg") if x.get("sem_deg") is not None else x["sigma_deg"]
         self.log("Reading the check points again, to see that the drive stayed in one state...")
+        self.progress_stage = "reading check points again"
         out = []
         for s in self.sentinels:
             e = {"lba": s["lba"], "radius_mm": round(b * math.sqrt(self.u ** 2 + self.v * s["n"] / math.pi), 2),
                  "phase_first_deg": s["phase_deg"], "phase_again_deg": None, "period_first_ms": s["period_ms"]}
-            m = self._measure_retry(s["lba"], SENTINEL_REPS * self.reps)
+            count = reps or SENTINEL_REPS * self.reps
+            m = self._measure_retry(s["lba"], count)
+            self.progress_checks_done += count
             if m is not None:
                 e.update(phase_again_deg=m["phase_deg"],
                          change_deg=round((m["phase_deg"] - s["phase_deg"] + 180.0) % 360.0 - 180.0, 3),
@@ -530,6 +1124,12 @@ class Ladder:
 
     def result(self) -> dict:
         rep = _report(self.u, self.v, self.cov, (self.u, self.v), self.prior, None)
+        if self.media == 'dvd' and self.completion_sectors:
+            rep['completion_sectors'] = self.completion_sectors
+            rep['fit_prior'] = dict(r0_mm=self.prior.r0_mm, pitch_um=self.prior.pitch_um,
+                                    sigma_u=self.sig_u / self.u0, sigma_v=self.sig_v / self.v0)
+            if getattr(self, 'completion_source', None):
+                rep['completion_source'] = self.completion_source
         if self.media == "cd":
             from . import cd
             b = self.prior.bit_nm * 1e-6
@@ -613,31 +1213,141 @@ class Ladder:
         rep["residual_rms_deg"] = float(np.sqrt(np.mean([t["residual_deg"] ** 2 for t in self.targets])))
         rep["period_ms"] = self.T * 1e3 if self.T else None  # None if a run stopped while resettling
         rep["reference_lba"] = self.ref
+        rep['elapsed_s'] = time.monotonic() - self.started if hasattr(self, 'started') else None
+        # Offline completion refits have accepted targets but no probed ranges.
+        # Do not invent coverage; callers updating a saved fit keep its coverage.
+        if hasattr(self, 'ranges'):
+            rep['coverage'] = self.coverage()
+        rep['covariance_uv'] = self.cov[:2, :2].tolist()
+        if self.bend is not None:
+            rep['varying_pitch'] = True
+        if self.correction is not None:
+            rep['correction_file'] = 'correction.json'
+            rep['correction_validation'] = self.correction['validation']
         return rep
+
+    def coverage(self):
+        """Measured islands and holes, not a claim that all intervening radii were checked."""
+        good = sorted({self.ref} | {t['lba'] for t in self.targets} | {p['lba'] for p in self.probes})
+        failed = sorted(set(getattr(self, 'failed_candidates', [])) |
+                        {p['lba'] for p in self.probe_failures} | self.pending_identity_lbas)
+        # Failed candidates partition readable islands, even when both outer edges succeeded.
+        islands = []
+        for a, z in self.ranges:
+            local = [x for x in good if a <= x < z]
+            group = []
+            for x in local:
+                if group and any(group[-1] < f < x for f in failed):
+                    islands.append(group)
+                    group = []
+                group.append(x)
+            if group:
+                islands.append(group)
+        radius = lambda l: float(self._fit_radius(self._n_end(l)))
+        intervals = [[radius(g[0]), radius(g[-1])] for g in islands]
+        gaps = [[radius(a), radius(z)] for a, z in zip(good, good[1:])]
+        return dict(measured_intervals_mm=intervals, measured_lbas=good,
+                    failed=[{'lba': x, 'reason': 'no stable measurement'} for x in failed],
+                    requested_intervals_mm=[[radius(a), radius(z - self.block)] for a, z in self.ranges],
+                    edge_margins_mm=[radius(good[0]) - radius(min(a for a, z in self.ranges)),
+                                     radius(max(z - self.block for a, z in self.ranges)) - radius(good[-1])],
+                    largest_unsampled_gap_mm=max((z - a for a, z in gaps), default=0.),
+                    gaps_mm=gaps, model_bias='not bounded between samples; smoothness assumed',
+                    covariance='conditional on constant pitch; excludes model bias',
+                    prediction_checks=self.prediction_checks,
+                    independent_check_lbas=[p['lba'] for p in self.correction_checks])
+
+    def output_summary(self, fit, stopped):
+        source = self.tp.summary
+        return {"fit": fit, "cache": source.get("cache"),
+                "setup": source.get("setup"), "identity": source.get("identity"),
+                "set_cd_speed": source.get("set_cd_speed"),
+                **geo_speed.annotations(self.tp, self.media, period_ms=(fit or {}).get("period_ms")),
+                "rotation_check": source.get("rotation_check"),
+                "args": source.get("args"),
+                **{k: source[k] for k in ('random_label', 'disc_identity', 'reserved_lba') if k in source},
+                **({"simulated": True} if source.get("simulated") else {}),
+                **({"stopped": stopped} if stopped else {})}
+
+
+def retryable_read_stop(reason):
+    text = reason.lower()
+    return any(cause in text for cause in ('medium error', 'spindle speed never settled',
+                                           'spindle unsteady or reads failing'))
+
+
+def resume_supported(summary, media):
+    fit = summary.get('fit') or {}
+    checkpoint = summary.get('checkpoint')
+    stopped = summary.get('stopped')
+    status = fit.get('completion_status', 'target_reached')
+    if checkpoint:
+        resumable = bool(checkpoint.get('targets'))
+    elif stopped:
+        resumable = status == 'interrupted' and retryable_read_stop(stopped)
+    else:
+        resumable = status in ('target_reached', 'coverage_incomplete', 'partial_readable')
+    return (resumable and media in ('dvd', 'cd') and fit.get('media', 'dvd') == media
+            and (checkpoint or not (fit.get('varying_pitch') or fit.get('correction_file')))
+            and (fit.get('state_check') or {}).get('verdict') != 'changed'
+            and all(isinstance(fit.get(k), (int, float)) and math.isfinite(fit[k])
+                    for k in ('u', 'v', 'c_deg', 'period_ms', 'reference_lba'))
+            and fit['period_ms'] > 0)
+
+
+def resume_source(path, media):
+    """Read an existing angle ladder without modifying any of its artifacts."""
+    source = geo_checkpoint.source_path(path)
+    summary = json.loads(source.read_text(encoding='utf-8'))
+    if not resume_supported(summary, media):
+        raise ValueError('this geometry cannot be continued; check rotation and measure the disc again')
+    if summary.get('checkpoint'):
+        return summary, [{**t, 'lba': int(t['lba'])} for t in summary['checkpoint']['targets']]
+    targets = []
+    with (source.parent / 'targets.csv').open(encoding='utf-8') as stream:
+        for row in csv.DictReader(stream):
+            keys = ('phase_deg', 'sigma_deg', 'std_deg', 'predicted_deg', 'unwrapped_deg', 'period_ms')
+            target = {k: float(row[k]) for k in keys}
+            if not all(map(math.isfinite, target.values())) or target['sigma_deg'] <= 0:
+                raise ValueError('invalid saved geometry target')
+            phase = target['phase_deg']
+            target.update(lba=int(row['lba']), used=int(row['used']),
+                          unwrapped_deg=phase + 360 * round((target['unwrapped_deg'] - phase) / 360))
+            targets.append(target)
+    if len(targets) < 6:
+        raise ValueError('too few saved targets to continue geometry')
+    if summary.get('stopped'):
+        # Recover the interrupted target from the existing trace without changing
+        # the original run's artifacts. The fit still rechecks its saved anchors.
+        last_target = None
+        try:
+            with (source.parent / 'events.csv').open(encoding='utf-8') as stream:
+                for row in csv.DictReader(stream):
+                    if row.get('label') == 'target':
+                        last_target = int(row['lba'])
+        except (OSError, ValueError, KeyError):
+            pass
+        fit = summary['fit']
+        if last_target is not None and last_target not in {t['lba'] for t in targets}:
+            fit['failed_candidates'] = list(dict.fromkeys([last_target, *(fit.get('failed_candidates') or [])]))
+    return summary, targets
 
 
 def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> None:
-    """`stopped` says why the run ended early. Such a fit can look fine, but only covers what was reached."""
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "targets.csv"), "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["lba", "n_bits", "phase_deg", "sigma_deg", "std_deg", "used", "predicted_deg",
-                    "unwrapped_deg", "model_deg", "residual_deg", "period_ms"])
-        for t in ladder.targets:
-            w.writerow([t["lba"], f"{t['n']:.0f}", t["phase_deg"], f"{t['sigma_deg']:.3f}", t["std_deg"], t["used"],
-                        f"{t['predicted_deg']:.3f}", f"{t['unwrapped_deg']:.3f}", f"{t['model_deg']:.3f}",
-                        f"{t['residual_deg']:.3f}", t["period_ms"]])
+    """Publish the summary after the measurement files have been committed."""
+    folder = Path(out_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    writer = ladder.checkpoint or geo_checkpoint.Checkpoint(folder)
+    geo_checkpoint.write_targets(folder / 'targets.csv', ladder.targets)
     res = ladder.result()
-    with open(os.path.join(out_dir, "summary.json"), "w", encoding="utf-8") as f:
-        json.dump({"fit": res, "cache": ladder.tp.summary.get("cache"),
-                   "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
-                   "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
-                   "rotation_check": ladder.tp.summary.get("rotation_check"),
-                   **({"simulated": True} if ladder.tp.summary.get("simulated") else {}),
-                   **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
-    events = ladder.tp.events_as_rows()
-    if events:
-        with open(os.path.join(out_dir, "events.csv"), "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=list(events[0]))
-            w.writeheader()
-            w.writerows(events)
+    if ladder.correction is not None:
+        geo_checkpoint.write_json(folder / 'correction.json', ladder.correction)
+        geo_checkpoint.write_json(folder / 'probes.json', {
+            'points': ladder.probes, 'failed': ladder.probe_failures,
+            'independent_checks': ladder.correction_checks})
+    if stopped:
+        res['completion_status'] = ('unwrap_ambiguous' if 'whole-turn' in stopped else 'interrupted')
+    writer.write_events(ladder.tp)
+    geo_checkpoint.write_json(folder / 'summary.json', ladder.output_summary(res, stopped))
+    writer.finish()
+    ui.result_event("geo", out_dir, stopped)

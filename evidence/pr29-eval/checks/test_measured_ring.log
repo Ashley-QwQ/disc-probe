@@ -1,0 +1,2 @@
+COMMAND: node tests/test_measured_ring.mjs
+measured ring: cut to the measurement, carried by every geometry choice

@@ -19,6 +19,34 @@ from .scsi import ScsiResult, Sense, check_allowed
 
 TWO_PI = 2.0 * math.pi
 
+# I218_POST.md, data-side picture correction (the track angle has the opposite sign).
+I218_RADIUS = (24.5, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+               39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 57.9)
+I218_PHI = (-135.8, -111.4, -65, -28.9, -16.2, -12.5, -7.8, -4.4, -2, 1.6, 7.1,
+            9.7, 10.9, 11.2, 9.5, 3.9, 0, -3.7, -8.5, -11.6, -13.5, -17.2, -19.6,
+            -21, -20.5, -19.7, -20.2, -19.9, -18.5, -15.9, -11.9, -7.3, -1.5, 5.2, 11.6)
+
+
+def pitch_profile(name):
+    """A callable phi(radius_mm), in picture degrees; custom callables are accepted too."""
+    if callable(name):
+        return name
+    if name == 'i218':
+        from scipy.interpolate import PchipInterpolator
+        # Continue the edge tangent; clipping would manufacture another sharp bend.
+        p = PchipInterpolator(I218_RADIUS, I218_PHI)
+        def profile(r):
+            edge = min(max(r, I218_RADIUS[0]), I218_RADIUS[-1])
+            return float(p(edge) + p.derivative()(edge) * (r - edge))
+        return profile
+    if name == 'mild':
+        return lambda r: 3.0 * math.sin((r - 24.5) * TWO_PI / 33.4)
+    if name == 'step':
+        return lambda r: 2.0 * (1 + math.tanh((r - 49.9) / 0.035))
+    if name is None or name == 'constant':
+        return lambda r: 0.0
+    raise ValueError(f'unknown pitch profile: {name}')
+
 
 class SimDrive:
     def __init__(self, mode: str = "cav", fua_honoured: bool = True, flush_honoured: bool = False, seed: int = 1,
@@ -27,8 +55,13 @@ class SimDrive:
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
                  patterns=(), block: int | None = None, state_change_after_reads: int | None = None,
-                 state_us_per_mm: float = 0.0):
+                 state_us_per_mm: float = 0.0, cav_above_kbs: int | None = None, layout_sectors=None, identity_sectors=None,
+                 phi_profile=None, read_ahead_sectors: int | None = None):
         self.media = media
+        self.cav_above_kbs = cav_above_kbs
+        self.layout_sectors = dict(layout_sectors or {})
+        self.identity_sectors = dict(identity_sectors or {})
+        self.phi_profile = pitch_profile(phi_profile)
         # A drive that changes state partway through: after that many media reads, each read completes
         # state_us_per_mm later per mm of radius beyond 40 mm (a latency that depends on where the head is).
         self.state_change_after_reads = state_change_after_reads
@@ -78,6 +111,13 @@ class SimDrive:
         # One read plus two blocks of read-ahead (a single segment, like the HP BU20N, which a far
         # read clears) on a CD-DA track; six blocks otherwise.
         self.cache_blocks = cache_blocks if cache_blocks is not None else (3 if self.cd_audio else 6)
+        # This firmware retains only sectors following a plain read, never the read itself.
+        # None keeps the original simulator cache. Zero gives an uncached control drive.
+        if read_ahead_sectors is not None and read_ahead_sectors < 0:
+            raise ValueError("read-ahead window must be nonnegative")
+        self.read_ahead_sectors = read_ahead_sectors
+        self._read_ahead = range(0)
+        self._read_ahead_until = 0.0
         # Fixed firmware overhead before a media read can start; several revolutions on
         # the GH70N, so back-to-back re-reads all span the same whole number of turns.
         self.reread_delay_s = reread_delay_ms / 1e3
@@ -127,10 +167,24 @@ class SimDrive:
 
     def block_end_angle(self, lba: int, count: int = 1) -> float:
         last_block_end = ((lba + count - 1) // self.block + 1) * self.block
-        return self.spiral.angle(self._end_sectors(last_block_end)) % TWO_PI
+        return self.track_angle(self._end_sectors(last_block_end)) % TWO_PI
+
+    def track_angle(self, sector: float) -> float:
+        """Unwrapped truth, shared by the spindle simulation and test comparisons."""
+        return self.spiral.angle(sector) - math.radians(self.phi_profile(self.spiral.radius(sector)))
 
     def true_phase_deg(self, ref_lba: int, target_lba: int) -> float:
         return math.degrees((self.block_end_angle(target_lba) - self.block_end_angle(ref_lba)) % TWO_PI)
+
+    def diagnostic_snapshot(self):
+        """Independent synthetic clock/noise/cache for untimed metadata checks.
+
+        Replies and fault rules stay identical. Extra diagnostic commands must
+        not change an otherwise identical seeded measurement experiment.
+        Real transports have no such method and are read directly.
+        """
+        import copy
+        return copy.deepcopy(self)
 
     def idle(self, seconds: float) -> None:
         """Host-side pause between commands, on the simulated clock."""
@@ -140,6 +194,9 @@ class SimDrive:
         from . import dvd
         out = bytearray()
         for k in range(lba, lba + count):
+            if k in self.layout_sectors:
+                out += self.layout_sectors[k]
+                continue
             byte = next((b for a, e, b in self.patterns if a <= k < e), None)
             mask = dvd.MASKS[dvd.preset_index(k)]
             if byte is None:
@@ -174,6 +231,7 @@ class SimDrive:
                 # Zero-length READ(12): optionally drops the cache, never touches media.
                 if fua and self.flush_honoured:
                     self._cache.clear()
+                    self._read_ahead = range(0)
                 self._clock = t_issue + 60e-6
                 return ScsiResult(0, b"", None, int(t_issue * 1e9), int(self._clock * 1e9))
             if status == 0 and (lba + count > self.capacity or count == 0):
@@ -182,6 +240,12 @@ class SimDrive:
                 t_end = self._read(t_issue, lba, count, fua)
                 data = (self._content(lba, count) if self.media == "dvd" and op != 0xBE
                         else bytes((2352 if op == 0xBE else 2048) * count))[:data_len]
+                if self.identity_sectors and op != 0xBE:
+                    data = bytearray(data)
+                    for i in range(count):
+                        if lba+i in self.identity_sectors:
+                            data[i*2048:(i+1)*2048] = self.identity_sectors[lba+i]
+                    data = bytes(data)
             else:
                 t_end = t_issue + 200e-6
         else:
@@ -210,6 +274,15 @@ class SimDrive:
                 adr_ctl = 0x10 if self.cd_audio else 0x14  # control bit 2 set: data track
                 data = bytes([0, 18, 1, 1, 0, adr_ctl, 1, 0, 0, 0, 0, 0,
                               0, adr_ctl, 0xAA, 0, *self.capacity.to_bytes(4, "big")])
+            elif op == 0xBB and self.cav_above_kbs is not None:
+                # Optional drive policy for retry tests; existing simulations keep their fixed law.
+                speed = int.from_bytes(cdb[2:4], "big")
+                self._phi = self._phase(t_issue)
+                self._t_s = t_issue
+                self.mode = "cav" if speed >= self.cav_above_kbs else "clv"
+                self.clv_speed_mm_s = speed * 1000 * self.spiral.sector_mm / 2048
+                self._w = self.clv_speed_mm_s / self._head_r
+                self._alpha = 0.0
             elif op in (0x00, 0xBB):
                 pass
             else:
@@ -222,8 +295,13 @@ class SimDrive:
         last_block = (lba + count - 1) // self.block
         blocks = list(range(first_block, last_block + 1))
         bypass = fua and self.fua_honoured
-        if not bypass and all(b in self._cache for b in blocks):
-            return t + 80e-6 + 1e-6 * count * 2 + abs(self.rng.gauss(0, 10e-6))
+        if not bypass:
+            if self.read_ahead_sectors is not None:
+                if t < self._read_ahead_until and lba in self._read_ahead and lba + count - 1 in self._read_ahead:
+                    self._read_ahead = range(lba + count, self._read_ahead.stop)
+                    return t + 2.5e-3 + abs(self.rng.gauss(0, 50e-6))
+            elif all(b in self._cache for b in blocks):
+                return t + 80e-6 + 1e-6 * count * 2 + abs(self.rng.gauss(0, 10e-6))
 
         start = first_block * self.block
         end = (last_block + 1) * self.block
@@ -238,8 +316,8 @@ class SimDrive:
 
         # The head sits at a fixed lab angle; disc angle theta is under it when the
         # unwrapped spindle phase equals theta modulo 2*pi.
-        theta_start = self.spiral.angle(start)
-        theta_end = self.spiral.angle(self._end_sectors(end))
+        theta_start = self.track_angle(start)
+        theta_end = self.track_angle(self._end_sectors(end))
         phase_now = self._phase(t_arrive)
         wait = (theta_start - phase_now) % TWO_PI
         t_start_pass = self._time_to_reach(t_arrive, phase_now + wait)
@@ -255,4 +333,9 @@ class SimDrive:
             done += self.state_us_per_mm * 1e-6 * (r_target - 40.0)
         if self.rng.random() < self.outlier_rate:
             done += self.rng.uniform(0.3e-3, 3e-3)
+        if self.read_ahead_sectors is not None:
+            next_lba = lba + count
+            stop = next_lba if bypass else min(self.capacity, next_lba + self.read_ahead_sectors)
+            self._read_ahead = range(next_lba, stop)
+            self._read_ahead_until = done + 0.1
         return max(done, t_end_pass)

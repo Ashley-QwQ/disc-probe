@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Generated from docs/why-calibrate.zh.md by tools/render_learning_guide.py. -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>刻图前为什么要标定？ · disc-probe</title>
+<link rel="icon" type="image/x-icon" href="../../brand/probe/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../brand/probe/apple-touch-icon.png">
+<link rel="stylesheet" href="../guide.css">
+<link rel="stylesheet" href="./page.css">
+<link rel="stylesheet" href="../../fonts/titles.css">
+<script type="module" src="./page.mjs"></script>
+</head>
+<body><main>
+<h1 id="刻图前为什么要标定">刻图前为什么要标定？</h1>
+<p><a href="why-calibrate.html" data-doc>English</a></p>
+<p>光驱沿着一条很长的螺旋线写数据，每台光驱、每批盘都有一点差别，所以刻图前要先量出每段数据会落在哪个半径（离盘心多远）、哪个角度（朝哪个方向）。</p>
+<h2 id="不量会怎样">不量会怎样？</h2>
+<p>想象从盘心往外画一条直线。螺旋每绕一圈，都要在同一个方向落笔。要是软件把相邻两圈的间距估错了一点，这一圈的落笔位置就比上一圈多偏一点。绕过几万圈，一条直线可能拧成漩涡，整幅图也可能沿圆周抹成一圈圈的环。DiscImageStudio 社区有人说「Circles it is」（还是一圈圈的），标定偏差就是其中一种可能。 README 原理 · 排错走查</p>
+<p><img src="media/grid_lines_zoom.jpg" alt="用计时标定后刻出来的 DVD 网格，扫描图上的线是直的" loading="lazy"></p>
+<p>这张 DVD 网格用光驱的计时测量结果生成。扫出来的网格线在盘上仍然是直的。 README 几何精度</p>
+<h2 id="怎么量">怎么量？</h2>
+<ul><li>先刻测量盘。从要刻图的那一批里拿张空盘，把 <code>random</code> 生成的 ISO 刻进去。ISO 是刻录机要写进盘里的镜像文件，要选「刻录光盘映像」。空白处没有数据可读，随机数据填满盘面后，光驱就能从内圈到外圈计时读盘。用来表现图案明暗的数据常会让光驱读不出来。随机数据没有按图案排列，所以这张盘看起来就像普通数据盘。手头已有同批的盘，只要要测的范围里有可读的随机数据，就可以用。 手册里的准备步骤</li><li>用 <code>timing</code> 测转速。光驱反复读数据，量一圈要多久，看看盘转得够不够稳。</li><li>用 <code>geo</code> 测几何。几何就是数据在盘上的位置。转速稳时，读完两处数据的时间差就能换成角度差。软件从相隔很近的两段数据开始，往外逐段量，同时数清中间隔了几整圈。DVD 的测量结果可用时，一般就能刻图了。</li><li>数据 CD 还要定沿轨常数。把读盘计时推出来的位置和图案实际落点放在同一条螺旋线上看，两者相差的那一段就是沿轨常数。可以刻一张图案已知的标靶盘来拍照，也可以刻网格盘，看原本应该是直线的地方扭了多少。这项结果跟光驱和刻录方式有关。 CD 路线 · 手册里的 CD 细节</li></ul>
+<p>第一次要准备几张？按 README，顺利的话 DVD 最少 2 张（测量盘、成品），CD 最少 3 张（测量盘、标定盘、成品）。网页按 3 张安排，中间留一张检查盘。偏差大时可能还要再查一次，第 4 张才是成品。照片没拍好，拿同一张盘重拍就行。 README 快速开始</p>
+<p>网页引导给 DVD 测量盘的刻录时间约 14 分钟。README 里的 CD 测量盘是在 GH70N 上以 8 倍速刻的，约 11 分钟。测量盘刻好后，<code>timing</code> 约 1 到 3 分钟，<code>geo</code> 约 5 分钟。网页引导按第一次出图约一小时来安排，实际还要看光驱、做图花多久、中间要不要再检查。 网页引导估时 · DVD 测量用时 · CD 实例</p>
+<details><summary>第一次的测量结果不好怎么办？</summary>
+<p><code>timing</code> 提示转速不稳时，试试它建议的读取速度，接下来的 <code>geo</code> 也用同一个速度。测量只覆盖实际读过的范围。如果图要画到没测过的地方，先看测量页的建议，换速度补测或缩小出图范围。 手册里的几何测量</p>
+</details>
+<h2 id="什么时候要重新量">什么时候要重新量？</h2>
+<p>同一批盘、同一台光驱，保存测量结果，以后可以接着用。换批次或换光驱就重测。MID 是光驱从盘上读出的介质识别码。刻录页发现 MID 对不上会先拦住，等你确认。不同批次也可能共用一个 MID，空盘最好按测过的批次放在一起。 README 局限 · 刻后检查单</p>
+<h2 id="整个流程">整个流程</h2>
+<p>标定 → 设计 → 刻录 → 看或拍</p>
+<p>下表以 DVD 为例。命令行里的每条命令前加 <code>python -m discprobe</code>。 README 命令行步骤</p>
+<div class="learn-table"><table><thead><tr><th scope="col">步骤</th><th scope="col">网页里</th><th scope="col">命令行</th></tr></thead><tbody><tr><td>标定</td><td>在「新作品」确认盘的批次，点「标定这批」，把测量结果留给这批盘用。</td><td>用 <code>info --drive E:</code> 读空盘，<code>random --output iso/random.iso</code> 生成镜像，再用 <code>burn --drive E: --iso iso/random.iso --yes-write</code> 刻。刻完跑 <code>timing --drive E:</code> 和 <code>geo --drive E:</code>。</td></tr><tr><td>设计</td><td>在「设计」导入图片、摆放位置，到「预览」检查效果并生成镜像。</td><td>用 <code>edit my_picture.png</code> 摆图，再用 <code>image --geo results/YOUR-RUN/summary.json --design my_picture.design.json --output iso/picture.iso</code>。把测量和设计文件换成自己保存的路径。</td></tr><tr><td>刻录</td><td>在「刻录」检查光驱里的空盘，再刻入镜像。</td><td>DVD 可用 <code>burn --drive E: --iso iso/picture.iso --yes-write</code>。运行前确认光驱和空盘。</td></tr><tr><td>看或拍</td><td>在刻完页记下效果，也可以展开「看不到图？」看检查单。需要照片测量时，按刻录结果页的提示准备检查盘或拍照。</td><td>把小灯放在眼睛或镜头旁边，倾斜着看数据面。看不到图时，用 <code>checkburn --drive E: --iso iso/picture.iso</code> 检查。</td></tr></tbody></table></div>
+<details><summary>CD 和照片检查的命令行做法</summary>
+<p>数据 CD 的 <code>random</code>、<code>timing</code> 和 <code>geo</code> 都加 <code>--media cd</code>。可以用 <code>disexport</code> 把测得的几何交给 DiscImageStudio 做精细标定，也可以按手册的网格盘方法量完再做图。Windows 上内置的 <code>burn</code> 不能刻 CD，刻录方法见 README 的 CD 路线。对支持的检查标靶，<code>photo</code> 从照片里量偏移，<code>gridscan</code> 则从网格盘的平板扫描图里量直线弯了多少。 手册里的 CD 和检查方法</p>
+</details>
+<h2 id="常见误会">常见误会</h2>
+<h3 id="dis-的名义预设能直接用吗">DIS 的名义预设能直接用吗？</h3>
+<p>DIS 是 DiscImageStudio 的简称。预设是一组保存好的盘面尺寸和刻图参数，名义预设用的是标准值，可以用来起步。要刻成品，优先用自己的光驱和盘批测出来的参数。已经用名义预设刻了盘，只看到圈的话，试试换个光照角度，再看刻录报告的抽样回读。它会告诉你，刻完之后从盘上抽读的数据和镜像是否一致。 刻后检查单</p>
+<h3 id="测量盘为什么看不出图">测量盘为什么看不出图？</h3>
+<p>它是给光驱读数据用的。等量出数据该写到哪里，软件才知道下一张盘上哪些地方该刻亮、哪些地方该刻暗。</p>
+<h3 id="标定和拍照是一回事吗">标定和拍照是一回事吗？</h3>
+<p>标定是量图案会落在哪里，大部分位置可以靠读盘计时来量。拍一张已知图案的检查盘，可以补上计时量不到的偏移，也可以核对图案走样了多少。你也可以只是拍张成品图给别人看。做彩色图时，灯和手机摆在哪还会影响你看到什么颜色。 <a href="how-disc-images-work.zh.html" data-doc>光盘怎么变成图</a></p>
+</main></body>
+</html>

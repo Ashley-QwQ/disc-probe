@@ -1,0 +1,16 @@
+.ab-report[data-capability="checkburn"] .burn-checks {
+  grid-template-columns: minmax(76px, 26%) minmax(0, 1fr);
+  row-gap: 12px;
+}
+
+.ab-report[data-capability="checkburn"] h2 {
+  font-size: 21px;
+  line-height: 1.3;
+  margin: 0 0 12px;
+}
+
+.ab-report[data-capability="checkburn"] dd button {
+  margin-top: 8px;
+}
+.ab-report .ab-learn { color: inherit; text-underline-offset: .2em; }
+.ab-report .ab-learn:hover { color: var(--copper); }

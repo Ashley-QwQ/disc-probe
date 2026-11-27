@@ -1,0 +1,89 @@
+[
+  {
+    "path": "D:\\disc-probe-dist\\disc-probe-0.1.2.1-full-win64.zip",
+    "sha256": "662196cbac2a8982d827029ed2ba3816bc45da52fc0f714a75c0a6c2bfc0eef1",
+    "parts": {
+      "disc-probe + source + manifest": {
+        "unpacked": 1615063,
+        "zipped_payload": 589813,
+        "files": 105
+      },
+      "embedded Python": {
+        "unpacked": 21477734,
+        "zipped_payload": 11066853,
+        "files": 37
+      },
+      "scipy + scipy.libs + metadata": {
+        "unpacked": 90458518,
+        "zipped_payload": 31675894,
+        "files": 843
+      },
+      "numpy + metadata": {
+        "unpacked": 12185187,
+        "zipped_payload": 3781217,
+        "files": 286
+      },
+      "numpy OpenBLAS": {
+        "unpacked": 20980816,
+        "zipped_payload": 6690244,
+        "files": 2
+      },
+      "Pillow + metadata": {
+        "unpacked": 14751038,
+        "zipped_payload": 7081440,
+        "files": 115
+      }
+    },
+    "zipped": 61260863,
+    "unpacked": 161468356,
+    "zip_headers": 375402
+  },
+  {
+    "path": "D:\\disc-probe-dist\\slim-20261111\\disc-probe-slim-20261111-full-win64.zip",
+    "sha256": "669c8cb6edd6a929067e62877cb9a9a020c6442f651ee9c15f87a5570a89e2a4",
+    "parts": {
+      "disc-probe + source + manifest": {
+        "unpacked": 10470690,
+        "zipped_payload": 5973915,
+        "files": 264
+      },
+      "embedded Python": {
+        "unpacked": 19544828,
+        "zipped_payload": 10051149,
+        "files": 33
+      },
+      "numpy + metadata": {
+        "unpacked": 12185187,
+        "zipped_payload": 3781217,
+        "files": 286
+      },
+      "numpy OpenBLAS": {
+        "unpacked": 20980816,
+        "zipped_payload": 6690244,
+        "files": 2
+      },
+      "Pillow + metadata": {
+        "unpacked": 14751038,
+        "zipped_payload": 7081440,
+        "files": 115
+      }
+    },
+    "zipped": 33763979,
+    "unpacked": 77932559,
+    "zip_headers": 186014
+  },
+  {
+    "path": "D:\\disc-probe-dist\\slim-20261111\\disc-probe-slim-20261111-core.zip",
+    "sha256": "91f4d60eb55ae82c25251184050172e68f671f1d09f942eed4a3715fd3904eb1",
+    "parts": {
+      "disc-probe + source + manifest": {
+        "unpacked": 10449896,
+        "zipped_payload": 5969018,
+        "files": 262
+      }
+    },
+    "zipped": 6023506,
+    "unpacked": 10449896,
+    "zip_headers": 54488
+  }
+]

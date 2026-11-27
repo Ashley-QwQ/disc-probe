@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [
+    {
+      "id": "D169-3",
+      "displayName": "Banana digital (香蕉)",
+      "description": "Community starting point https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/169#discussioncomment-19523418"
+    }
+  ],
+  "dvdPresets": [],
+  "bluRayPresets": []
+}

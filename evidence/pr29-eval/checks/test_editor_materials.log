@@ -1,0 +1,2 @@
+COMMAND: node tests/test_editor_materials.mjs
+editor materials: core-generated colours; 255 stable identities; neutral map; pose conversion; nine tools

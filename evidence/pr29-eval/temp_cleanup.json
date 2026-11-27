@@ -1,0 +1,15 @@
+{
+  "removed_files": 1394,
+  "removed_logical_bytes": 2209547241,
+  "retained_files": 109,
+  "failures": [],
+  "before_free_bytes": {
+    "D:/": 42991902720,
+    "F:/": 35655999488
+  },
+  "after_free_bytes": {
+    "D:/": 42991902720,
+    "F:/": 35721326592
+  },
+  "note": "Removed bytes are logical sizes; sparse fixtures were not all physically allocated. Only this card F: temp was touched."
+}

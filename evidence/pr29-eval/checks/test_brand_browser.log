@@ -1,0 +1,2 @@
+COMMAND: node tests/test_brand_browser.mjs
+PASS: Edge Chinese title glyphs use Disc Title SC Heavy; Latin uses Archivo; body unchanged; 3 viewports/icons verified

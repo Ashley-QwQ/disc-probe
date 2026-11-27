@@ -1,0 +1,100 @@
+{
+  "sources": [
+    {
+      "path": "D:\\disc-probe\\docs\\goals\\showcase\\pose\\pose_1x.json",
+      "sha256": "78fb880151172d6151e0efc98793da93a05a2214edfc8da20d67c602b4e1429b"
+    },
+    {
+      "path": "D:\\disc-probe\\docs\\goals\\showcase\\pose\\delta_map_1x.npy",
+      "sha256": "0473e3735d62a8aa6d4f22dcc5f05341e621e2ee2bc1d2d44ef098e445dc9d00"
+    },
+    {
+      "path": "D:\\disc-probe\\docs\\goals\\showcase\\pose\\search_low.py",
+      "sha256": "81f2a790e1a8e4ed134b77fcebe31f5ffb81c0f52e993197e937c3b5678fcb31"
+    },
+    {
+      "path": "D:\\disc-probe\\docs\\goals\\showcase\\pose\\build_deliverables.py",
+      "sha256": "576cad6741d62496f821d544828416cba2d3e8aa71ede6a4a5753edb7aaa4eca"
+    },
+    {
+      "path": "D:\\disc-probe\\docs\\goals\\showcase\\template\\make_rulers.py",
+      "sha256": "ea722fdc4b54221dc2f95084395b4a2ba0d3ab280eec74c87c7a862f53373688"
+    },
+    {
+      "path": "D:\\disc-probe\\docs\\goals\\showcase\\template\\build_1x_labels.py",
+      "sha256": "9c495bb923161e0a89222310f052c6947d899c10ce9293fad9a20162cdd09adb"
+    },
+    {
+      "path": "D:\\disc-probe\\docs\\goals\\iso-cleanup\\recipes\\IMG2654-1x21-H.json",
+      "sha256": "5a8023b1955a0c255e9990a4bae4b40071a3a733833f2c9a363cf3ef35155e61"
+    }
+  ],
+  "chosen": {
+    "height_mm": 206.5,
+    "offset_mm": 28.45,
+    "phone_tilt_deg": 0.0,
+    "tilt_heading_deg": 0.0,
+    "phone_roll_deg": 65.61638674093378,
+    "lens": "main",
+    "camera": [
+      0.0,
+      28.45,
+      206.5
+    ],
+    "flash": [
+      -3.552713678800501e-15,
+      76.3857872575386,
+      206.5
+    ],
+    "R_disc_to_camera": [
+      [
+        0.41284395505338733,
+        -0.9108017724927179,
+        0.0
+      ],
+      [
+        -0.9108017724927179,
+        -0.41284395505338733,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        -1.0
+      ]
+    ],
+    "rotate": 0.0,
+    "lens_key": "main_1"
+  },
+  "framing": {
+    "valid": true,
+    "fits": true,
+    "focused": true,
+    "short_side_fraction": 0.5165455974233759,
+    "disc_bbox_native_px": [
+      3124.067773216577,
+      3124.0677732165777
+    ],
+    "disc_bounds_native_from_principal_px": [
+      [
+        -887.4354320911059,
+        -1256.2550635461027
+      ],
+      [
+        2236.632341125471,
+        1867.812709670475
+      ]
+    ],
+    "centre_distance_mm": 208.4505996633255,
+    "nearest_disc_distance_mm": 206.5,
+    "nearest_axial_depth_mm": 206.5,
+    "frame_native_px": [
+      8064,
+      6048
+    ],
+    "physical_sensor_px": [
+      8064,
+      6048
+    ]
+  }
+}

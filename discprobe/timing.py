@@ -31,6 +31,9 @@ from .scsi import DATA_IN, DATA_NONE
 # too tight.
 CACHE_HIT_US = 3000.0
 CACHE_RATIO = 3.0
+READ_AHEAD_OFFSETS = {"cd": (2, 8, 16, 24, 32, 64), "dvd": (16, 32, 64, 96, 128, 256)}
+READ_AHEAD_STOP = ("The drive keeps answering LBA {lba} from its read-ahead cache. "
+                   "These reads cannot measure a disc angle. Try the same disc in another drive.")
 EVICT_REGION_SECTORS = 32768
 FAR_STEP_SECTORS = 5000
 FAR_COUNTS = (1, 2, 4)      # far reads tried before each timed read on a CD-DA track
@@ -80,6 +83,24 @@ def duration_stats(results) -> dict:
             "failed": sum(1 for r in results if not r.ok)}
 
 
+def read_ahead_hits(pairs, turn_us):
+    """A cache reply is fast, and its completion follows the host instead of the disc."""
+    limit = min(turn_us / 2, max(CACHE_HIT_US, turn_us / CACHE_RATIO))
+    fast = [(ref, target) for ref, target in pairs if ref.status == target.status == 0
+            and target.duration_us < limit]
+    if len(pairs) < 4 or len(fast) * 4 < len(pairs) * 3:
+        return False
+    # A nearby uncached sector may also read quickly. Its completion relative to the
+    # preceding reference stays at the same angle, even when the host pause changes.
+    return _paired_phase_spread(fast, turn_us) > turn_us / 6
+
+
+def _paired_phase_spread(pairs, turn_us):
+    offsets = [(target.t_end_ns - ref.t_end_ns) / 1000 for ref, target in pairs]
+    half = turn_us / 2
+    return max(abs((offset - offsets[0] + half) % turn_us - half) for offset in offsets)
+
+
 class TimingProbe:
     def __init__(self, dev, log=print, read_method: str = "auto", reps: int = 40,
                  period_reads: int = 60, targets=DEFAULT_TARGETS, ref_fraction: float = 0.05,
@@ -93,6 +114,7 @@ class TimingProbe:
         self.audio = False
         self.stop_if_not_cav = stop_if_not_cav
         self._deadline = time.monotonic() + time_limit_s if time_limit_s else None
+        self.coverage_deadline = None
         self._time_limit_s = time_limit_s
         self._medium_errors = 0
         self._loading_reads = 0
@@ -111,6 +133,7 @@ class TimingProbe:
         self.evict_sectors = evict_sectors
         self.events: list[Event] = []
         self.summary: dict = {}
+        self.reserved_lba = []  # append label bands/markers here too; half-open ranges
         self._experiment = ""
         self._evict_cursor = 0
         self.far_count = 1
@@ -121,19 +144,32 @@ class TimingProbe:
     # ------------------------------------------------------------ plumbing
 
     def _cmd(self, cdb: bytes, alloc: int):
-        return self.dev.execute(cdb, alloc, DATA_IN if alloc else DATA_NONE)
+        if self.coverage_deadline is not None and time.monotonic() >= self.coverage_deadline:
+            raise TimeoutError('geometry coverage time limit')
+        from .scsi import execute_probe
+        try:
+            return execute_probe(self.dev, cdb, alloc)
+        except OSError as exc:
+            raise NoReadableDisc(f'{self._experiment or "drive probe"}: {exc}') from exc
 
     def _read(self, lba: int, count: int = 1, fua: bool = False, label: str = ""):
-        if self.method == "readcd":
-            cdb, size = mmc.read_cd(lba, count), 2352 * count
-        elif self.method == "read10":
-            cdb, size = mmc.read10(lba, count, fua), 2048 * count
-        else:
-            cdb, size = mmc.read12(lba, count, fua), 2048 * count
+        if label not in ('disc-identity', 'layout') and (self.reserved_lba or self.summary.get('random_label')) and count:
+            safe = self.safe_ranges([(0, self.last_lba+1)])
+            if not any(a <= lba and lba + count <= b for a,b in safe):
+                # Never move a timed target secretly: its LBA determines phase.
+                raise NoReadableDisc('read intersects reserved LBA ranges or guard')
+        cdb, size = self._read_cdb(lba, count, fua)
         res = self._cmd(cdb, size)
         self._record(label, lba, self.method, fua, res)
         self._watch(res)
         return res
+
+    def _read_cdb(self, lba, count, fua):
+        if self.method == "readcd":
+            return mmc.read_cd(lba, count), 2352 * count
+        if self.method == "read10":
+            return mmc.read10(lba, count, fua), 2048 * count
+        return mmc.read12(lba, count, fua), 2048 * count
 
     def _watch(self, res):
         """Stop early when the disc has gone, reads keep failing or the run overstays its time limit.
@@ -172,13 +208,55 @@ class TimingProbe:
     def _align(self, fraction: float) -> int:
         lba = int(self.last_lba * fraction)
         lba -= lba % self.block
-        return max(0, min(lba, self.last_lba - self.block + 1))
+        return self.safe_lba(max(0, min(lba, self.last_lba - self.block + 1)))
+
+    def safe_ranges(self, ranges, extra_guard=0):
+        from .reserved import exclude_ranges
+        # Label branch can feed this list directly; also accept its summary shape.
+        spec = self.summary.get('random_label') or {}
+        spans = [*self.reserved_lba, *spec.get('avoid_lba', [])]
+        if spec.get('exclude_lba'):
+            spans.append(spec['exclude_lba'])
+        return exclude_ranges(ranges, spans, self.block,
+                              max(3000, self.sectors+self.block+extra_guard))
+
+    def safe_lba(self, lba, count=None):
+        if not self.reserved_lba and not self.summary.get('random_label'):
+            return lba
+        from .reserved import nearest
+        try:
+            return nearest(lba, self.safe_ranges([(0, self.last_lba+1)]), self.block,
+                           self.sectors if count is None else count)
+        except ValueError as exc:
+            raise NoReadableDisc(str(exc)) from exc
+
+    def load_identity_layout(self):
+        if self.audio:
+            return
+        from . import discid
+        # The plain timing simulator has no stored metadata. Preserve its RNG stream.
+        if getattr(self.dev, 'identity_sectors', None) == {}:
+            return
+        def read(lba, count):
+            result = self._read(lba, count, label='disc-identity')
+            if not result.ok:
+                raise OSError('identity sector unreadable')
+            return result.data
+        total = getattr(self, 'identity_total', self.last_lba+1)
+        result = discid.inspect_copies(read, total)
+        # Conservatively reserve every formula slot even on old/unreadable discs.
+        # This avoids calling arbitrary identity bytes random after partial damage.
+        starts = [c['lba'] for c in result['copies']]
+        unit = 32 if self.media == 'bd' else 16
+        self.reserved_lba.extend((x//unit*unit, (x//unit+1)*unit) for x in starts)
+        self.summary['disc_identity'] = result
+        self.summary['reserved_lba'] = list(self.reserved_lba)
 
     def _far_lba(self, lba: int, i: int = 0) -> int:
         """The i-th far sector: a third of the disc away on the side with room, then 5000 sectors
         further apart for each next one, so each lands in a different cache segment."""
         third = self.last_lba // 3 + FAR_STEP_SECTORS * i
-        return lba + third if lba < self.last_lba // 2 else lba - third
+        return self.safe_lba(lba + third if lba < self.last_lba // 2 else lba - third, 1)
 
     def _far_reads(self, lba: int, k: int):
         for i in range(k):
@@ -189,7 +267,7 @@ class TimingProbe:
         start = self._align(0.6)
         done = 0
         while done < self.evict_sectors:
-            lba = start + self._evict_cursor
+            lba = self.safe_lba(start + self._evict_cursor, chunk)
             self._read(lba, chunk, label="evict")
             self._evict_cursor = (self._evict_cursor + chunk) % EVICT_REGION_SECTORS
             done += chunk
@@ -247,14 +325,50 @@ class TimingProbe:
         tracks = mmc.parse_toc(toc.data)["tracks"] if toc.ok else []
         audio = bool(tracks) and not tracks[0]["data"]
         self.audio = audio
+        from .recorded import metadata, check
+        metadata_read = self._cmd
+        if hasattr(self.dev, 'diagnostic_snapshot'):
+            from .scsi import execute_probe
+            snapshot = self.dev.diagnostic_snapshot()
+            metadata_read = lambda cdb, size: execute_probe(snapshot, cdb, size)
+        capacity_report = metadata(metadata_read, capacity=cap, toc=toc)
+        capacity_check = check(capacity_report, metadata_read, audio=audio)
+        if capacity_check['warnings']:
+            self.summary['capacity_check'] = capacity_check
+            raise NoReadableDisc(' '.join(capacity_check['warnings']))
         if self.media == "cd" and self.cd_audio and self.family == "cd" and audio:
             if self.read_method not in ("auto", "readcd"):
                 raise NoReadableDisc("an audio track can only be read with READ CD")
-        elif self.media == "cd" and (self.family != "cd" or audio or self.read_method == "readcd"):
-            raise NoReadableDisc("--media cd requires a CD-ROM Mode 1 data track and READ(12)/READ(10), not READ CD")
+        elif self.media == "cd" and self.family != "cd":
+            raise NoReadableDisc("--media cd was given, but the disc in the drive is not a CD. Leave out --media cd, or put a CD in the drive.")
+        elif self.media == "cd" and audio:
+            raise NoReadableDisc("this CD holds music (an audio track), and only data CDs can be measured. Burn the random-data CD from the same batch (python -m discprobe random --media cd) and measure that.")
+        elif self.media == "cd" and self.read_method == "readcd":
+            raise NoReadableDisc("a data CD is measured with ordinary data reads; leave out --read-method readcd.")
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
         capacity_source = "read capacity" if self.last_lba else None
+        confirmed = capacity_check.get('confirmed_recorded_sectors')
+        if capacity_check.get('open_recorded_sectors') and not confirmed:
+            self.summary['capacity_check'] = capacity_check
+            raise NoReadableDisc('The recorded length of this open disc could not be confirmed: '
+                                 f"{capacity_check.get('end_read')}. Re-read this same disc or try another drive before measuring geometry.")
+        open_disc = capacity_check['sources']['disc_status'] == 'incomplete'
+        if confirmed and ((open_disc and confirmed - 1 != self.last_lba)
+                          or (self.last_lba is not None and confirmed < self.last_lba + 1)):
+            self.last_lba = confirmed - 1
+            capacity_source = 'confirmed track recorded end'
+            self.log(f'开放盘使用已读回确认的记录长度：{confirmed} 扇区。 / '
+                     f'Using the confirmed recorded length of {confirmed} sectors on this open disc.')
+        if self.family == 'dvd' and self.last_lba:
+            # READ CAPACITY can describe the whole medium on an open DVD.
+            # Our pending marker supplies the actual first session's burned end.
+            self.method = 'read10'
+            self.load_layout()
+            layout = self.summary.get('random_label', {})
+            if layout.get('state') == 'pending':
+                self.last_lba = min(self.last_lba, layout['total_sectors'] - 1)
+                capacity_source = 'pending label recorded end'
         if (not self.last_lba or self.last_lba < 1000) and self.family == "bd":
             # An unrecorded BD-R or BD-RE reports a zero capacity, but its spiral is
             # grooved at the factory and the drive will still track and read across
@@ -271,6 +385,11 @@ class TimingProbe:
         self.method = self.read_method
         if self.method == "auto":
             self.method = "readcd" if audio else "read12"
+        spec = self.summary.get('random_label') or {}
+        self.reserved_lba.extend(spec.get('avoid_lba', []))
+        if spec.get('exclude_lba'):
+            self.reserved_lba.append(spec['exclude_lba'])
+        self.load_identity_layout()
         if self.method == "read12":
             res = self._read(self._align(0.5), label="probe")
             # Only a refused command means "try READ(10)"; a medium error says nothing about the opcode.
@@ -291,6 +410,7 @@ class TimingProbe:
                                  "profile_name": mmc.PROFILES.get(profile), "family": self.family,
                                  "block_sectors": self.block, "sectors_per_read": self.sectors, "last_lba": self.last_lba,
                                  "capacity_source": capacity_source,
+                                 "capacity_meaning": "readable recorded length; not geometric total or blank writable capacity",
                                  "first_track_audio": audio, "read_method": self.method}
         self.log(f"Disc: {self.summary['setup']['profile_name']}, last LBA {self.last_lba}, "
                  f"reading with {self.method}")
@@ -300,6 +420,46 @@ class TimingProbe:
         bad = [r for r in warm if not r.ok and r.sense is not None and r.sense.key == 3]
         if len(bad) >= 3:
             raise NoReadableDisc(UNREADABLE_DISC.format(sense=bad[0].sense))
+
+    def load_layout(self):
+        """Read the optional in-band marker when a caller can reach the outer band."""
+        # A simulated image explicitly knows whether it has layout sectors.
+        # Keep the established no-layout timing simulation's reads and noise stream.
+        if getattr(self.dev, 'layout_sectors', None) == {}:
+            return
+        if self.media == "dvd":
+            from .randomlabel import START, END, MARKER_LBA, PENDING_LBA, STOP_SECTORS, read_marker
+            self._experiment = 'layout'
+            pending = None
+            for anchor in (PENDING_LBA, MARKER_LBA, START):
+                if anchor >= self.last_lba + 1:
+                    continue
+                # This runs before a timed-read method is selected during setup.
+                result = self._read(anchor, label='layout')
+                if result.ok:
+                    spec = read_marker(result.data, self.last_lba + 1)
+                    if spec:
+                        if spec.get('marker_lba', START) != anchor:
+                            raise ValueError('random-label marker at wrong address')
+                        if spec.get('state') == 'pending':
+                            pending = spec
+                            self.identity_total = spec['total_sectors']
+                            # Do not probe the unrecorded outer band of the first session.
+                            # After append-and-close the final band marker supersedes this one.
+                            disc = self._cmd(mmc.read_disc_information(), 34)
+                            state = mmc.parse_disc_information(disc.data) if disc.ok else {}
+                            if state.get('disc_status') != 'complete':
+                                self.summary['random_label'] = pending
+                                return
+                        else:
+                            self.summary['random_label'] = spec
+                            return
+                elif anchor != PENDING_LBA and self.last_lba + 1 >= END:
+                    # Unknown edge content must not become a timing target. Default geo
+                    # still ends inside this band, even on an old disc with an unreadable edge.
+                    self.summary["random_label"] = {"exclude_lba": [min(STOP_SECTORS, START), self.last_lba + 1], "unreadable_marker": True}
+            if pending is not None:
+                raise ValueError('closed pending-label disc has no valid appended layout; do not measure its outer area')
 
     def cache_test(self, reads: int = 40):
         self._experiment = "cache"
@@ -353,8 +513,61 @@ class TimingProbe:
         out.update(plain_served_from_cache=plain_cached, fua_reads_media=fua_media,
                    flush_then_read_media=flush_media, strategy=self.strategy)
         self.summary["cache"] = out
+        ahead = self._check_read_ahead(lba, out["plain"]["p50_us"], fua_media)
+        if ahead:
+            out.update(read_ahead_sectors=ahead, strategy=self.strategy)
         self.log("Cache: " + ", ".join(f"{k} p50 {v['p50_us']} us" for k, v in out.items()
                                        if isinstance(v, dict)) + f" -> strategy {self.strategy}")
+        if ahead:
+            self.log(f"The read-ahead cache holds at least {ahead} following sectors. Read strategy is {self.strategy}.")
+
+    def _check_read_ahead(self, lba, turn_us, fua_media):
+        offsets = READ_AHEAD_OFFSETS.get(self.family)
+        if self.strategy != "plain" or self.method == "readcd" or not offsets:
+            return 0
+        from .scsi import execute_probe
+        # The check must not advance the seeded clock, random sequence or fault rules
+        # of a simulated measurement. On hardware these are additional diagnostic reads.
+        snapshot = getattr(self.dev, "diagnostic_snapshot", None)
+        dev = snapshot() if snapshot else self.dev
+        idle = dev.idle if snapshot else time.sleep
+        safe = self.safe_ranges([(0, self.last_lba + 1)])
+        span = -(-self.sectors // self.block) * self.block
+
+        def read(addr, fua=False):
+            cdb, size = self._read_cdb(addr, self.sectors, fua)
+            return execute_probe(dev, cdb, size)
+
+        def pairs(addr, fua=False):
+            readings = []
+            for quarter in range(4):
+                if self._deadline is not None and time.monotonic() >= self._deadline:
+                    break
+                ref = read(lba)
+                if quarter:
+                    idle(quarter * turn_us / 4e6)
+                readings.append((ref, read(addr, fua)))
+            return readings
+
+        window = 0
+        control = None
+        try:
+            for gap in offsets:
+                addr = lba + span - self.block + gap
+                if not any(a <= lba and addr + span <= b for a, b in safe):
+                    break
+                if not read_ahead_hits(pairs(addr), turn_us):
+                    continue
+                window = addr - lba
+                control = addr
+            if control is not None and fua_media:
+                checked = pairs(control, fua=True)
+                if (len(checked) == 4 and all(ref.ok and target.ok for ref, target in checked)
+                        and _paired_phase_spread(checked, turn_us) < turn_us / 8):
+                    self.strategy = "fua"
+        except OSError:
+            pass  # An optional diagnostic read must not replace the normal drive error path.
+        return window
 
     def _cache_test_audio(self, lba: int, n: int, reads: int, out: dict):
         """Cache test on a CD-DA track (geo on a DiscImageStudio picture burn).
@@ -493,23 +706,32 @@ class TimingProbe:
         """Catch a period that is not the spindle. A re-read from the disc takes whole turns on every
         drive so far. Reads served from cache follow the host instead: with a coarse sleep their
         completion times lock to the Windows timer tick (15.625 ms) and its harmonics."""
-        import sys
         periods = [z["period_ms"] for z in zones if "period_ms" in z]
         if not periods:
             return
         T = statistics.median(periods)
-        if sys.platform == "win32" and self.strategy in ("plain", "evict") and any(abs(15.625 / k - T) < 0.15 for k in (1, 2, 3)):
-            self.log("Warning: this period looks like the Windows timer tick (15.625 ms), not the spindle")
+        self.reject_fake_period(T)
         # The cache test runs before the spindle settles, so its FUA time can span two speeds.
         settle = self.summary.get("settle", {})
         fua = settle["read"]["p50_us"] if self.strategy == "fua" and "read" in settle else None
-        if not fua:
+        if not fua or (self.summary.get('period', {}).get('rotation') or {}).get('mode') != 'CAV':
             return
         turns = fua / 1e3 / T
         self.summary["period"]["fua_read_turns"] = round(turns, 3)
         if abs(turns - round(turns)) > 0.1:
-            self.log(f"Warning: a FUA read takes {turns:.2f} turns of this period, not a whole number, "
-                     "so this period may not be the spindle")
+            reason = (f"cache/false period: a FUA read takes {turns:.2f} turns of this period, not a whole number; "
+                      "stop before fitting angles. Reuse this disc and compare cache eviction or another read speed.")
+            self.summary['period']['rejected_reason'] = reason
+            raise NoReadableDisc(reason)
+
+    def reject_fake_period(self, period_ms):
+        import sys
+        if sys.platform == 'win32' and self.strategy in ('plain', 'evict') and any(
+                abs(15.625 / k - period_ms) < .15 for k in (1, 2, 3)):
+            reason = ('cache/host timer period near 15.625 ms or a harmonic; this is not proof of CLV. '
+                      'Stop before fitting angles. Reuse this disc and compare FUA or cache eviction.')
+            self.summary['period_rejected'] = reason
+            raise NoReadableDisc(reason)
 
     def _nominal_key(self) -> str:
         return self.family if self.family in NOMINAL else "dvd"
@@ -554,15 +776,19 @@ class TimingProbe:
         span = -(-max(self.sectors, 1) // self.block) * self.block  # whole blocks the drive reads
         for frac in self.targets:
             x = self._align(frac)
-            ref_times, x_times, x_reads = [], [], []
+            ref_times, x_times, x_reads, pairs = [], [], [], []
             for _ in range(self.reps):
                 r = self._measure(ref, "ref")
                 if self._usable(r):
                     ref_times.append(r.t_end_ns)
                 xr = self._measure(x, "target")
                 x_reads.append(xr)
+                if self.strategy == "plain" and self.media in READ_AHEAD_OFFSETS:
+                    pairs.append((r, xr))
                 if self._usable(xr):
                     x_times.append(xr.t_end_ns)
+            if prior and read_ahead_hits(pairs, prior * 1e6):
+                raise NoReadableDisc(READ_AHEAD_STOP.format(lba=x))
             entry = {"target_fraction": frac, "ref_lba": ref, "target_lba": x, "read_end_lba": x + span,
                      "nominal_turns_between": round(spiral.turns(ref + span, x + span), 2),
                      "target_durations": duration_stats(x_reads)}
@@ -600,6 +826,7 @@ class TimingProbe:
         gc.disable()
         try:
             self.setup()
+            self.load_layout()
             self.cache_test()
             self.settle_spindle()
             self.period_test()
@@ -614,5 +841,5 @@ class TimingProbe:
                 gc.enable()
         return self.summary
 
-    def events_as_rows(self):
-        return [asdict(e) for e in self.events]
+    def events_as_rows(self, start=0):
+        return [asdict(e) for e in self.events[start:]]

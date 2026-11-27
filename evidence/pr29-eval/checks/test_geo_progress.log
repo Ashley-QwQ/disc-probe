@@ -1,0 +1,2 @@
+COMMAND: node tests/test_geo_progress.mjs
+Web progress bounds passed

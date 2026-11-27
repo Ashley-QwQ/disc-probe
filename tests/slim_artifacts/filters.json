@@ -1,0 +1,402 @@
+[
+  {
+    "input": "random64",
+    "function": "gaussian_filter",
+    "sigma": 1,
+    "delta": 3.3306690738754696e-16,
+    "bound": 1.1167752604673684e-13,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "gaussian_filter",
+    "sigma": 1.5,
+    "delta": 3.3306690738754696e-16,
+    "bound": 1.375737639706181e-13,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "gaussian_filter",
+    "sigma": 5,
+    "delta": 1.1102230246251565e-16,
+    "bound": 3.1884742943778943e-13,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "gaussian_filter",
+    "sigma": 6,
+    "delta": 6.938893903907228e-17,
+    "bound": 3.706399052855535e-13,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "gaussian_filter",
+    "sigma": 12,
+    "delta": 3.8163916471489756e-17,
+    "bound": 6.813947603721456e-13,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "gaussian_filter",
+    "sigma": 15,
+    "delta": 4.163336342344337e-17,
+    "bound": 8.367721879154466e-13,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "fftconvolve",
+    "delta": 3.204253100352883e-08,
+    "bound": 3.519792079925537,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "maximum_filter",
+    "size": 3,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "maximum_filter",
+    "size": 11,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "maximum_filter",
+    "size": 31,
+    "passed": true
+  },
+  {
+    "input": "random64",
+    "function": "uniform_filter",
+    "delta": 1.1102230246251565e-15,
+    "bound": 3.2774926122411655e-11,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "gaussian_filter",
+    "sigma": 1,
+    "delta": 0.0,
+    "bound": 1.032762287492541e-06,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "gaussian_filter",
+    "sigma": 1.5,
+    "delta": 0.0,
+    "bound": 1.0327623182712517e-06,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "gaussian_filter",
+    "sigma": 5,
+    "delta": 0.0,
+    "bound": 1.032762533722227e-06,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "gaussian_filter",
+    "sigma": 6,
+    "delta": 0.0,
+    "bound": 1.0327625952796484e-06,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "gaussian_filter",
+    "sigma": 12,
+    "delta": 0.0,
+    "bound": 1.0327629646241773e-06,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "gaussian_filter",
+    "sigma": 15,
+    "delta": 0.0,
+    "bound": 1.0327631492964418e-06,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "fftconvolve",
+    "delta": 8.940696716308594e-08,
+    "bound": 3.476544141769409,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "maximum_filter",
+    "size": 3,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "maximum_filter",
+    "size": 11,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "maximum_filter",
+    "size": 31,
+    "passed": true
+  },
+  {
+    "input": "random32",
+    "function": "uniform_filter",
+    "delta": 8.881784197001252e-16,
+    "bound": 3.895430578446232e-11,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 1,
+    "delta": 0.0,
+    "bound": 2.3841860929962877e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 1.5,
+    "delta": 0.0,
+    "bound": 2.3841861640505613e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 5,
+    "delta": 0.0,
+    "bound": 2.3841866614304763e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 6,
+    "delta": 0.0,
+    "bound": 2.3841868035390235e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 12,
+    "delta": 0.0,
+    "bound": 2.3841876561903064e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 15,
+    "delta": 0.0,
+    "bound": 2.384188082515948e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "fftconvolve",
+    "delta": 1.1920928955078125e-07,
+    "bound": 938.8629760742188,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "maximum_filter",
+    "size": 3,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "maximum_filter",
+    "size": 11,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "maximum_filter",
+    "size": 31,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd1_highpass.jpg",
+    "function": "uniform_filter",
+    "delta": 6.661338147750939e-16,
+    "bound": 1.871836019518014e-10,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 1,
+    "delta": 0.0,
+    "bound": 2.3841860929962877e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 1.5,
+    "delta": 0.0,
+    "bound": 2.3841861640505613e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 5,
+    "delta": 0.0,
+    "bound": 2.3841866614304763e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 6,
+    "delta": 0.0,
+    "bound": 2.3841868035390235e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 12,
+    "delta": 0.0,
+    "bound": 2.3841876561903064e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "gaussian_filter",
+    "sigma": 15,
+    "delta": 0.0,
+    "bound": 2.384188082515948e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "fftconvolve",
+    "delta": 7.450580596923828e-08,
+    "bound": 1126.80615234375,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "maximum_filter",
+    "size": 3,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "maximum_filter",
+    "size": 11,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "maximum_filter",
+    "size": 31,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\scan_dvd2_highpass.jpg",
+    "function": "uniform_filter",
+    "delta": 6.661338147750939e-16,
+    "bound": 1.871836019518014e-10,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "gaussian_filter",
+    "sigma": 1,
+    "delta": 0.0,
+    "bound": 2.3841860929962877e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "gaussian_filter",
+    "sigma": 1.5,
+    "delta": 0.0,
+    "bound": 2.3841861640505613e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "gaussian_filter",
+    "sigma": 5,
+    "delta": 0.0,
+    "bound": 2.3841866614304763e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "gaussian_filter",
+    "sigma": 6,
+    "delta": 0.0,
+    "bound": 2.3841868035390235e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "gaussian_filter",
+    "sigma": 12,
+    "delta": 0.0,
+    "bound": 2.3841876561903064e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "gaussian_filter",
+    "sigma": 15,
+    "delta": 0.0,
+    "bound": 2.384188082515948e-07,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "fftconvolve",
+    "delta": 8.195638656616211e-08,
+    "bound": 532.335693359375,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "maximum_filter",
+    "size": 3,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "maximum_filter",
+    "size": 11,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "maximum_filter",
+    "size": 31,
+    "passed": true
+  },
+  {
+    "input": "D:\\disc-probe\\evidence\\photo-check-fanjzss\\traced_lines.jpg",
+    "function": "uniform_filter",
+    "delta": 6.661338147750939e-16,
+    "bound": 1.2212453270876722e-10,
+    "passed": true
+  }
+]

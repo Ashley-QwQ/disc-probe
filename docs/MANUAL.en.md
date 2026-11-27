@@ -4,6 +4,31 @@ Chinese original: [MANUAL.md](MANUAL.md) (in Chinese).
 
 How each command works, its parameters, outputs and self-test results. For an introduction and quick start, see [README](../README.en.md); for experiment records, see [KNOWLEDGE.md](KNOWLEDGE.md) (in Chinese).
 
+To open the web lobby, double-click `Start (Windows).bat` in the Windows full package, or run `./start-linux.sh` or `bash start-linux.sh` in the Linux full package.
+
+## Disc library and past works
+
+Run these commands from the workspace that holds your `presets`, `results`
+and `works` folders. Add `--json` for machine-readable output.
+
+```text
+disc-probe library list
+disc-probe library show BATCH_ID
+disc-probe library delete BATCH_ID --keep-works
+disc-probe library trash
+disc-probe library restore TRASH_ID
+disc-probe works delete WORK_ID
+disc-probe works list --trash
+disc-probe works restore WORK_ID
+```
+
+Batch deletion moves its calibration records and owned presets into
+`results/.trash`. Use `--with-works` to move dependent works in the same
+operation. Restoring that batch also restores the works moved with it.
+`works delete` moves a single work into `works/.trash`. Add `--permanent` to
+either delete command for irreversible removal. From the web confirmation,
+items always go to the trash and can be restored with Undo.
+
 ## Safety
 
 - Only read commands are sent. A whitelist in `discprobe/scsi.py` rejects any other opcode before it reaches the device, so no write, close-disc or format command can be sent. The self-test checks that WRITE, CLOSE TRACK and FORMAT UNIT are refused.
@@ -81,7 +106,7 @@ Running `python -m discprobe` with no arguments at a terminal opens it too. It p
 - `:` searches all commands: type a few letters to filter, Enter shows the options, `r` runs, `c` copies. `?` shows every key.
 - The `image` step is a form: drop a picture into the window or type a path, and Tab completes it; the output ISO and `--geo` can be changed too.
 - `m` switches between DVD, CD and Blu-ray, `l` switches language; the language is passed on to the commands you run next. `--media` picks the starting disc type and `--out` the results folder.
-- The first run greets you on the console home screen and offers the walkthrough once; if you accept, it pauses before the full screen opens. After `q` the checklist, your progress and the completion hint stay on screen, so the packaged Start.bat window is not blank.
+- The first run greets you on the console home screen and offers the walkthrough once; if you accept, it pauses before the full screen opens. After `q` the checklist, your progress and the completion hint stay on screen.
 - Burning follows the operating system: right-click the ISO on Windows, or use `cdrdao`/`growisofs` with the matching toc on Linux. On Blu-ray the picture and burn steps repeat `guide`'s caution about shape versus scale before offering `image --media bd`.
 - A terminal without keys falls back to a numbered menu; `menu` in a pipe, a redirect or with `DISCPROBE_PLAIN=1` prints the text steps. A no-argument non-terminal call still reports the missing command, so scripts should name `guide` or `menu`.
 
@@ -206,7 +231,7 @@ The progress line has a small turning disc, and a rainbow highlight sweeps over 
 
 Nothing is drawn if stdout is not a terminal or `TERM=dumb`.
 
-**Common errors.** If numpy, scipy or Pillow is missing, an install command is printed. A missing `--geo` file or a file that is not a `geo` result, an invalid `--ranges` format or a `--drive` that cannot be opened now gets a one-line explanation, still with exit code 1; parameter errors still use exit code 2.
+**Common errors.** If numpy or Pillow is missing, an install command is printed. A missing `--geo` file or a file that is not a `geo` result, an invalid `--ranges` format or a `--drive` that cannot be opened now gets a one-line explanation, still with exit code 1; parameter errors still use exit code 2.
 
 ## What `info` reads
 
@@ -471,7 +496,7 @@ The synthetic disc's true geometry: r0 23.95 mm, track pitch 0.7365 µm, bit len
 
 ## Measuring geometry from timing: the "ladder" (`geo`)
 
-Have the drive measure the spiral geometry of a burned disc directly, without a scan.
+Have the drive measure the spiral geometry of a burned disc directly, without a scan. At each rung, `geo` corrects target phases using the neighbouring reference reads, then clips about the median. The window extends four scaled median absolute deviations (scale 1.4826) on either side, with a minimum of 1.5°. This reduces the effect of occasional late reads. WindowsNoEditor contributed the clipping method and the offline replay tool in PR #29. Run `python tools/geo_reanalyse.py <result-folder>` to compare the two fits on a saved measurement.
 
 ### How it works
 
@@ -495,7 +520,24 @@ python -m discprobe geo --drive H:
 ```
 
 - Before measuring, it compares the rotation at the inner and outer parts of the disc. If the drive is in CLV, it stops within seconds and says why, instead of spending a long time on a few useless points. Setting a speed can take some drives out of constant rotation until the disc is reloaded. If that happens, reload the disc, check that `timing` says CAV, then use `--speed keep`, which sends no speed command and leaves the drive as it is.
-- By default it measures 3% to 85% of the burned area, with the read speed fixed at 4x (`--speed 5540`). This GH70N changes rotation speed beyond about 53 mm in the outer area, so the default avoids it.
+- By default the DVD and data-CD ladder starts in the 1% to 98% band of the
+  recorded area. On DVD it looks for random data. After the usual rungs, it
+  checks that the default picture and preset radii are covered. It can spend up
+  to 12 extra rung attempts or 120 seconds on missing radii. A partial result
+  lists the gaps in millimetres.
+- Keep the same measurement disc in the same drive to continue a constant-pitch
+  ladder. Use **Measure missing radii** in the calibration result, or run
+  `geo --drive H: --resume results/geo-H-...`. It checks saved points before
+  combining the old and new measurements and writes a new result folder.
+- The DVD and CD angle ladder saves `events.csv` and `targets.csv` after each
+  accepted rung, including during `calibrate`. If the process is killed, the
+  run folder keeps `partial.json` with the last saved rung and time. Pass that
+  folder to `geo --resume` to continue on the same disc and drive. For CD,
+  include `--media cd`. With at
+  least three saved rungs, `geo --reapply RUN --out NEW` can refit those rungs
+  offline. The refit retains its interrupted status.
+- `geo --json` streams progress and measured rungs as JSON lines on standard
+  output. The existing human-readable log goes to standard error in this mode.
 - To use only the random-data rings on a texture ring disc:
 
   ```bash
@@ -513,10 +555,47 @@ python -m discprobe geo --drive H:
 - **The whole-turn problem.** With FUA, each reread always takes a whole number of turns, so you must wait a random 0 to 25 ms (`--host-delay-ms`) before each read. Otherwise, only a total duration of "a few turns" can be measured. This behaviour has been added to the simulator (`reread_delay_ms`).
 - **Rotation speed.** With the read speed fixed at 4x, after about 30 s to stabilise, the rotation speed is 2831 rpm (21.195 ms per turn), unchanged over 26 to 47 mm.
 - **Precision.** In random-data areas, the phase standard deviation for one reading is 0.43 to 0.55°, or ±0.07 to 0.09° after averaging 40 readings.
-- **Self-test.** On the simulator, a 14-rung ladder gives about 1° of angle error over 0 to 85% of the disc, consistent with the reported 1σ.
+- **Self-test.** Low-noise simulations check the angle error on plain and texture-ring discs, agreement with whole-ECC-block reads, and bias in the measured rung phases. A separate check exercises clipping with synthetic late reads.
 - **Real disc.** A 21-rung run on the 3 random-data rings of a texture ring disc (33.6 to 45.8 mm) gave a residual rms of 0.096°, a constant c = −0.009° and 1σ of 0.13° within the measured range. See [KNOWLEDGE.md](KNOWLEDGE.md) (in Chinese).
 
 ## Burning pictures, textures and colour
+
+For **Colour picture** in the web editor or `colour-design`, use a PNG or JPEG
+with clear shapes and large colour areas. Keep the embedded ICC profile when
+exporting from Display P3, Adobe RGB or Rec.2020. Import converts to sRGB
+and names the profile it used. Tagged 16-bit PNGs keep their source precision
+through conversion for RGB matrix and tone-curve profiles and for greyscale
+tone-curve profiles.
+An unreadable or unsupported profile triggers a notice and sRGB fallback.
+Untagged pictures are read as sRGB. See [Make a colour DVD](colour.md).
+
+In the editor, open **Download template** and choose a grid pitch. The ZIP has
+a transparent drawing canvas and a separate guide PNG for the current batch
+and camera/light position. Open the canvas, add the guide above it at its
+original size and draw on a new layer. Hide the guide before exporting a
+transparent PNG. Keep the full square and its original resolution. Use
+**Import template artwork** if your drawing app drops the DPI metadata.
+
+| Grid pitch | Canvas | DPI |
+| --- | ---: | ---: |
+| 5 µm | 24,000 × 24,000 px | 5,080 |
+| 10 µm | 12,000 × 12,000 px | 2,540 |
+| 20 µm | 6,000 × 6,000 px | 1,270 |
+
+One open 5 µm RGBA layer uses about 2.15 GiB before drawing-app overhead.
+The same files are available offline with the batch's geometry or preset.
+
+```powershell
+python -m discprobe template --geo <summary.json> --grid 10 --batch <MID> --out disc-template
+```
+
+Before writing, `burn` checks for a writable disc with enough space. It compares
+the inserted disc's maker code (MID) to the saved work batch or, if that MID is
+unavailable, to the measurement used to make the image. If the codes differ,
+insert a blank from the calibrated batch or calibrate the new batch first.
+`--allow-other-batch` confirms you want to continue anyway, with a risk that the
+picture will be misaligned. For an older ISO without its calibration record,
+you can supply `--expected-mid` explicitly.
 
 Once the geometry has been measured from timing, it can be used directly to generate a burnable ISO (Windows Disc Image Burner can burn it), without taking photos or tracing points. Photos of the finished discs are in [`showcase/`](showcase/README.md).
 
@@ -536,6 +615,24 @@ Once the geometry has been measured from timing, it can be used directly to gene
 - `discprobe/tilephoto.py`: reads phone photos. It uses the disc-edge ellipse and the image of the disc centre to find the vanishing line, fits a homography, then checks it against the numbers. `tools/flash_lut_tiles.py` calculates the camera position from flash photos and builds a lookup table of "texture × viewing geometry → colour".
 
 **Viewing advice:** The rainbow "pizza slices" are diffraction from the factory groove. View near the specular direction of a small, bright light source (with the light right next to your eye or camera), and the picture is visible across the whole disc. See [`KNOWLEDGE.md`](KNOWLEDGE.md) (in Chinese) §10 to §10f.
+
+### DVD starter preset
+
+[中文步骤](starter-preset.zh.md)
+
+Insert a blank DVD from the new batch and run `python -m discprobe starter --drive H:`.
+Select a listed source explicitly with `--source ID`. The same local drive and MID
+are listed first. Other machines of the same model and community sources are
+marked unverified for cross-machine and cross-batch reuse. The web calibration
+page leaves the measurement-disc option selected by default.
+
+1. Use `checkdisc --geo <starter.json> --output iso/check.iso` to make the check disc.
+2. Burn it with `burn --drive H: --media dvd --iso iso/check.iso --yes-write`.
+   After verified read-back, write the printed check-disc number on the disc.
+3. Take photos from at least two distinct poses. Run `photo --media dvd --run <starter folder>
+   --disc-id <check-disc number> --photos one.jpg two.jpg three.jpg`.
+4. When the photos pass, use `image --geo <starter.json>` with artwork within
+   26.2–57.0 mm. If the photos fail, return to measuring a random-data disc from the batch.
 
 ## CD-R: textures, timing and burning pictures
 
@@ -675,3 +772,39 @@ python -m discprobe cdprobe --sectors 359849 --radii 24.9118 57.9317
 CD `tiles` use `0D`/`AA` as the number references, while `tilescan` and `tilephoto` reuse the original number and geometry processing. For CD, the historical field name `levels_a5_0_92_1` in the analysis output means `0D=0 / AA=1` for the numbers. Repeated sequences such as `0DAA` and `00FF` are candidates to test; they do not guarantee that the drive produces a fixed period along the whole track. CD groove diffraction is closer to the specular direction. For photos, use a small light source with an angular size below 10°, and fix the viewing geometry first.
 
 Run `python -m discprobe selftest` to check scrambling, forward and inverse CIRC mapping, independent reverse reconstruction, corruption detection, the simulated ladder, synthetic scans and 3T to 11T / DSV consistency with the reference EFM. Software validation data is in [`evidence/cd-support/`](../evidence/cd-support/selftest-final.txt) and [`evidence/cd-support-20261104/`](../evidence/cd-support-20261104/validation.json). Real measurement results are in [`KNOWLEDGE.md`](KNOWLEDGE.md) (in Chinese) §12.
+
+
+### DVD drive read-completion offset
+
+`geo` looks up the exact INQUIRY vendor, product and firmware in `presets/drives.json`,
+and prints the entry used. GH70N NYA2 uses 0 (burned-grid evidence); GUE0N T.02 uses 16
+(the reporter's scan and corrected burn in issue #33). Unknown drives default to 0;
+that default is a convention, not a measurement. `--completion-sectors N` overrides it.
+A positive value means completion after the end of the containing ECC block.
+
+Both commands below work without opening a drive:
+
+```powershell
+python -m discprobe geo --reapply results/geo-run --completion-sectors 16 --out results/geo-run-offset16
+python -m discprobe disexport --geo results/geo-run --completion-sectors 16 --sectors 2297888 --output offset16-preset.json
+```
+
+The refit writes a new folder, leaving inputs untouched. Without an explicit value,
+it uses the drive registry if matched, otherwise the stored value. It reports whether
+it replayed events and refitted accepted rungs, refitted the saved targets, or used
+the closed-form correction because only a fit was available. Input hashes are saved.
+The number is an absolute convention: applying 16 twice does not subtract twice.
+
+Nonzero values are saved in `fit.completion_sectors`. An absent field means zero;
+zero stays omitted to preserve the bytes of existing results. Exports use the stored
+value by default and do not consult the current drive. The calibration preset and
+web flow share this path; `calibrate` and the web task API also accept the override.
+`tools/geo_polyfit.py` retains the value and refuses to merge different conventions.
+CD keeps its separate byte/frame options.
+
+Relative completion phases cannot distinguish a constant offset of 0 from 16: a
+change in `u` absorbs it exactly, including reads across ECC boundaries. There is
+no automatic fixed-offset detector; an unknown drive needs an independent scan,
+burn check or physical position reference. MCC 02RG20's blank capacity is 2,297,888
+sectors; the reporter's 2,295,104 sectors describe the image, not the whole blank.
+Source: [issue #33](https://github.com/Ashley-QwQ/disc-probe/issues/33).

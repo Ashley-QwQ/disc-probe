@@ -1,0 +1,2510 @@
+"""Local workflow API. Commands are argv lists; hardware access only follows /api/run.
+
+Events and answers are JSONL files in a private per-job directory. The service never
+infers that a saved info report proves the disc currently in a drive is blank.
+"""
+from __future__ import annotations
+
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
+import hashlib
+import hmac
+import ipaddress
+import json
+import math
+import mimetypes
+import os
+from pathlib import Path
+import re
+import secrets
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import CookieError, SimpleCookie
+from urllib.parse import parse_qs, quote, unquote, urlsplit
+
+from . import api, burn_gate, disc_identity, guide, i18n, image_output, mmc, webui_catalog
+from .drive_lock import DriveBusy, drive_locks, require_available
+from .web_instance import DEFAULT_PORT, _task_text
+
+
+def version():
+    """The installed release identity, also available outside a checkout."""
+    return "v" + api.version_payload()["core_version"]
+
+ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "erase", "swap", "calibrate", "photo", "curve-edit", "starter"}
+DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "erase", "swap", "calibrate", "starter"}
+# Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
+OPTIONS = {
+    "curve-edit": {"run": "path", "edit_json": "curve_document", "save": "flag"},
+    "info": {},
+    "starter": {"source": "starter_source"},
+    "swap": {"minutes": "minutes"},       # read-only: TEST UNIT READY while the disc is changed
+    "timing": {"speed": "speed", "reps": "count", "period_reads": "count", "max_minutes": "minutes"},
+    "geo": {"speed": "speed", "reps": "count", "max_targets": "count", "bd_zones": "count",
+            "completion_sectors": "completion_sectors"},
+    "random": {"sectors": "sectors", "seed": "seed", "output": "path"},
+    "checkdisc": {"geo": "geo", "output": "path", "sectors": "sectors"},
+    "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
+              "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
+              "dark": "texture", "light": "texture", "textures": "texture_list",
+              "no_photo_l": "flag", "reading_drive": "device_id",
+              "files": "source_folder", "files_at": "files_at", "files_margin": "files_margin", "writable_sectors": "sectors",
+              "files_plan_sha256": "files_plan_sha256"},
+    "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius",
+                  "photo": "path", "reading_drive": "device_id", "completion_sectors": "completion_sectors"},
+    "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
+    "erase": {"full": "flag"},
+    "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag", "erase": "flag"},
+    # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
+    "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
+                  "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors",
+                  "erase": "flag", "resume": "path"},
+    "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo",
+              "burner": "photo", "burn_path": "photo", "burn_mode": "photo", "disc_id": "photo",
+              "burn_record": "photo"},
+}
+DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
+# Works completion links for the existing image and burn-file jobs.
+for _work_action in ("image", "burn", "calibrate", "checkdisc"):
+    OPTIONS[_work_action].update(work="work", disc_code="disc_code")
+OPTIONS["burn"].update(expected_mid="burn_mid", confirmed_mid="burn_mid")
+OPTIONS["calibrate"].update(confirmed_mid="burn_mid")
+# a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
+DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
+# An editor work as the design page sends it to /api/compose: up to 16 layers of RGBA (2048 px a side at most)
+# in base64. Three photos are already over 64 MB; 16 full-size layers are about 360 MB.
+COMPOSE_BYTES = 384 * 1024 * 1024
+# Bound the work done before authentication. Keep loopback slots available to the desktop.
+HEADER_SECONDS = 3
+HEADER_CONNECTIONS = 24
+HEADER_LOCAL_RESERVE = 8
+BURN_TOKEN_SECONDS = 30
+FILES_TOKEN_SECONDS = 15 * 60
+MAX_PENDING_PERMITS = 128
+LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
+          "minutes": (0.1, 120), "diameter": (1, 120), "radius": (1, 58),
+          "frames": (-10000, 10000), "size": (64, 8192), "completion_sectors": (-65536, 65536)}
+
+
+# escapes in a job's output: SGR (colour) ones, and the rest (OSC titles and taskbar progress, cursor moves)
+SGR = re.compile(r"\x1b\[[0-9;]*m")
+NOT_SGR = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[A-Za-ln-z]|\x1b[()][A-Za-z0-9]|\x1b[=>78]")
+
+
+class APIError(ValueError):
+    def __init__(self, message, status=400, *, code=None, gate=None):
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.gate = gate
+
+
+def burn_refusal(gate):
+    return APIError(gate['en'], 409, code=gate['code'], gate=gate)
+
+
+@dataclass(frozen=True)
+class Permit:
+    expires: float
+    binding: tuple
+
+
+@dataclass(frozen=True)
+class BurnTarget:
+    action: str
+    drive: str
+    media: str
+    image: tuple[Path, int, int] | None = None
+    full_erase: bool = False
+    work: str | None = None
+    expected_mid: str | None = None
+    confirmed_mid: str | None = None
+
+    @property
+    def erasing(self):
+        return self.action == "erase" or self.action.endswith("+erase")
+
+
+def issue_permit(permits, binding, seconds):
+    """Called with the backend lock held."""
+    now = time.monotonic()
+    for token in [token for token, permit in permits.items() if permit.expires <= now]:
+        del permits[token]
+    if len(permits) >= MAX_PENDING_PERMITS:
+        del permits[next(iter(permits))]
+    token = secrets.token_urlsafe(32)
+    permits[token] = Permit(now + seconds, binding)
+    return token
+
+
+def take_permit(permits, token, error):
+    permit = permits.pop(token, None) if isinstance(token, str) else None
+    if not permit or permit.expires <= time.monotonic():
+        raise APIError(error, 403)
+    return permit.binding
+
+
+def burn_action(payload):
+    action, args = payload["action"], payload.get("args", {})
+    if action == "erase":
+        return "erase"
+    if action == "calibrate" and args.get("iso"):
+        action = "calibrate+iso"
+    if action in ("burn", "calibrate+iso"):
+        return action + ("+erase" if args.get("erase") is True else "")
+    return None
+
+
+def files_binding(layout):
+    return (layout["folder"], layout["source_sha256"])
+
+
+def drive_available(drive):
+    try:
+        require_available(drive)
+    except DriveBusy as exc:
+        raise APIError(str(exc), 409, code=exc.code) from exc
+
+
+def local_path(root: Path, value: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > 1024 or "\x00" in value:
+        raise APIError("invalid path")
+    path = (root / value).resolve()
+    if not path.is_relative_to(root) or path == root or path.name.startswith("-"):
+        raise APIError("path must stay inside the workspace")
+    return str(path)
+
+
+def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
+    if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args", "burn_token", "files_token", "work"}:
+        raise APIError("invalid run request")
+    action, media = payload.get("action"), payload.get("media", "dvd")
+    if not isinstance(action, str) or action not in ACTIONS:
+        raise APIError("action is not allowed")
+    if media not in ("dvd", "cd", "bd"):
+        raise APIError("invalid media")
+    if action == "checkdisc" and media != "dvd":
+        raise APIError("The check disc is for DVD only; CD and Blu-ray are not supported yet.")
+    if action == "starter" and media != "dvd":
+        raise APIError("Starter presets are for DVD only.")
+    if action in ("image", "cdprobe") and media == "bd":
+        raise APIError("this action has no Blu-ray path")
+    if action == "cdprobe" and media != "cd":
+        raise APIError("cdprobe requires cd media")
+    if action == "calibrate" and media == "bd":
+        raise APIError("this action has no Blu-ray path")
+    drive = payload.get("drive")
+    if drive is not None and (not isinstance(drive, str) or drive not in [d["id"] for d in drives]):
+        raise APIError("unknown drive")
+    if action in DRIVE_ACTIONS and not drive:
+        raise APIError("drive is required")
+    args = payload.get("args", {})
+    # Work links are IDs, never paths or arbitrary command flags.
+    if payload.get("work") is not None:
+        if not isinstance(args, dict) or ("work" in args and args["work"] != payload["work"]):
+            raise APIError("invalid work id")
+        args = dict(args, work=payload["work"])
+    if not isinstance(args, dict) or set(args) - OPTIONS[action].keys():
+        raise APIError("argument is not allowed")
+    # -P: the workspace (the child's cwd) is not put in front of the import path, so a checkout of
+    # another version there cannot stand in for this one (PYTHONPATH, set in start(), names this copy)
+    argv = [sys.executable, *(["-P"] if sys.version_info >= (3, 11) else []), "-m", "discprobe", action]
+    if action == "photo":
+        # Photo ids are resolved by Backend against its configured results folder.
+        if drive is not None:
+            raise APIError("photo does not use a drive")
+        return argv, None
+    if action == "curve-edit" and (drive is not None or not args.get("run") or args.get("save") and not args.get("edit_json")):
+        raise APIError("curve-edit needs a run, no drive, and an edit when saving")
+    if action in DRIVE_ACTIONS:
+        argv += ["--drive", drive]
+    if action in {"timing", "geo", "random", "image", "disexport", "calibrate"}:
+        argv += ["--media", media]
+    for name, value in args.items():
+        if value is None:
+            continue
+        rule = OPTIONS[action][name]
+        if rule == "curve_document":
+            if not isinstance(value, dict):
+                raise APIError("edit_json must be a curve-edit object")
+            try:
+                value = json.dumps(value, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
+            except (ValueError, TypeError):
+                raise APIError("invalid curve-edit JSON") from None
+            if len(value) > 24000:
+                raise APIError("curve-edit document is too large")
+            argv += ["--edit-json", value]
+            continue
+        if rule == "work":
+            from .works import valid_id, WorkError
+            try:
+                value = valid_id(value)
+            except WorkError as exc:
+                raise APIError(str(exc)) from exc
+            argv += ["--work", value]
+            continue
+        elif rule == "disc_code":
+            if not isinstance(value, str) or not 1 <= len(value) <= 128 or any(ord(c) < 32 for c in value):
+                raise APIError("invalid disc code")
+            argv += ["--disc-code", value]
+            continue
+        elif rule == "radius_bands":
+            from .calibrate import _avoid_band
+            import argparse
+            if not isinstance(value, list) or len(value) > 1000:
+                raise APIError("invalid " + name)
+            for band in value:
+                if not isinstance(band, str) or len(band) > 100:
+                    raise APIError("invalid " + name)
+                try:
+                    _avoid_band(band)
+                except argparse.ArgumentTypeError:
+                    raise APIError("invalid " + name) from None
+                argv += ["--avoid-mm", band]
+            continue
+        if rule == "texture_list":
+            if not isinstance(value, list) or not 1 <= len(value) <= 256:
+                raise APIError("纹理列表必须有 1–256 项。 / The texture list must have 1–256 entries.")
+            for slot, spec in enumerate(value, 1):
+                if not isinstance(spec, str) or (spec != "RND" and not re.fullmatch(r"(?:[0-9A-Fa-f]{2}){1,128}", spec)):
+                    raise APIError(f"第 {slot} 项纹理无效：请用 RND 或 1–128 个十六进制字节。 / "
+                                   f"Invalid texture at entry {slot}: use RND or 1–128 hexadecimal bytes.",
+                                   code="invalid_texture")
+            argv += ["--textures", *value]
+            continue
+        if rule == "flag":
+            if type(value) is not bool:
+                raise APIError("invalid " + name)
+            if value:
+                argv += ["--" + name.replace("_", "-")]
+            continue
+        if rule == 'source_folder':
+            from .discfiles_api import source_folder
+            if media != 'dvd':
+                raise APIError('随盘文件目前只支持 DVD±R 单层')
+            try:
+                value = source_folder(value)
+            except ValueError as exc:
+                raise APIError(str(exc)) from exc
+        elif rule == 'files_plan_sha256':
+            if not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}',value):
+                raise APIError('invalid files layout hash')
+        elif rule == 'files_at':
+            if value not in ('inner', 'outer'):
+                raise APIError('invalid file placement')
+        elif rule == 'files_margin':
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value < 1:
+                raise APIError('invalid files margin')
+        elif rule in ("path", "geo"):
+            value = "latest" if rule == "geo" and value == "latest" else local_path(root, value)
+        elif rule == "cd_layout":
+            if value not in ("mode2form1", "mode1"):
+                raise APIError("invalid CD sector layout")
+        elif rule == "burn_speed":
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= 56:
+                raise APIError("invalid write speed (multiples of 1x)")
+        elif rule == "speed":
+            if action == "geo" and value == "keep":
+                pass
+            elif type(value) is int and 1 <= value <= 65535:
+                pass
+            elif isinstance(value, str) and re.fullmatch(r"(?:[1-9]|[1-4][0-9]|5[0-6])x", value):
+                pass
+            else:
+                raise APIError("invalid speed")
+        elif rule in ("mid", "burn_mid"):
+            if not isinstance(value, str) or not re.fullmatch(r"[\x20-\x7e]{1,64}", value):
+                raise APIError("invalid " + name)
+            if rule == "burn_mid":
+                continue  # The server binds these to the checked medium before starting the CLI.
+        elif rule == "starter_source":
+            if not isinstance(value, str) or not re.fullmatch(r"(?:geo|community):[A-Za-z0-9_-]{1,100}", value):
+                raise APIError("invalid starter source")
+        elif rule == "device_id":
+            if not isinstance(value, str) or not 1 <= len(value) <= 200 or any(ord(c) < 32 for c in value):
+                raise APIError("invalid " + name)
+        elif rule == "texture":
+            if not isinstance(value, str) or not re.fullmatch(r"[0-9A-Fa-f]{2}", value):
+                raise APIError("invalid " + name)
+        else:
+            lo, hi = LIMITS[rule]
+            integer = rule in ("count", "sectors", "seed", "size", "completion_sectors")
+            if rule == 'completion_sectors' and media != 'dvd':
+                raise APIError('--completion-sectors is for DVD')
+            if (type(value) not in (int, float) or (integer and type(value) is not int)
+                    or not lo <= value <= hi or not math.isfinite(value)):
+                raise APIError("invalid " + name)
+        argv += ["--" + name.replace("_", "-"), str(value)]
+    if action == "disexport" and args.get("r_min") is not None and args.get("r_max") is not None:
+        if args["r_min"] >= args["r_max"]:
+            raise APIError("r_min must be less than r_max")
+    for name in {"image": ("geo",), "checkdisc": ("geo",), "disexport": ("geo", "sectors"), "cdprobe": ("sectors",)}.get(action, ()):
+        if args.get(name) is None:
+            raise APIError(name + " is required")
+    if action == "disexport" and re.fullmatch(r"calibration-\d+\.json", Path(args.get("output") or "").name):
+        folder = Path(local_path(root, args["geo"]))
+        if folder.name == "summary.json":
+            folder = folder.parent
+        match = guide.RESULT_DIR.fullmatch(folder.name)
+        if not match or match["kind"] != "geo":
+            raise APIError("a saved geometry run is required")
+        run = guide.Result(str(folder), "geo", match["tag"], match["stamp"])
+        if webui_catalog.calibration_issue(run, webui_catalog.calibration_record(run), full=True):
+            raise APIError("calibration did not pass; complete the measurement before saving a preset")
+    if sum(bool(args.get(name)) for name in ("picture", "design", "design_npy")) > 1:
+        raise APIError("choose picture or design")
+    if action == "disexport" and (args.get("photo") is not None or args.get("reading_drive") is not None):
+        # calibrate's drive-free export mode provides explicit photo selection;
+        # the legacy disexport CLI also discovers a same-run photo automatically.
+        if not args.get("output"):
+            raise APIError("output is required when saving a photo result")
+        start = argv.index("disexport")
+        argv[start] = "calibrate"
+        for index in range(start + 1, len(argv), 2):
+            argv[index] = {"--output": "--preset", "--reading-drive": "--drive"}.get(argv[index], argv[index])
+    if action == "image" and drive is not None and not args.get("reading_drive"):
+        argv += ["--reading-drive", drive]
+    return argv, drive
+
+
+class Child:
+    """Own one process tree: a Windows job object or a POSIX session."""
+    def __init__(self, argv, *, env, cwd, stdout):
+        self.lock = threading.Lock()
+        self.handle = None
+        flags = subprocess.CREATE_NO_WINDOW | 4 if os.name == "nt" else 0  # suspended until owned
+        self.process = subprocess.Popen(argv, env=env, cwd=cwd, stdin=subprocess.DEVNULL,
+                                        stdout=stdout, stderr=subprocess.STDOUT,
+                                        creationflags=flags, start_new_session=os.name != "nt")
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+            k = ctypes.WinDLL("kernel32", use_last_error=True)
+            k.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+            k.CreateJobObjectW.restype = wintypes.HANDLE
+            k.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+            k.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+            class Accounting(ctypes.Structure):
+                _fields_ = [(name, ctypes.c_longlong) for name in
+                            ("user", "kernel", "period_user", "period_kernel")] + [
+                                (name, wintypes.DWORD) for name in
+                                ("faults", "total", "active", "terminated")]
+            k.QueryInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int,
+                                                    ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p]
+            self.accounting = Accounting
+            k.CloseHandle.argtypes = [wintypes.HANDLE]
+            self.kernel = k
+            self.handle = k.CreateJobObjectW(None, None)
+            if not self.handle or not k.AssignProcessToJobObject(self.handle, int(self.process._handle)):
+                self.process.kill()
+                self.process.wait()
+                if self.handle:
+                    k.CloseHandle(self.handle)
+                raise OSError("could not own the child process tree")
+            resume = ctypes.WinDLL("ntdll").NtResumeProcess
+            resume.argtypes = [wintypes.HANDLE]
+            if resume(int(self.process._handle)) != 0:
+                self.cancel()
+                raise OSError("could not resume the child process")
+
+    def wait(self):
+        return self.process.wait()
+
+    def cancel(self):
+        with self.lock:
+            if os.name == "nt":
+                if self.handle:
+                    self.kernel.TerminateJobObject(self.handle, 1)
+                    # TerminateJobObject is asynchronous. Wait for descendants too:
+                    # they can still hold output files after the main process exits.
+                    import ctypes
+                    counts = self.accounting()
+                    deadline = time.monotonic() + 5
+                    while time.monotonic() < deadline:
+                        if not self.kernel.QueryInformationJobObject(
+                                self.handle, 1, ctypes.byref(counts), ctypes.sizeof(counts), None):
+                            raise OSError("could not query the child process tree")
+                        if not counts.active:
+                            break
+                        time.sleep(0.01)
+                    else:
+                        raise OSError("child process tree did not stop")
+            else:
+                try:
+                    os.killpg(self.process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+    def close(self):
+        # Descendants must not outlive their job, even if its main process has exited.
+        self.cancel()
+        with self.lock:
+            if self.handle:
+                self.kernel.CloseHandle(self.handle)
+                self.handle = None
+
+
+class Job:
+    def __init__(self, ident, drive, folder):
+        self.id, self.drive, self.folder = ident, drive, folder
+        self.events = folder / "events.jsonl"
+        self.answers = folder / "answers.jsonl"
+        self.output = folder / "output.log"
+        self.events.touch()
+        self.output_offset = 0
+        self.levels = {}    # text -> level of a log event, waiting for the same line on stdout
+        self.child = None
+        self.finished = threading.Event()
+        self.exit = None
+        self.offset = 0
+        self.history = []
+        self.action = None
+        self.writes_drive = False
+        self.args = {}
+        self.argv = []
+        self.disc = {}
+        self.media = "dvd"
+        self.result = None
+        self.before = set()
+        self.progress = None
+        self.measurement_phase = None
+        self.geo_rung = None
+        self.asks = {}
+        self.started_at = time.time()
+        self.finished_at = None
+        self.cancellation = None
+        self.result_seen = False
+
+    def read(self):
+        if self.cancellation is None:
+            try:
+                self.cancellation = json.loads((self.folder / 'user-cancel.json').read_text(encoding='utf-8'))
+                self.history.append(self.cancellation)
+            except FileNotFoundError:
+                pass
+        # Only consume complete lines; the child may still be appending one. A job folder that is gone
+        # (cleaned up by hand) has nothing more to say; it must not stop the event stream for every page.
+        try:
+            stream = self.events.open("rb")
+        except FileNotFoundError:
+            return
+        with stream:
+            stream.seek(self.offset)
+            while True:
+                line = stream.readline()
+                if not line.endswith(b"\n"):
+                    break
+                self.offset = stream.tell()
+                try:
+                    event = json.loads(line)
+                except (ValueError, UnicodeError):
+                    continue
+                if not isinstance(event, dict) or not isinstance(event.get("type"), str):
+                    continue
+                event["job"] = self.id
+                if event["type"] == "burn_result" and getattr(self, "action", None) in {"burn", "calibrate"}:
+                    # The core selected these adapters for this actual write. Do not
+                    # infer a burn path from a later geometry read or an external command.
+                    event["burner"] = self.drive
+                    event["burn_path"] = ("IMAPI" if sys.platform == "win32" else
+                                          ("cdrdao" if self.media == "cd" else "growisofs")
+                                          if sys.platform.startswith("linux") else None)
+                    event["burn_mode"] = ((getattr(self, "args", {}).get("cd_sector") or "mode2form1")
+                                          if self.media == "cd" else "2048-byte data sectors")
+                    # calibrate invokes the burn CLI with its default CD layout.
+                    # Neither adapter reports the drive's physical interleave.
+                    event["burn_mode"] += "; physical interleave unknown"
+                if event["type"] == "progress":
+                    self.progress = event
+                elif event["type"] == "step":
+                    self.measurement_phase = event.get("name")
+                    self.progress = self.geo_rung = None
+                elif event["type"] == "geo_point":
+                    self.geo_rung = event.get("rung")
+                elif event["type"] == "ask" and isinstance(event.get("id"), str):
+                    self.asks[event["id"]] = event
+                elif event["type"] == "answer":
+                    self.asks.pop(event.get("id"), None)
+                elif event["type"] == "log":
+                    # The same line is printed on stdout, which is where the page reads the log from.
+                    self.levels[str(event.get("text", "")).strip()] = event.get("level", "info")
+                    continue
+                self.history.append(event)
+        self.read_output()
+
+    def read_output(self):
+        """The command-line output, line by line, as log events: the page shows what a terminal would."""
+        try:
+            stream = self.output.open("rb")
+        except OSError:
+            return
+        with stream:
+            stream.seek(self.output_offset)
+            while True:
+                line = stream.readline()
+                if not line.endswith(b"\n"):
+                    break
+                self.output_offset = stream.tell()
+                raw = line.decode("utf-8", "replace").rstrip("\r\n").rsplit("\r", 1)[-1].rstrip()
+                # colour codes (SGR) are kept for the terminal page as `ansi`; every other escape (the
+                # taskbar's progress, cursor moves) is dropped; `text` is the line as plain words
+                coloured = NOT_SGR.sub("", raw)
+                text = SGR.sub("", coloured)
+                if text.strip():
+                    # n keeps two identical lines apart (the page drops events it has already seen)
+                    event = dict(type="log", job=self.id, text=text, n=len(self.history),
+                                 level=self.levels.pop(text.strip(), "info"))
+                    if coloured != text:
+                        event["ansi"] = coloured
+                    self.history.append(event)
+
+
+def read_disc_child(root: Path, drive: str) -> dict:
+    """`discprobe disc` in a child process (the drive is opened the way every job opens it, never in the
+    server): which disc is in the drive, read-only, nothing written."""
+    here = str(Path(__file__).resolve().parent.parent)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(p for p in (here, env.get("PYTHONPATH")) if p)
+    env["DISCPROBE_PLAIN"] = "1"
+    argv = [sys.executable, *(["-P"] if sys.version_info >= (3, 11) else []), "-m", "discprobe", "disc", "--drive", drive]
+    try:
+        done = subprocess.run(argv, cwd=str(root), env=env, stdin=subprocess.DEVNULL, capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=90,
+                              creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+    except subprocess.TimeoutExpired:
+        raise APIError("the drive did not answer in time", 504) from None
+    if done.returncode == DriveBusy.exit_code:
+        raise APIError(done.stderr.strip(), 409, code=DriveBusy.code)
+    for line in reversed(done.stdout.splitlines()):
+        if line.startswith("{"):
+            return json.loads(line)
+    raise APIError("could not read the drive: " + (done.stderr or done.stdout).strip()[-300:], 502)
+
+
+PHOTO_REFUSALS = ("same_pose", "duplicate_photo", "unknown_spread_or_pose", "unknown_photo_input")
+
+
+def photo_adoption(record):
+    """The read's state for the pages: adopted, provisional, disagree, split, refused or none.
+
+    It follows the core's majority rule (photo.json ``application_agreement``, photo.photo_agreement): a
+    unique largest set of ok photos sharing a common point, at least two-thirds of all ok photos, with two
+    distinct originals at least 10 degrees apart. One ok photo is provisional (``provisional_mm`` only).
+    Two equally large sets that do not overlap are a "split": no photo is named an outlier then.
+    ``outliers`` are the ok photos outside a unique largest set, as the core lists them. Older records
+    without the rule fall back to the reader's group vote. Whether L is then applied to a picture is a
+    further gate: photo_application().
+    """
+    if not isinstance(record, dict):
+        return dict(state="none", source="none")
+    ok = [p for p in record.get("photos") or [] if isinstance(p, dict) and p.get("status") == "ok"]
+    agreement = record.get("application_agreement")
+    if isinstance(agreement, dict):
+        reason = agreement.get("reason")
+        if agreement.get("written") and record.get("verdict") == "ok":
+            state = "adopted"
+        elif reason == "one_photo_provisional":
+            state = "provisional"
+        elif reason == "photos_disagree":
+            state = "disagree"
+        elif reason == "ambiguous_majority":
+            state = "split"
+        elif reason in PHOTO_REFUSALS:
+            state = "refused"
+        elif agreement.get("written"):
+            # The two-pose rule agrees but the reader's own group vote did not accept it.
+            state, reason = "refused", "group_not_ok"
+        else:
+            state = "none"
+        out = dict(state=state, source="core", reason=reason, n_ok=len(ok), disc_id=record.get("disc_id"))
+        values = [p["L_mm"] for p in ok if isinstance(p.get("L_mm"), (int, float)) and math.isfinite(p["L_mm"])]
+        if state == "disagree" and len(values) > 1:
+            out["spread_mm"] = max(values) - min(values)
+        if state == "adopted":
+            out["n_agree"] = len(agreement.get("photo_ids") or [])
+        for key in ("agreeing_count", "ok_count", "required_count"):
+            if isinstance(agreement.get(key), int):
+                out[key] = agreement[key]
+        interval = agreement.get("common_interval_mm")
+        if isinstance(interval, list) and len(interval) == 2:
+            out["common_interval_mm"] = interval
+        # A tie names nobody: the core lists no outliers then, and neither does the page.
+        listed = [] if state == "split" else record.get("outliers") or agreement.get("outliers") or []
+        out["outliers"] = [{k: o.get(k) for k in ("id", "name", "L_mm", "reason")} for o in listed if isinstance(o, dict)]
+        if state == "provisional" and isinstance(record.get("provisional_mm"), (int, float)):
+            out["provisional_mm"] = record["provisional_mm"]
+        return out
+    group = record.get("group") if isinstance(record.get("group"), dict) else {}
+    status, why = group.get("status"), str(group.get("why") or "")
+    spread = group.get("spread_mm") if isinstance(group.get("spread_mm"), (int, float)) else None
+    if record.get("verdict") == "ok" and status == "ok":
+        state = "adopted"
+    elif status == "provisional":
+        state = "provisional"
+    elif "disagree" in why:
+        state = "disagree"
+    else:
+        state = "none"
+    out = dict(state=state, source="group", n_ok=group.get("n_ok"), n_agree=group.get("n_agree"))
+    if spread is not None:
+        out["spread_mm"] = spread
+    if why:
+        out["why"] = why
+    return out
+
+
+def photo_application(run_dir):
+    """Whether a picture made from this run would use its photo L now, by the core's own gate (photo.photo_l).
+
+    Only what the pages show: applied or not, the reason code, and the value in the run's media units.
+    It reads the run's files and changes nothing; the picture job decides again when it runs.
+    """
+    from . import photo, starter
+    folder = Path(run_dir)
+    source = starter.run_file(folder)
+    if not source.is_file() or not any((folder / name).is_file() for name in ("photo.json", photo.MANUAL_L_FILE)):
+        return dict(written=False, reason="no_photo")
+    try:
+        decision = photo.photo_l(source)
+    except Exception:          # the gate is advisory here; the picture job runs it again
+        return dict(written=False, reason="invalid_photo")
+    out = dict(written=bool(decision.get("written")), reason=str(decision.get("reason") or "").split(":", 1)[0] or None)
+    for key in ("L_mm", "frames", "sectors", "channel_bits", "reader_version", "origin"):
+        if key in decision:
+            out[key] = decision[key]
+    provenance = decision.get("provenance") or {}
+    if provenance:
+        out.update(disc_id=provenance.get("disc_id"), burn_path=provenance.get("burn_path"),
+                   photo_ids=provenance.get("photo_ids"))
+    return out
+
+
+class Backend:
+    def __init__(self, root=None, *, media="dvd", out="results", runner=Child, drive_provider=None, disc_reader=None):
+        self.root = Path(root or Path.cwd()).resolve()
+        self.media = media
+        self.out = local_path(self.root, out)
+        self.runner = runner
+        # Only enumerate device names here; the disc in a drive is read when the page asks (read_disc).
+        self.drive_provider = drive_provider or (lambda: [dict(id=d, name=d, disc=None) for d in guide.optical_drives()])
+        self.lock = threading.RLock()
+        self.template_lock = threading.Lock()
+        self.jobs = {}
+        self.tokens = {}
+        self.files_reviews = {}
+        self.files_tokens = {}
+        from .photo import PhotoStore
+        self.photos = PhotoStore(self.out)
+        from .works import Store
+        self.works = Store(self.out)
+        from .library import Library
+        self.library = Library(self.root, self.out, self.works)
+        self.photo_hashes = {}               # photo file -> (size, mtime_ns, sha256): duplicate uploads are refused
+        self.desk_seen = {}                  # run -> when the computer's page last listed its photos
+        self.desk_run = None                 # (run, when): the run the computer's page listed most recently
+        # drive -> (expiry, media): a read-only inspection just found a blank disc there
+        self.verified_blank = {}
+        self.drive_changes = {}
+        # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
+        # shown to the page; a burn never relies on it (it needs verified_blank or the provider's own disc).
+        self.discs = {}
+        self.reading = {}                    # drive -> read action: busy for jobs
+        self.disc_reader = disc_reader or (lambda drive: read_disc_child(self.root, drive))
+        self._injected_disc_reader = disc_reader
+        self.closed = False
+        self.folder = self.root / ".webui-jobs"
+        from .editor_preview import Renderer
+        self.editor_renderer = Renderer()
+
+    def state(self, media=None):
+        """The workflow for one disc type. The page asks for the type of the work it has open; the server's
+        --media is only the default, so one server serves DVD, CD and BD alike."""
+        media = media or self.media
+        if media not in ("dvd", "cd", "bd"):
+            raise APIError("invalid media")
+        drives = self.drive_provider()
+        state = guide.guide_state(media, self.out, drives=[d["id"] for d in drives])
+        with self.lock:
+            state["drives"] = [dict(d, disc=d.get("disc") or self.discs.get(d["id"])) for d in drives]
+        with self.lock:
+            state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, args=j.args, disc=j.disc, exit=j.exit, result=j.result,
+                                  cancellation=j.cancellation, result_seen=j.result_seen) for j in self.jobs.values()]
+        state["catalogue"] = self.catalogue()
+        state["version"] = version()
+        state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
+        return state
+
+    def catalogue(self):
+        def progress(ident, phase):
+            job = self.jobs.get(ident)
+            if not job:
+                return {}
+            job.read()
+            if (job.measurement_phase or job.action) != phase:
+                return {}
+            result = {}
+            if job.progress and job.progress.get('fraction') is not None:
+                result['fraction'] = job.progress['fraction']
+            if phase == 'geo' and job.geo_rung is not None:
+                result['rung'] = job.geo_rung
+            return result
+
+        with self.lock:
+            return self.library.rows(progress=progress)
+
+    @contextmanager
+    def _reading_drive(self, drive, action, *, unknown_status=400):
+        if not isinstance(drive, str) or drive not in [d["id"] for d in self.drive_provider()]:
+            raise APIError("unknown drive", unknown_status)
+        with self.lock:
+            if self.closed:
+                raise APIError("service is closing", 503)
+            drive_available(drive)
+            if drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values()):
+                raise APIError("drive busy", 409, code=DriveBusy.code)
+            self.reading[drive] = action
+        try:
+            yield
+        finally:
+            with self.lock:
+                self.reading.pop(drive)
+
+    def read_disc(self, payload) -> dict:
+        """Which disc is in a drive, read now (read-only). The answer is kept for /api/state until the drive's
+        disc may have changed (a burn or a swap on it)."""
+        drive = payload.get("drive") if isinstance(payload, dict) else None
+        with self._reading_drive(drive, "disc"):
+            found = self.disc_reader(drive)
+            disc = found.get("disc") if isinstance(found, dict) else None
+            report = dict(disc or dict(present=False), tray=found.get("tray", "unknown") if isinstance(found, dict) else "unknown",
+                          read_at=round(time.time()))
+            with self.lock:
+                self.discs[drive] = report
+            return dict(drive=drive, disc=report)
+
+    def burn_speeds(self, drive, media):
+        from . import burner
+        if media not in ("dvd", "cd"):
+            raise APIError("invalid media")
+        with self._reading_drive(drive, "info", unknown_status=404):
+            try:
+                report = burner.inspect_drive(drive, media)
+            except DriveBusy as exc:
+                raise APIError(str(exc), 409, code=exc.code) from exc
+            except burner.BurnError as exc:
+                raise APIError(str(exc), 409) from exc
+            self._remember_burn_inspection(drive, media, report)
+            return report
+
+    def _remember_burn_inspection(self, drive, media, report):
+        with self.lock:
+            self.verified_blank.pop(drive, None)
+            if isinstance(report, dict):
+                self.discs[drive] = dict(self.discs.get(drive) or {}, **report)
+                if report.get("blank") is True and report.get("media") == media:
+                    self.verified_blank[drive] = (time.monotonic() + 120, media)
+
+    def burn_check(self, payload):
+        """Read the tray and writable capacity for a particular image, without authorizing a write."""
+        from . import burner
+
+        drives = self.drive_provider()
+        _, drive = command(payload, self.root, drives)
+        target = self._burn_target(payload)
+        if not target.action or target.image is None:
+            raise APIError("burn check requires a burn image")
+        with self._reading_drive(drive, "disc"):
+            self._remember_burn_inspection(drive, target.media, None)
+            try:
+                identity = self._read_burn_identity(drive, drives)
+            except DriveBusy as exc:
+                raise APIError(str(exc), 409, code=exc.code) from exc
+            except (disc_identity.DiscChanged, OSError) as exc:
+                return dict(disc=None, gate=burn_gate.tray_problem(None), detail=str(exc))
+            if identity.get('not_ready'):
+                gate = burn_gate.medium_problem(identity, target.media)
+                disc = dict(present=False, tray={'tray_open': 'open', 'no_disc': 'empty',
+                                                'disc_loading': 'loading'}.get(gate['code'], 'unknown'))
+            else:
+                disc = dict(identity, present=identity['blank'] is not None,
+                            kind=mmc.PROFILES.get(identity['profile']),
+                            tray='ready' if identity['blank'] is not None else 'unknown')
+                gate = burn_gate.medium_problem(disc, target.media, erase=target.erasing)
+            with self.lock:
+                self.discs[drive] = disc
+            if gate:
+                return dict(disc=disc, gate=gate)
+            try:
+                disc_identity.require_identity(identity, erasing=target.erasing)
+                report = burner.inspect_drive(drive, target.media)
+            except (burner.BurnError, disc_identity.DiscChanged, OSError) as exc:
+                return dict(disc=disc, gate=burn_gate.tray_problem(None), detail=str(exc))
+            gate = burn_gate.medium_problem(report, target.media, erase=target.erasing)
+            if not gate:
+                room = report.get('capacity_sectors') if target.erasing and report.get('blank') is False else report.get('free_sectors')
+                if target.erasing and isinstance(room, int) and target.media == 'cd' and sys.platform != 'win32' and report.get('blank') is False:
+                    room -= 300
+                gate = burn_gate.capacity_problem(target.image[1] // 2048, room)
+            if not gate and not report.get('speeds_x'):
+                gate = burn_gate.problem('no_speeds', '光驱没有报出可用的刻录速度。重新检查，或换一张空白盘。',
+                                         'The drive did not report a write speed. Check again or insert another blank disc.')
+            if not gate:
+                self._remember_burn_inspection(drive, target.media, report)
+                gate = burn_gate.batch_problem(disc.get('mid'), target.expected_mid)
+            return dict(disc=disc, gate=gate, speeds_x=report.get('speeds_x') or [])
+
+    def job_state(self, ident, after=None):
+        with self.lock:
+            job = self.get_job(ident)
+            job.read()
+            events = list(job.history) if after is None else job.history[after:after + 256]
+            snapshot = dict(job=ident, action=job.action, media=job.media, args=job.args, exit=job.exit,
+                            events=events, result=job.result, cancellation=job.cancellation)
+            if after is not None:
+                cursor = min(after + len(events), len(job.history))
+                snapshot.update(cursor=cursor, more=cursor < len(job.history))
+            if job.action in {"calibrate", "timing", "geo"} and job.exit is not None:
+                result = job.result or {}
+                parts = (result, result.get("timing") or {}, result.get("geo") or {})
+                if job.exit or any((part.get("measurement") or {}).get("retry_kind") for part in parts):
+                    snapshot["diagnostics"] = dict(argv=job.argv, log_path=job.output.relative_to(self.root).as_posix())
+            return snapshot
+
+    def image_job(self, *, work=None, ident=None):
+        """Resume an image job by work, or read the current progress of that job."""
+        if ident is not None:
+            with self.lock:
+                job = self.get_job(ident)
+                if job.action != "image":
+                    raise APIError("not an image job", 404)
+                return self._image_job_state(job)
+        try:
+            saved = self.works.show(work)
+            design = self._work_design(work)
+        except ValueError as exc:
+            raise APIError(str(exc), getattr(exc, "status", 400)) from exc
+        with self.lock:
+            for job in reversed(self.jobs.values()):
+                if job.action == "image" and (job.work, job.work_design) == (work, design):
+                    return self._image_job_state(job)
+        for record in reversed(saved["discs"]):
+            if record.get("type") == "iso" and record.get("source_design_asset", record.get("design_asset")) == design:
+                return self._image_job_state(None, record.get("iso_path"))
+        return dict(phase="idle")
+
+    def _work_design(self, ident):
+        return "assets/" + hashlib.sha256(self.works.content(ident, "design.discdesign")).hexdigest()
+
+    def _image_job_state(self, job, output=None):
+        if job is not None:
+            job.read()
+            if job.exit is None:
+                return dict(phase="making", job=job.id, fraction=(job.progress or {}).get("fraction"),
+                            started_at=job.started_at)
+            if job.exit != 0 or job.cancellation:
+                return dict(phase="cancelled" if job.cancellation else "failed")
+            output = (job.result or {}).get("path")
+        try:
+            iso = self.iso_file(output)
+        except APIError:
+            return dict(phase="unverified")
+        if job is not None:
+            iso.update(job=job.id, geo=job.args.get("geo"))
+        spec = (self.root / iso["path"]).with_suffix(".image.json")
+        info = guide._load(str(spec)) or {}
+        textures = info.get("textures") or []
+        defaults = {"0D", "AA"} if info.get("media") == "cd" else {"A5", "B9"}
+        if not iso.get("geo") and info.get("geometry_from"):
+            source = Path(info["geometry_from"]).resolve()
+            if source.is_relative_to(self.root):
+                iso["geo"] = source.relative_to(self.root).as_posix()
+        iso["experimental"] = any(tex.upper() not in defaults for tex in textures)
+        if info.get("cell_mm"):
+            iso["cellUm"] = round(info["cell_mm"] * 1000)
+        return dict(phase="ready", iso=iso)
+
+    def _burn_target(self, payload):
+        action = burn_action(payload)
+        drive, media = payload.get("drive"), payload.get("media", "dvd")
+        if action == "erase":
+            return BurnTarget(action, drive, media, full_erase=payload.get("args", {}).get("full") is True)
+        if media not in ("dvd", "cd"):
+            raise APIError("burn requires dvd or cd media")
+        args = payload.get("args", {})
+        image = args.get("iso")
+        if not image:
+            raise APIError("burn is not implemented without an ISO; iso is required")
+        path, info = self._iso_stat(image)
+        work_id = payload.get('work') or args.get('work')
+        try:
+            work = self.works.show(work_id) if work_id else None
+        except ValueError as exc:
+            raise APIError(str(exc), getattr(exc, 'status', 400)) from exc
+        expected = burn_gate.expected_batch(path, work=work, work_root=self.works.root.parent,
+                                            explicit=args.get('mid') if payload['action'] == 'calibrate' else args.get('expected_mid'),
+                                            root=self.root)
+        return BurnTarget(action, drive, media, (path, info.st_size, info.st_mtime_ns),
+                          work=work_id, expected_mid=expected, confirmed_mid=burn_gate.mid_code(args.get('confirmed_mid')))
+
+    def _read_burn_identity(self, drive, drives):
+        supplied = next(d.get("disc") for d in drives if d["id"] == drive)
+        if supplied is not None:
+            return disc_identity.from_disc_report(supplied)
+        if self._injected_disc_reader is not None:
+            found = self._injected_disc_reader(drive)
+            return disc_identity.from_disc_report(found.get("disc") if found.get("tray") == "ready" else None)
+        return disc_identity.read_identity(drive)
+
+    def _confirm_batch(self, target, identity):
+        gate = burn_gate.batch_problem(identity.get('mid'), target.expected_mid)
+        if gate and target.confirmed_mid != gate['actual_mid']:
+            raise burn_refusal(gate)
+        if target.confirmed_mid and not gate:
+            raise APIError("the disc or its calibration batch changed; check and confirm again", 409,
+                           code="disc_changed")
+
+    def _burn_medium(self, drive, media, drives):
+        with self._reading_drive(drive, "disc"):
+            try:
+                identity = self._read_burn_identity(drive, drives)
+                disc_identity.require_identity(identity)
+            except DriveBusy as exc:
+                raise APIError(str(exc), 409, code=exc.code) from exc
+            except disc_identity.DiscChanged as exc:
+                if exc.not_ready:
+                    raise burn_refusal(burn_gate.medium_problem({'not_ready': exc.not_ready}, media)) from exc
+                raise APIError("the selected medium is not ready", 409) from exc
+            with self.lock:
+                generation = self.drive_changes.get(drive, 0)
+        if identity["media"] != media:
+            raise burn_refusal(burn_gate.medium_problem(identity, media))
+        return identity, generation
+
+    def burn_token(self, payload):
+        if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args", "work"}:
+            raise APIError("invalid burn token request")
+        drives = self.drive_provider()
+        _, drive = command(payload, self.root, drives)
+        if not burn_action(payload):
+            raise APIError("action does not require a burn token")
+        target = self._burn_target(payload)
+        medium = self._burn_medium(drive, target.media, drives)
+        self._confirm_batch(target, medium[0])
+        if target.erasing:
+            try:
+                disc_identity.require_identity(medium[0], erasing=True)
+            except disc_identity.DiscChanged as exc:
+                raise APIError(str(exc), 409) from exc
+        with self.lock:
+            token = issue_permit(self.tokens, (target, medium), BURN_TOKEN_SECONDS)
+        return dict(token=token, expires_in=BURN_TOKEN_SECONDS)
+
+    def files_layout(self, payload):
+        from .discfiles_api import request
+        layout = request(self.root, payload)
+        with self.lock:
+            layout["review"] = issue_permit(self.files_reviews, files_binding(layout), FILES_TOKEN_SECONDS)
+        return layout
+
+    def files_authorize(self, payload):
+        if not isinstance(payload, dict) or set(payload) != {"review"}:
+            raise APIError("invalid files confirmation")
+        with self.lock:
+            binding = take_permit(self.files_reviews, payload["review"], "review the files list again")
+            token = issue_permit(self.files_tokens, binding, FILES_TOKEN_SECONDS)
+        return dict(token=token)
+
+    def _check_files_permit(self, args, token):
+        from .discfiles_api import request
+        with self.lock:
+            approved = take_permit(self.files_tokens, token, "confirm the files list before exporting")
+        try:
+            layout = request(self.root, dict(folder=args["files"], files_at=args.get("files_at", "inner"),
+                                             margin=args.get("files_margin"), writable_sectors=args.get("writable_sectors"),
+                                             geo=args["geo"], r_max=args.get("r_max", 56)))
+        except (ValueError, OSError, KeyError) as exc:
+            raise APIError(str(exc)) from exc
+        if files_binding(layout) != approved or args.get("files_plan_sha256") != layout["layout_sha256"]:
+            raise APIError("files changed; review and confirm the files list again", 409)
+
+    def start(self, payload):
+        is_photo = isinstance(payload, dict) and payload.get("action") == "photo"
+        drives = [] if is_photo or isinstance(payload, dict) and payload.get("action") == "curve-edit" else self.drive_provider()
+        argv, drive = command(payload, self.root, drives)
+        work_id = payload.get("work") or payload.get("args", {}).get("work")
+        work_design = None
+        if work_id:
+            try:
+                self.works.show(work_id)
+                if payload["action"] == "image":
+                    work_design = self._work_design(work_id)
+            except ValueError as exc:
+                raise APIError(str(exc), getattr(exc, "status", 400)) from exc
+        if is_photo:
+            try:
+                argv += self.photos.argv(payload.get("args", {}))
+            except (ValueError, OSError) as exc:
+                raise APIError(str(exc)) from exc
+        if payload["action"] in {"info", "timing", "geo", "calibrate", "starter"}:
+            argv += ["--out", self.out]
+        args = payload.get("args", {})
+        if payload["action"] == "image" and args.get("files"):
+            self._check_files_permit(args, payload.get("files_token"))
+        writes = burn_action(payload) is not None
+        if writes:
+            with self.lock:
+                target, (expected_identity, expected_generation) = take_permit(
+                    self.tokens, payload.get("burn_token"), "valid burn token required")
+            try:
+                actual = self._burn_target(payload)
+            except APIError as exc:
+                raise APIError("burn token does not match the action, drive, media or ISO", 403) from exc
+            # Older clients supplied the work and calibration MID only at /api/run.
+            # They still get the new batch check, and cannot introduce an override.
+            compared = actual
+            if not target.confirmed_mid and not actual.confirmed_mid:
+                compared = replace(actual, work=actual.work if target.work else None,
+                                   expected_mid=actual.expected_mid if target.expected_mid else None)
+            if target != compared:
+                raise APIError("burn token does not match the action, drive, media or ISO", 403)
+            try:
+                inspected, generation = self._burn_medium(drive, target.media, drives)
+            except APIError as exc:
+                if exc.status == 409 and (exc.gate or str(exc) == "the selected medium is not ready"):
+                    raise APIError("burn token does not match the current medium", 403, gate=exc.gate) from exc
+                raise
+            if expected_generation != generation or not disc_identity.matches(expected_identity, inspected):
+                raise APIError("burn token does not match the current medium", 403, code="disc_changed")
+            target = actual
+            self._confirm_batch(target, inspected)
+        with self.lock:
+            if self.closed:
+                raise APIError("service is closing", 503)
+            if payload["action"] in DRIVE_ACTIONS and drive:
+                drive_available(drive)
+            if drive and (drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values())):
+                raise APIError("drive busy", 409)
+            if writes:
+                if self.drive_changes.get(drive, 0) != generation:
+                    raise APIError("burn token does not match the current medium", 403)
+                disc = next(d.get("disc") for d in drives if d["id"] == drive)
+                fresh = self.verified_blank.get(drive)
+                fresh_ok = fresh is not None and fresh[0] > time.monotonic() and fresh[1] == payload.get("media", "dvd")
+                if not target.erasing and (inspected["blank"] is not True or not (fresh_ok or disc and disc.get("blank") is True)):
+                    if gate := burn_gate.medium_problem(inspected, target.media):
+                        raise APIError("a verified blank disc is required", 409, code=gate['code'], gate=gate)
+                    raise APIError("a verified blank disc is required", 409)
+                from . import burner
+                if target.image is not None:
+                    argv[argv.index("--iso") + 1] = str(target.image[0])
+                    argv += (["--media", payload.get("media", "dvd")] if payload["action"] == "burn" else []) + ["--yes-write"]
+                    if target.expected_mid and payload["action"] == "calibrate":
+                        mid_flag = "--mid"
+                        if mid_flag in argv:
+                            argv[argv.index(mid_flag) + 1] = target.expected_mid
+                        else:
+                            argv += [mid_flag, target.expected_mid]
+                    if target.confirmed_mid:
+                        argv += ["--allow-other-batch"]
+            if writes or payload["action"] == "swap":
+                self.drive_changes[drive] = self.drive_changes.get(drive, 0) + 1
+                for token in [token for token, permit in self.tokens.items() if permit.binding[0].drive == drive]:
+                    del self.tokens[token]
+            if not self.folder.resolve().is_relative_to(self.root):
+                raise APIError("job directory must stay inside the workspace")
+            self.folder.mkdir(exist_ok=True)
+            ident = "j-" + secrets.token_hex(8)
+            folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
+            job = Job(ident, drive, folder)
+            job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            job.argv = argv
+            job.work, job.work_design = work_id, work_design
+            job.writes_drive = writes
+            known_disc = self.discs.get(drive) or next((d.get('disc') for d in drives if d['id'] == drive), None) or {}
+            job.disc = dict(known_disc)
+            job.batch_identity = dict(disc=known_disc.get('mid'), drive=known_disc.get('drive_name'))
+            if is_photo:
+                job.media = job.args["media"]
+            job.before = {r.path: result_signature(r) for r in guide.scan(self.out)}
+            if payload["action"] == "disexport" and job.args.get("output"):
+                Path(local_path(self.root, job.args["output"])).parent.mkdir(parents=True, exist_ok=True)
+            env = os.environ.copy()
+            env.pop(burn_gate.EXPECTED_MID_ENV, None)
+            if writes:
+                env[disc_identity.EXPECTED_ENV] = disc_identity.encode_expected(drive, expected_identity)
+                if target.expected_mid:
+                    env[burn_gate.EXPECTED_MID_ENV] = target.expected_mid
+            else:
+                env.pop(disc_identity.EXPECTED_ENV, None)
+            env.update(DISCPROBE_EVENTS=str(job.events), DISCPROBE_ANSWERS=str(job.answers), DISCPROBE_JOB=ident)
+            if work_design:
+                env["DISCPROBE_IMAGE_WORK_DESIGN"] = work_design
+            # Force plain child output; events have their own progress outlet.
+            env["DISCPROBE_PLAIN"] = "1"
+            env["DISCPROBE_HOME"] = str(self.works.root.parent)
+            env["PYTHONUNBUFFERED"] = "1"     # each line reaches output.log, and so the page, as it is printed
+            env["FORCE_COLOR"] = "3"          # the core's colours (true colour) in its lines, for the page's terminal
+            # The child runs `-m discprobe` from the workspace, which may hold another copy of the package (an
+            # older checkout without event output). Put this server's own copy first so both run the same code.
+            here = str(Path(__file__).resolve().parent.parent)
+            env["PYTHONPATH"] = os.pathsep.join(p for p in (here, env.get("PYTHONPATH")) if p)
+            self.jobs[ident] = job
+            try:
+                with (folder / "output.log").open("wb") as output:
+                    runner = burner.web_child if writes and self.runner is Child else self.runner
+                    job.child = runner(argv, env=env, cwd=str(self.root), stdout=output)
+            except Exception:
+                del self.jobs[ident]
+                raise
+            threading.Thread(target=self._watch, args=(job,), daemon=True).start()
+            return dict(job=ident)
+
+    def photo_burn_listing(self, run):
+        from .photo_burns import listing
+        return listing(self.root, self.photos.run_dir(run))
+
+    def photo_listing(self, run, *, desk, burn_record=None):
+        """The run's photos, plus what happened to them: the last read and the one running now, with times.
+
+        ``desk`` is true when the computer's own page asks. The phone learns from it whether that page is
+        open on this run, since only that page starts a read; it never learns anything about other runs.
+        """
+        listing = self.photos.listing(run, burn_record)
+        now = time.time()
+        with self.lock:
+            if desk:
+                self.desk_seen[run] = now
+                self.desk_run = (run, now)
+            jobs = [j for j in self.jobs.values() if j.action == "photo" and j.args.get("run") == run]
+            seen = self.desk_seen.get(run)
+            elsewhere = bool(self.desk_run and self.desk_run[0] != run and (seen is None or self.desk_run[1] > seen))
+        latest = max(jobs, key=lambda j: j.started_at, default=None)
+        analysis = None
+        if latest:
+            state = "reading" if latest.exit is None else "done" if latest.exit == 0 or latest.result else "failed"
+            analysis = dict(job=latest.id, state=state, photos=list(latest.args.get("photos") or []),
+                            started_at=latest.started_at, finished_at=latest.finished_at,
+                            seconds=round((latest.finished_at or now) - latest.started_at, 1))
+            progress = latest.progress or {}
+            if latest.exit is None and isinstance(progress.get("fraction"), (int, float)):
+                analysis["fraction"] = progress["fraction"]
+        record = None
+        try:
+            path = self.photos.run_dir(run) / "photo.json"
+            record = json.loads(path.read_text(encoding="utf-8"))
+            if burn_record is not None and (not isinstance(record, dict)
+                    or (record.get("burn_record") or {}).get("id") != burn_record):
+                record = None
+            else:
+                listing["read_at"] = path.stat().st_mtime
+        except (OSError, ValueError):
+            pass
+        if isinstance(record, dict):
+            group = record.get("group") if isinstance(record.get("group"), dict) else {}
+            listing["group"] = {k: group[k] for k in ("status", "why", "n_ok", "n_agree", "spread_mm") if k in group}
+            listing["read_photos"] = [p.get("id") for p in record.get("per_photo", []) if isinstance(p, dict)]
+            listing["media"] = record.get("media")
+            listing["disc_id"] = record.get("disc_id")
+            listing["provisional_mm"] = record.get("provisional_mm")
+        listing["adoption"] = photo_adoption(record)
+        listing["application"] = (photo_application(self.photos.run_dir(run))
+                                  if record is not None or burn_record is None else dict(written=False, reason="no_photo"))
+        listing.update(analysis=analysis, now=now, desk_elsewhere=elsewhere,
+                       desk_age=None if seen is None else round(now - seen, 1))
+        return listing
+
+    def duplicate_photo(self, run, data):
+        """The id of a photo of this run with exactly these bytes, or None. Hashes are cached per file."""
+        import hashlib
+        digest = hashlib.sha256(data).hexdigest()
+        folder = self.photos.run_dir(run) / "photos"
+        if not folder.is_dir():
+            return None
+        for meta in sorted(folder.glob("*.json")):
+            try:
+                image = self.photos.get(run, meta.stem)[0]
+                stat = image.stat()
+                if stat.st_size != len(data):
+                    continue
+                cached = self.photo_hashes.get(str(image))
+                if not cached or cached[:2] != (stat.st_size, stat.st_mtime_ns):
+                    cached = (stat.st_size, stat.st_mtime_ns, hashlib.sha256(image.read_bytes()).hexdigest())
+                    self.photo_hashes[str(image)] = cached
+                if cached[2] == digest:
+                    return meta.stem
+            except (OSError, ValueError):
+                continue
+        return None
+
+    def _iso_stat(self, value: str):
+        path = Path(local_path(self.root, value))
+        if path.suffix.lower() != ".iso" or not path.is_relative_to((self.root / "iso").resolve()):
+            raise APIError("not an ISO in iso/")
+        try:
+            info = image_output.finished_stat(path)
+            image_output.require_checked(path, info)
+        except FileNotFoundError:
+            raise APIError("not found", 404)
+        except (OSError, ValueError) as exc:
+            raise APIError(str(exc), 409) from exc
+        return path, info
+
+    def iso_file(self, value: str) -> dict:
+        """Report a finished, self-checked ISO under iso/ without reading its sectors."""
+        path, info = self._iso_stat(value)
+        size = info.st_size
+        return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
+
+    def _template_source(self, payload, fields):
+        if not isinstance(payload, dict) or payload.keys() - fields:
+            raise APIError('invalid template request')
+        source = Path(local_path(self.root, payload.get('geo')))
+        if source.is_dir():
+            source /= 'summary.json'
+        if not source.resolve().is_relative_to(self.root) or not source.is_file():
+            raise APIError('template geometry must be a file inside the workspace')
+        if payload.get('preset_id') is not None and not isinstance(payload['preset_id'], str):
+            raise APIError('invalid preset ID')
+        return source
+
+    def template_zip(self, payload):
+        from . import template
+        source = self._template_source(payload, {'geo', 'media', 'sectors', 'size', 'pose', 'preset_id'})
+        try:
+            # Serialize large raster exports; no background job, hardware access or workspace writes.
+            with self.template_lock:
+                return template.zip_bytes(template.export_files(source, **{k:v for k,v in payload.items() if k != 'geo'}))
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise APIError(f'Template export: {exc}') from exc
+
+    def grid_template_zip(self, payload):
+        from . import template, template_grid
+        source = self._template_source(payload, {'geo', 'media', 'sectors', 'pose', 'preset_id',
+                                                 'grid', 'batch', 'rotate', 'delta_scale'})
+        try:
+            with self.template_lock:
+                stem, files = template_grid.export_files(source, **{k:v for k,v in payload.items() if k != 'geo'})
+                return stem + '.zip', template.zip_bytes(files)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise APIError(f'Template export: {exc}') from exc
+
+    def compose_document(self, document: dict) -> dict:
+        """Save the portable work and compose with the same pure core as the CLI."""
+        from .editor_ops import compose_file, validate, migrate
+        try:
+            document = validate(migrate(document))
+            folder = self.root / "designs"
+            if not folder.resolve().is_relative_to(self.root):
+                raise ValueError("design directory must stay inside the workspace")
+            folder.mkdir(exist_ok=True)
+            path = folder / ("work-" + secrets.token_hex(8) + ".json")
+            path.write_text(json.dumps(document), encoding="utf8")
+            target = path.with_suffix(".npy")
+            compose_file(path, target)
+            textures = [m["spec"] for m in document["materials"]]
+            return dict(work=path.relative_to(self.root).as_posix(),
+                        design_npy=target.relative_to(self.root).as_posix(),
+                        textures=textures, textures_used=self._textures_used(target, textures))
+        except (ValueError, KeyError, TypeError) as exc:
+            raise APIError(str(exc)) from exc
+
+    @staticmethod
+    def _textures_used(npy: Path, textures: list) -> list:
+        """The textures the composed labels really put on the disc (slot 0, the background, included only when
+        present), read in bands so a 24000 x 24000 design is never copied whole."""
+        import numpy as np
+        labels = np.load(npy, mmap_mode="r")
+        seen = np.zeros(256, bool)
+        for y in range(0, labels.shape[0], 1024):
+            seen |= np.bincount(np.asarray(labels[y:y + 1024]).ravel(), minlength=256)[:256] > 0
+        return sorted({str(textures[i]).upper() for i in np.nonzero(seen)[0] if i < len(textures)})
+
+    def save_design(self, packed: bytes) -> dict:
+        """Keep a design the page drew (one bit per cell of 20, 10 or 5 µm, row by row, dark = 1) as image
+        --design-npy reads it; its length says the cell size."""
+        import numpy as np
+        cells = DESIGN_SIDES.get(len(packed))
+        if cells is None:
+            raise APIError("a design is %s bytes" % " or ".join(str(n) for n in DESIGN_SIDES), 413)
+        dark = np.unpackbits(np.frombuffer(packed, np.uint8)).reshape(cells, cells).view(bool)
+        folder = self.root / "designs"
+        if not folder.resolve().is_relative_to(self.root):
+            raise APIError("design directory must stay inside the workspace")
+        folder.mkdir(exist_ok=True)
+        path = folder / ("web-" + time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3) + ".npy")
+        np.save(path, dark)
+        return dict(design_npy=path.relative_to(self.root).as_posix(), dark_share=round(float(dark.mean()), 4))
+
+    def _watch(self, job):
+        code = job.child.wait()
+        job.child.close()
+        with self.lock:
+            # Even a failed write may have changed the disc. Invalidate before publishing
+            # completion or interpreting reports, which can themselves be incomplete.
+            if job.action in {"burn", "erase", "swap", "calibrate"}:
+                self.discs.pop(job.drive, None)
+                self.verified_blank.pop(job.drive, None)
+            job.read()
+            job.exit = code
+            job.finished_at = time.time()
+            burn = next((e for e in reversed(job.history) if e.get('type') == 'burn_result'), None)
+            started_burn = next((e for e in job.history if e.get('type') == 'burn_speed'), None)
+            if burn is None and started_burn and code != 0:
+                burn = dict(type='burn_result', result='stopped', time=time.time(), exit=code,
+                            log_path=started_burn.get('log_path'))
+            if burn:
+                # Save only an actual engine result, with the batch known before the write.
+                identity = dict(job.batch_identity)
+                record = dict(burn, time=burn.get('time', time.time()), media=job.media, identity=identity)
+                if job.cancellation:
+                    record['cancellation'] = job.cancellation
+                if job.args.get('iso'):
+                    try:
+                        spec = Path(local_path(self.root, job.args['iso'])).with_suffix('.image.json')
+                        record['photo_l'] = record.get('photo_l') or json.loads(spec.read_text(encoding='utf-8')).get('photo_l')
+                    except (OSError, ValueError, AttributeError):
+                        record['photo_l'] = None
+                try:
+                    (job.folder / 'burn.json').write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
+                except OSError:
+                    # Completion must still be delivered if the results disk becomes unavailable.
+                    job.history.append(dict(type='log', job=job.id, level='warning', text='Could not save burn history.'))
+            # info has no engine result event; associate only newly created reports on this job's device.
+            candidates = [r for r in guide.scan(self.out) if job.before.get(r.path) != result_signature(r)
+                          and r.kind == job.action and r.tag == guide_drive_tag(job.drive)
+                          and not r.simulated]
+            if candidates:
+                run = candidates[0]
+                job.result = dict(path=str(Path(run.path).relative_to(self.root)).replace("\\", "/"),
+                                  verdict=guide.result_verdict(run, job.media) or "unknown")
+                if job.action in {"geo", "timing"}:
+                    job.result["measurement"] = webui_catalog.measurement(run)
+                if job.action == "info":
+                    report = guide._load(str(Path(run.path) / "info.json")) or {}
+                    job.result["disc"] = webui_catalog.disc_report(report)
+                    disc = job.result["disc"]
+                    if disc["blank"] is False and disc["capacity_sectors"] is None:
+                        from .capacity import catalogue_capacity
+                        known = catalogue_capacity(disc["mid"], disc["media"], self.root)
+                        if known:
+                            job.result["catalogue_capacity_sectors"] = known[0]
+                    if disc['blank'] is True and disc['media'] == 'dvd':
+                        from .starter import for_blank
+                        try:
+                            _, starters = for_blank(self.root, Path(self.out), disc, report, job.drive)
+                        except (OSError, ValueError):
+                            starters = []
+                        if starters:
+                            job.result['starter_candidates'] = [row['source'] for row in starters]
+                    self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
+                job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
+            elif job.action in {"curve-edit", "starter"}:
+                done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == job.action), None)
+                if done:
+                    job.result = {k: v for k, v in done.items() if k not in {"type", "job", "step", "time"}}
+            elif job.action == "photo":
+                done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "photo"), None)
+                if done:
+                    job.result = {k: done.get(k) for k in ("verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm")}
+                    try:
+                        record = json.loads((Path(done["path"]) / "photo.json").read_text(encoding="utf-8"))
+                    except (OSError, ValueError, TypeError, KeyError):
+                        record = None
+                    group = record.get("group") if isinstance(record, dict) and isinstance(record.get("group"), dict) else {}
+                    job.result["group"] = {k: group[k] for k in ("status", "why", "n_ok", "n_agree", "spread_mm") if k in group}
+                    job.result["adoption"] = photo_adoption(record)
+                    job.result["application"] = photo_application(done.get("path") or "")
+                    job.result["seconds"] = round(job.finished_at - job.started_at, 1)
+                    job.result["outliers"] = done.get("outliers", [])
+                    if 'starter' in done:
+                        job.result['starter'] = done['starter']
+            elif job.action == "calibrate":
+                # what the core found, from its last `calibrated` event: the measured folders, their
+                # verdicts and the geometry's points for the page's chart
+                done = next((e for e in reversed(job.history) if e.get("type") == "calibrated"), None)
+                if done:
+                    rel = lambda p: str(Path(p).resolve().relative_to(self.root)).replace("\\", "/") if p else None
+                    # the preset as the catalogue names it (relative to the workspace), so the batch links to it
+                    result = dict(ok=bool(done.get("ok")), reason=done.get("reason"), disc=done.get("disc"),
+                                  preset=rel(done.get("preset")), sectors=done.get("sectors"))
+                    for kind in ("timing", "geo"):
+                        part = done.get(kind) or {}
+                        if part.get("path"):
+                            run = next((r for r in guide.scan(self.out) if Path(r.path).resolve() == Path(part["path"]).resolve()), None)
+                            result[kind] = dict(path=rel(part["path"]), verdict=part.get("verdict"),
+                                                measurement=webui_catalog.measurement(run) if run else None)
+                        elif part and code:
+                            result[kind] = dict(path=None, verdict=part.get("verdict"))
+                    result["verdict"] = (result.get("geo") or {}).get("verdict", "unknown")
+                    result["path"] = (result.get("geo") or {}).get("path")
+                    job.result = result
+                    job.history.append(dict(type="result", job=job.id, step="calibrate", **result))
+            elif job.action == 'erase':
+                done = next((e for e in reversed(job.history) if e['type']=='erase_result'), None)
+                if done:
+                    job.result = {k:v for k,v in done.items() if k not in ('type','job')}
+            elif job.action in {"random", "disexport", "image"} and code == 0:
+                output = job.args.get("output")
+                if output and Path(local_path(self.root, output)).is_file():
+                    job.result = dict(path=output, verdict="unknown")
+                    if job.action == "image":
+                        try:
+                            spec = Path(local_path(self.root, output)).with_suffix('.image.json')
+                            job.result['photo_l'] = json.loads(spec.read_text(encoding='utf-8'))['photo_l']
+                        except (OSError, ValueError, KeyError, TypeError):
+                            job.result['photo_l'] = dict(written=False, reason='missing_image_record')
+                    if job.action == "disexport":
+                        try:
+                            document = json.loads(Path(local_path(self.root, output)).read_text(encoding="utf-8"))
+                            job.result["photo_shift"] = document.get("source", {}).get(
+                                "photo_shift", dict(written=False, reason="no_photo"))
+                        except (OSError, ValueError, AttributeError):
+                            job.result["photo_shift"] = dict(written=False, reason="invalid_preset")
+                    job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
+            job.asks.clear()
+            job.history += [dict(type="done", job=job.id, exit=code), dict(type="state")]
+            job.finished.set()
+
+    def get_job(self, ident):
+        try:
+            return self.jobs[ident]
+        except KeyError:
+            raise APIError("unknown job", 404) from None
+
+    def acknowledge_calibration(self, ident):
+        with self.lock:
+            job = self.get_job(ident)
+            if job.action != "calibrate" or job.exit != 0 or not (job.result or {}).get("ok") or job.cancellation:
+                raise APIError("no successful calibration result to acknowledge", 409)
+            if not job.result_seen:
+                (job.folder / "result-seen").touch()
+                job.result_seen = True
+            return dict(result_seen=True)
+
+    def cancel(self, ident):
+        with self.lock:
+            job = self.get_job(ident)
+            if job.exit is None:
+                job.read()
+                if job.cancellation is None:
+                    step = next((e.get('name') for e in reversed(job.history) if e['type'] == 'step'), job.action)
+                    verifying = any(e['type'] == 'verify_progress' for e in job.history)
+                    phase = 'read-back' if verifying else step
+                    erase_start = next((i for i,e in enumerate(job.history) if e['type']=='erase_started'), None)
+                    if erase_start is not None and not any(e['type']=='erase_result' for e in job.history[erase_start:]):
+                        phase = 'erase'
+                    event = dict(type='cancelled', by='user', job=ident, phase=phase,
+                                 fraction=(job.progress or {}).get('fraction'), time=time.time())
+                    # Separate from the child's append-only stream: no concurrent JSONL writes.
+                    (job.folder / 'user-cancel.json').write_text(json.dumps(event), encoding='utf-8')
+                    job.cancellation = event
+                    job.history.append(event)
+                    job.child.cancel()
+            return dict(job=ident, cancelled=True)
+
+    def answer(self, ident, payload):
+        with self.lock:
+            job = self.get_job(ident)
+            job.read()
+            if (not isinstance(payload, dict) or set(payload) != {"id", "yes"}
+                    or type(payload["yes"]) is not bool or not isinstance(payload["id"], str)):
+                raise APIError("answer requires id and boolean yes")
+            if job.exit is not None or payload["id"] not in job.asks:
+                raise APIError("question is no longer pending", 409)
+            with job.answers.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(payload) + "\n")
+            job.asks.pop(payload["id"])
+            return dict(answered=True)
+
+    def events(self, cursors, reconnect=False, *, summary=False):
+        from .measurement_jobs import changes
+
+        with self.lock:
+            result = []
+            # Poll saved results and the injected inventory only. No SCSI info command
+            # runs in an HTTP/background thread.
+            files = []
+            for root in (Path(self.out), self.root / "iso"):
+                if root.is_dir():
+                    for path in root.glob("*/*") if root.name != "iso" else root.glob("*"):
+                        try:
+                            stat = path.stat()
+                            files.append((str(path), stat.st_mtime_ns, stat.st_size))
+                        except FileNotFoundError:
+                            pass
+            for path in [self.root / "catalogue.json", *sorted((self.root / "presets").glob("*.json"))]:
+                if path.is_file():
+                    stat = path.stat()
+                    files.append((str(path), stat.st_mtime_ns, stat.st_size))
+            active = tuple(job.id for job in self.jobs.values() if job.exit is None)
+            fingerprint = (json.dumps(self.drive_provider(), sort_keys=True), sorted(files), active, changes(self.out))
+            previous = cursors.get("_state")
+            if (previous is not None and fingerprint != previous) or (summary and reconnect and active):
+                result.append(dict(type="state"))
+            cursors["_state"] = fingerprint
+            for job in self.jobs.values():
+                job.read()
+                if reconnect:
+                    if not summary and job.cancellation:
+                        result.append(job.cancellation)
+                    if not summary:
+                        result += ([job.progress] if job.progress else []) + list(job.asks.values())
+                    if job.exit is not None:
+                        result.append(dict(type="done", job=job.id, exit=job.exit))
+                else:
+                    new = job.history[cursors.get(job.id, 0):]
+                    result += [event for event in new if event['type'] in ('state', 'done')] if summary else new
+                cursors[job.id] = len(job.history)
+            return result
+
+    def _busy(self):
+        return bool(self.reading) or any(job.exit is None for job in self.jobs.values())
+
+    def busy(self):
+        with self.lock:
+            return self._busy()
+
+    def _active_tasks(self):
+        tasks = []
+        for job in self.jobs.values():
+            if job.exit is not None:
+                continue
+            writes = job.writes_drive
+            if writes and job.action == "calibrate":
+                # Its only write is the first phase. Later phases start after the burner exits.
+                job.read()
+                step = next((event.get("name") for event in reversed(job.history) if event["type"] == "step"), None)
+                writes = step not in ("check", "timing", "geo", "preset")
+            # The job folder carries a random suffix after the id; give its path so its output.log can be found.
+            tasks.append(dict(action=job.action, drive=job.drive, job=job.id, writes_drive=writes, output=str(job.output)))
+        tasks.extend(dict(action=action, drive=drive, job=None, writes_drive=False)
+                     for drive, action in self.reading.items())
+        return tasks
+
+    def service_status(self):
+        with self.lock:
+            return dict(tasks=self._active_tasks(), drives=drive_locks(d["id"] for d in self.drive_provider()))
+
+    def request_quit(self, *, force=False):
+        with self.lock:
+            tasks = self._active_tasks()
+            if force:
+                writers = [task for task in tasks if task["writes_drive"]]
+                protected = {task["drive"] for task in writers}
+                writers.extend(dict(action=lock["action"] or "unknown", drive=lock["drive"], job=None)
+                               for lock in drive_locks()
+                               if lock["locked"] and lock["action"] in (None, "burn", "erase")
+                               and lock["drive"] not in protected)
+                if writers:
+                    detail = _task_text(writers)
+                    raise APIError(f"光驱正在写入或写入状态未知，不能强制停止（{detail}）。 / "
+                                   f"Cannot force stop while disc writes are active or possible ({detail}).",
+                                   409, code="drive_writing")
+            elif tasks:
+                detail = _task_text(tasks)
+                raise APIError(f"先等任务结束（{detail}）。 / Wait for the current tasks to finish ({detail}).",
+                               409, code="tasks_running")
+            self.closed = True
+
+    def close(self):
+        with self.lock:
+            self.closed = True
+            with self.photos.lock:
+                self.photos.tokens.clear()
+            jobs = list(self.jobs.values())
+            for job in jobs:
+                if job.exit is None:
+                    job.child.cancel()
+        for job in jobs:
+            job.child.wait()
+            job.finished.wait(10)
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = os.name != "nt"
+    request_queue_size = HEADER_CONNECTIONS
+
+    def __init__(self, backend, port=DEFAULT_PORT, *, lan=False, gui=None):
+        self.gui_root, self.gui_manifest = api.load_manifest(gui if gui is not None else api.BUNDLED_GUI)
+        api.check_manifest(self.gui_manifest)
+        if type(port) is not int or not 0 <= port <= 65535:
+            raise ValueError("invalid port")
+        self.backend = backend
+        self.lifecycle_token = secrets.token_urlsafe(32)
+        self.token = self.lifecycle_token if lan else None
+        self.identity = dict(pid=os.getpid(), started=time.time_ns())
+        self.header_lock = threading.Lock()
+        self.header_pending = set()
+        self.header_remote = set()
+        super().__init__(("0.0.0.0" if lan else "127.0.0.1", port), Handler)
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+    def server_close(self):
+        super().server_close()
+        self.backend.close()
+
+    def process_request(self, request, client_address):
+        local = ipaddress.ip_address(client_address[0]).is_loopback
+        with self.header_lock:
+            admit = len(self.header_pending) < HEADER_CONNECTIONS and (
+                local or len(self.header_remote) < HEADER_CONNECTIONS - HEADER_LOCAL_RESERVE)
+            if admit:
+                self.header_pending.add(request)
+                if not local:
+                    self.header_remote.add(request)
+        if not admit:
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.headers_done(request)
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.headers_done(request)
+
+    def headers_done(self, request):
+        with self.header_lock:
+            self.header_pending.discard(request)
+            self.header_remote.discard(request)
+
+    def accepts_host(self, host, connection):
+        port = self.server_port
+        if host.lower() in (f"localhost:{port}", f"127.0.0.1:{port}"):
+            return True
+        # On the wildcard listener getsockname reports the actual local interface
+        # selected for this TCP connection. A Host value cannot select an interface.
+        local = ipaddress.IPv4Address(connection.getsockname()[0])
+        return bool(self.token and local.is_private and not (local.is_loopback or local.is_link_local
+                    or local.is_unspecified or local.is_reserved or local.is_multicast)
+                    and host == f"{local}:{port}")
+
+
+class Handler(BaseHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(HEADER_SECONDS)
+        self._header_deadline = time.monotonic() + HEADER_SECONDS
+        self._header_lock = threading.Lock()
+        self._header_complete = False
+        self._header_timer = threading.Timer(HEADER_SECONDS, self._end_header_read)
+        self._header_timer.daemon = True
+        self._header_timer.start()
+
+    def _end_header_read(self):
+        # A wall-clock deadline also covers clients that periodically send a byte.
+        with self._header_lock:
+            if not self._header_complete:
+                try:
+                    self.connection.shutdown(socket.SHUT_RD)
+                except OSError:
+                    pass
+
+    def parse_request(self):
+        try:
+            parsed = super().parse_request()
+            # The HTTP parser can treat EOF as the end of the headers.
+            return parsed and time.monotonic() < self._header_deadline
+        finally:
+            with self._header_lock:
+                self._header_complete = True
+                self._header_timer.cancel()
+            self.connection.settimeout(None)
+
+    def finish(self):
+        self._header_timer.cancel()
+        super().finish()
+
+    def _on_desktop(self):
+        host = self.headers.get('Host', '').split(':', 1)[0].lower()
+        return ipaddress.ip_address(self.client_address[0]).is_loopback and host in ('localhost', '127.0.0.1')
+
+    def _local_files_only(self):
+        if not self._on_desktop():
+            raise APIError('随盘文件只能在运行核心的电脑通过 localhost 使用；手机和局域网无法选择这台电脑的文件夹。', 403)
+
+    server_version = "discprobe-webui"
+
+    def log_message(self, *args):
+        pass  # URLs may carry the LAN token for EventSource/static requests.
+
+    def end_headers(self):
+        # Share authentication with subresources, redirects and event streams too.
+        if getattr(self, "_set_session_cookie", False):
+            self.send_header("Set-Cookie", f"discprobe_session={self.server.token}; Path=/; HttpOnly; SameSite=Strict")
+        if getattr(self, "_set_local_cookie", False):
+            self.send_header("Set-Cookie", f"{self._local_cookie}={self.server.lifecycle_token}; Path=/; HttpOnly; SameSite=Strict")
+        if getattr(self, '_photo_device', None):
+            self.send_header('Set-Cookie', f'discprobe_phone_device={self._photo_device}; Path=/; HttpOnly; SameSite=Strict')
+        super().end_headers()
+
+    def _send(self, code, body, content_type="application/json; charset=utf-8", headers=None, *, filename=None):
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        if content_type.split(';', 1)[0] == 'text/html':
+            from .web_security import content_security_policy
+            self.send_header('Content-Security-Policy', content_security_policy(body, fax=True))
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        for name,value in (headers or {}).items():
+            self.send_header(name,str(value))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, code, payload):
+        self._send(code, json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+
+    @property
+    def _local_cookie(self):
+        return f"discprobe_lifecycle_{self.server.server_port}"
+
+    def _lifecycle_auth(self, token):
+        return hmac.compare_digest(token.encode("utf-8"), self.server.lifecycle_token.encode("ascii"))
+
+    def _has_local_cookie(self):
+        cookies = SimpleCookie()
+        try:
+            cookies.load(self.headers.get("Cookie", ""))
+        except CookieError:
+            return False
+        cookie = cookies.get(self._local_cookie)
+        return bool(cookie and self._lifecycle_auth(cookie.value))
+
+    def _error(self, exc):
+        data = dict(error=i18n.tr(str(exc)))
+        if exc.code:
+            data["code"] = exc.code
+        if exc.gate:
+            data["burn_gate"] = exc.gate
+        self._json(exc.status, data)
+
+    def _allowed(self):
+        try:
+            self._authorize()
+        finally:
+            self.server.headers_done(self.request)
+
+    def _authorize(self):
+        self._set_session_cookie = False
+        self._photo_device = self._photo_token = None
+        hosts = self.headers.get_all("Host", [])
+        if len(hosts) != 1 or not self.server.accepts_host(hosts[0], self.connection):
+            raise APIError("invalid Host", 403)
+        host = hosts[0]
+        origin = self.headers.get("Origin")
+        if origin and origin != "http://" + host:
+            raise APIError("cross-origin request refused", 403)
+        if self.headers.get("Sec-Fetch-Site") not in (None, "same-origin", "none"):
+            raise APIError("cross-site request refused", 403)
+        url = urlsplit(self.path)
+        path, query = unquote(url.path), parse_qs(url.query)
+        lifecycle_header = self.headers.get("X-Discprobe-Token", "")
+        if self.command == "GET" and path == "/api/ping":
+            if not self._lifecycle_auth(lifecycle_header):
+                raise APIError("invalid session token", 403)
+            return
+        if self.command == "GET" and path == "/api/status":
+            if self.client_address[0] != "127.0.0.1" or not self._lifecycle_auth(lifecycle_header):
+                raise APIError("local session token required", 403)
+            return
+        if not self.server.token:
+            if self.command == "GET" and path in ("/home/", "/home/index.html"):
+                self._set_local_cookie = self._lifecycle_auth(query.get("token", [""])[0])
+            if self.command == "POST" and path == "/api/quit":
+                if not (self._lifecycle_auth(lifecycle_header) or self._has_local_cookie()):
+                    raise APIError("invalid session token", 403)
+        # Shared display words and the bundled font contain no session data. Phones need these
+        # static files without gaining access to the computer page or any main API.
+        if self.command == "GET" and path in (
+            "/home/guidance.mjs", "/home/photowords.mjs", "/fonts/Archivo-VF-latin.woff2",
+            "/fonts/titles.css", "/fonts/SourceHanSansSC-Heavy-subset.woff2",
+            "/brand/probe/favicon.ico", "/brand/probe/apple-touch-icon.png",
+        ):
+            return
+        if path.startswith("/phone/"):
+            if self.command != "GET":
+                raise APIError("not found", 404)
+            try:
+                self._phone_run = self.server.backend.photos.token_run(path.removeprefix("/phone/"))
+                self._use_phone(path.removeprefix('/phone/'))
+            except ValueError as exc:
+                raise APIError(str(exc), 403) from exc
+            return
+        if path == "/api/photos" or path.startswith("/api/photos/"):
+            token = (self.headers.get("X-Photo-Token") or self.headers.get("X-Discprobe-Token")
+                     or query.get("token", [""])[0])
+            if token and token != self.server.token:
+                try:
+                    run = self.server.backend.photos.token_run(token)
+                except ValueError as exc:
+                    raise APIError(str(exc), 403) from exc
+                target_run = query.get("run", [""])[0] if path == "/api/photos" else path.split("/")[3]
+                if run != target_run:
+                    raise APIError("photo token belongs to another run", 403)
+                self._use_phone(token)
+                return
+        if self.server.token:
+            query = parse_qs(urlsplit(self.path).query)
+            tokens = (self.headers.get("X-Discprobe-Token", ""), query.get("token", [""])[0])
+            expected = self.server.token.encode("ascii")
+            self._set_session_cookie = any(hmac.compare_digest(token.encode("utf-8"), expected) for token in tokens)
+            if not self._set_session_cookie:
+                cookie = SimpleCookie()
+                try:
+                    cookie.load(self.headers.get("Cookie", ""))
+                except CookieError:
+                    pass
+                session = cookie.get("discprobe_session")
+                if not session or not hmac.compare_digest(session.value.encode("utf-8"), expected):
+                    raise APIError("invalid session token", 403)
+
+    def _use_phone(self, token):
+        cookie = SimpleCookie()
+        try:
+            cookie.load(self.headers.get('Cookie', ''))
+        except CookieError:
+            pass
+        device = cookie.get('discprobe_phone_device')
+        self._photo_token = token
+        self._photo_device = self.server.backend.photos.use(token, self.headers.get('User-Agent', ''),
+                                                          device.value if device else None)
+
+    def _photo_burn(self, query, run, *, validate=False):
+        backend = self.server.backend
+        if self._photo_token is not None:
+            return backend.photos.token_burn(self._photo_token)
+        ident = query.get("burn_record", [None])[0]
+        if ident is not None:
+            from .photo_burns import valid_record_id
+            if not valid_record_id(ident) or (validate and
+                    not any(r["id"] == ident for r in backend.photo_burn_listing(run)["burns"])):
+                raise APIError("invalid saved burn selection")
+        return ident
+
+    # Preset interchange routes stay together; no hardware work runs here.
+    def _community(self, method):
+        url = urlsplit(self.path)
+        if url.path != '/api/community':
+            return False
+        from . import community
+        backend = self.server.backend
+        try:
+            if method == 'GET':
+                query = parse_qs(url.query, keep_blank_values=True)
+                if set(query) - {'refresh','media','mid','sectors','search','include_failed'}:
+                    raise APIError('invalid community query')
+                if any(len(values) != 1 or len(values[0]) > 600 for values in query.values()):
+                    raise APIError('invalid community query')
+                refresh = query.get('refresh', ['0'])[0]
+                failed = query.get('include_failed', ['0'])[0]
+                if refresh not in ('0','1') or failed not in ('0','1'):
+                    raise APIError('invalid community flags')
+                result = community.get_community(None if refresh == '1' else [])
+                result['entries'] = community.search(result['feed'], media=query.get('media',[None])[0],
+                    mid=query.get('mid',[None])[0], sectors=int(query['sectors'][0]) if 'sectors' in query else None,
+                    search=query.get('search',[None])[0], include_failed=failed == '1')
+            else:
+                body = self._body(2048)
+                if self.headers.get_content_type() != 'application/json':
+                    raise APIError('application/json required', 415)
+                payload = json.loads(body)
+                if not isinstance(payload, dict) or set(payload) != {'id'} or not isinstance(payload['id'], str):
+                    raise APIError('choose one community ID')
+                feed = community.get_community([])['feed']
+                entry = next((e for e in feed['entries'] if e['id'] == payload['id']), None)
+                if entry is None:
+                    raise APIError('unknown community ID')
+                folder = (backend.root / 'presets').resolve()
+                if not folder.is_relative_to(backend.root.resolve()):
+                    raise APIError('presets folder must stay inside workspace')
+                with backend.lock:
+                    result = community.import_entry(entry, folder)
+            self._json(200, result)
+        except (ValueError, OSError) as exc:
+            self._json(exc.status if isinstance(exc, APIError) else 400, dict(error=str(exc)))
+        return True
+
+    def _presetio(self, method):
+        if urlsplit(self.path).path != "/api/presets":
+            return False
+        from . import presetio_api
+        backend = self.server.backend
+        try:
+            if method == "GET":
+                result = presetio_api.listing(backend.root)
+            else:
+                # Consume the bounded body before replying: closing an HTTP/1.0
+                # socket with unread request bytes can reset the 415 response on Windows.
+                body = self._body(3 * 1024 * 1024)
+                if self.headers.get_content_type() != "application/json":
+                    raise APIError("application/json required", 415)
+                payload = json.loads(body)
+                with backend.lock:
+                    result = presetio_api.handle(backend.root, payload)
+            self._json(200, result)
+        except (ValueError, OSError) as exc:
+            self._json(exc.status if isinstance(exc, APIError) else 400, dict(error=str(exc)))
+        return True
+
+    # Works route adapters are kept together for parallel branch integration.
+    def _works(self, method):
+        from .works_http import handle
+        return handle(self, method)
+
+    def _works_mutation(self, method):
+        try:
+            self._allowed()
+            if not self._works(method):
+                raise APIError("not found", 404)
+        except APIError as exc:
+            self._json(exc.status, dict(error=i18n.tr(str(exc))))
+        except (ConnectionError, TimeoutError):
+            pass
+
+    def do_PUT(self):
+        self._works_mutation("PUT")
+
+    def do_PATCH(self):
+        self._works_mutation("PATCH")
+
+    def do_DELETE(self):
+        self._works_mutation("DELETE")
+
+    def do_GET(self):
+        try:
+            self._allowed()
+            if self._works("GET"):
+                return
+            if self._presetio("GET"):
+                return
+            if self._community('GET'):
+                return
+            url = urlsplit(self.path)
+            path = unquote(url.path)
+            backend = self.server.backend
+            if path == "/api/ping":
+                if backend.closed:
+                    raise APIError("service is closing", 503)
+                self._json(200, self.server.identity)
+                return
+            if path == "/api/status":
+                self._json(200, backend.service_status())
+                return
+            if path == '/api/editor-lamp-tables':
+                from .editor_preview import lamp_tables
+                self._json(200,lamp_tables())
+                return
+            if path == '/api/editor-colour-palette':
+                from .editor_colour import palette
+                try:
+                    self._json(200, palette())
+                except (OSError, ValueError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
+            if path == "/api/news":
+                from . import news
+                # Server is a ThreadingHTTPServer: network I/O stays in this
+                # request's worker, leaving state and other requests responsive.
+                query = parse_qs(url.query, keep_blank_values=True)
+                self._json(200, news.get_news(query.get("source")))
+            elif path == "/api/news/asset":
+                from . import news
+                query = parse_qs(url.query, keep_blank_values=True)
+                try:
+                    raw, kind = news.get_asset(query.get("path", [""])[0], query.get("source", [None])[0])
+                except (ValueError, OSError) as exc:
+                    raise APIError(str(exc), 400) from exc
+                self._send(200, raw, kind)
+            elif path == "/api/version":
+                self._json(200, api.version_payload())
+            elif path == "/gui.json":
+                self._json(200, self.server.gui_manifest)
+            elif path == "/api/photo-burns":
+                self._json(200, backend.photo_burn_listing(parse_qs(url.query).get("run", [""])[0]))
+            elif path == "/api/phone-link":
+                from . import photo, qr
+                query = parse_qs(url.query, keep_blank_values=True)
+                run = query.get("run", [""])[0]
+                backend.photos.run_dir(run)
+                selected = self._photo_burn(query, run, validate=True)
+                addresses = photo.lan_ips() if self.server.token else []
+                chosen = query.get("address")
+                if chosen is not None and chosen[0] not in addresses:
+                    raise APIError("address must be one of this computer's LAN addresses")
+                address = chosen[0] if chosen else next(iter(addresses), None)
+                link = f"http://{address}:{self.server.server_port}/phone/{backend.photos.token(run, selected)}" if address else None
+                self._json(200, dict(url=link, qr_svg=qr.svg(link) if link else None,
+                                     addresses=addresses, address=address))
+            elif path == '/api/phone-devices':
+                try:
+                    query = parse_qs(url.query)
+                    run = query.get("run", [""])[0]
+                    self._json(200, backend.photos.connected(run, self._photo_burn(query, run)))
+                except ValueError as exc:
+                    raise APIError(str(exc), 404) from exc
+            elif path == "/api/photos":
+                # The phone's own polls carry its photo token; only the computer's page counts as "open".
+                query = parse_qs(url.query)
+                run = query.get("run", [""])[0]
+                self._json(200, backend.photo_listing(run, desk=self._photo_token is None,
+                                                      burn_record=self._photo_burn(query, run)))
+            elif path.startswith("/api/photos/"):
+                parts = path.split("/")
+                if len(parts) != 5:
+                    raise APIError("not found", 404)
+                image, kind, row = backend.photos.get(parts[3], parts[4])
+                if self._photo_token and row.get("burn_record") != backend.photos.token_burn(self._photo_token):
+                    raise APIError("photo not found", 404)
+                self._send(200, image.read_bytes(), kind)
+            elif path.startswith("/phone/"):
+                config = dict(run=self._phone_run, token=path.removeprefix("/phone/"))
+                page = self.server.gui_root / "phone" / "index.html"
+                self._send(200, page.read_text(encoding="utf-8").replace("__PHOTO_CONFIG__", json.dumps(config)).encode("utf-8"),
+                           "text/html; charset=utf-8")
+            elif path == "/":
+                self.send_response(302)
+                self.send_header("Location", "/home/" + ("?" + url.query if url.query else ""))
+                self.send_header("Content-Length", "0")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+            elif path == "/api/state":
+                self._json(200, backend.state(parse_qs(urlsplit(self.path).query).get("media", [None])[0]))
+            elif path == "/api/greetings":
+                # the terminal's greetings, so the page picks by the viewer's own clock (see greetings.py)
+                from . import greetings
+                self._json(200, dict(first_time=[list(e) for e in greetings.FIRST_TIME],
+                                     week=[[list(e) for e in day] for day in greetings.WEEK],
+                                     slots="late night 22-05, early 05-09, morning 09-12, afternoon 12-18, evening 18-22",
+                                     first_day="Monday"))
+            elif path == "/api/catalogue":
+                self._json(200, backend.catalogue())
+            elif path == "/api/image-job":
+                query = parse_qs(url.query)
+                self._json(200, backend.image_job(work=query.get("work", [None])[0], ident=query.get("job", [None])[0]))
+            elif re.fullmatch(r"/api/jobs/j-[0-9a-f]+", path):
+                after = parse_qs(url.query, keep_blank_values=True).get('after')
+                if after is not None and (len(after) != 1 or not re.fullmatch(r'[0-9]{1,12}', after[0])):
+                    raise APIError("invalid job cursor")
+                self._json(200, backend.job_state(path.rsplit("/", 1)[1], int(after[0]) if after else None))
+            elif path == "/api/burn-token":
+                raise APIError("burn token requires a POST request", 405)
+            elif path == "/api/burn-speeds" or re.fullmatch(r"/api/drives/[^/]+/speeds", path):
+                query = parse_qs(url.query)
+                drive = query.get("drive", [""])[0] if path == "/api/burn-speeds" else path.split("/")[3]
+                self._json(200, backend.burn_speeds(drive, query.get("media", ["dvd"])[0]))
+            elif path == "/api/events":
+                self._events()
+            elif path == "/api/iso":
+                self._json(200, backend.iso_file(parse_qs(urlsplit(self.path).query).get("path", [""])[0]))
+            elif path == "/api/burn-command":
+                # the command a person runs to burn this ISO where the core cannot (a CD on Windows): the core's own
+                # words (burner.imapi_cd_command, as guide.burn_steps prints it), never assembled by the page
+                import subprocess
+                from . import burner
+                query = parse_qs(urlsplit(self.path).query)
+                drive = query.get("drive", [""])[0]
+                if drive not in [d["id"] for d in backend.drive_provider()]:
+                    raise APIError("unknown drive", 404)
+                if query.get("media", ["cd"])[0] != "cd":
+                    raise APIError("only CDs are burned outside the core")
+                iso = backend.iso_file(query.get("iso", [""])[0])
+                argv = burner.imapi_cd_command(drive, backend.root / iso["path"])
+                self._json(200, dict(command=subprocess.list2cmdline(argv), argv=argv))
+            elif path.startswith("/api/"):
+                raise APIError("not found", 404)
+            else:
+                root = self.server.gui_root
+                relative = path.lstrip("/") + ("index.html" if path.endswith("/") else "")
+                target = (root / relative).resolve()
+                if not target.is_relative_to(root) or not target.is_file():
+                    self._send(404, b"Not found\n", "text/plain; charset=utf-8")
+                else:
+                    ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+                    if target.suffix.lower() in (".js", ".mjs"):
+                        # Windows' registry calls .mjs text/plain, and a browser refuses to run a module
+                        # typed that way: the page stays blank while the server reports nothing wrong.
+                        ctype = "text/javascript; charset=utf-8"
+                    self._send(200, target.read_bytes(), ctype)
+        except APIError as exc:
+            self._error(exc)
+        except ValueError as exc:
+            self._json(404, dict(error=str(exc)))
+        except (ConnectionError, TimeoutError):
+            pass
+        except OSError:
+            self._json(500, dict(error="photo I/O failed"))
+
+    def _events(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.connection.settimeout(5)
+        cursors = {}
+        first = True
+        summary = parse_qs(urlsplit(self.path).query).get('summary') == ['1']
+        may_quit = bool(self.server.token) or self._has_local_cookie()
+        last_busy = None
+        while not self.server.backend.closed:
+            events = self.server.backend.events(cursors, reconnect=first, summary=summary)
+            first = False
+            for event in events:
+                self.wfile.write(("event: " + event["type"] + "\ndata: " + json.dumps(event, ensure_ascii=False) + "\n\n").encode("utf-8"))
+            self.wfile.write(b": heartbeat\n\n")
+            if may_quit:
+                busy = self.server.backend.busy()
+                if busy != last_busy:
+                    self.wfile.write(b"event: activity\ndata: " + json.dumps(dict(type="activity", busy=busy)).encode("ascii") + b"\n\n")
+                    last_busy = busy
+            self.wfile.flush()
+            time.sleep(0.25)
+
+    def _body(self, limit):
+        lengths = self.headers.get_all("Content-Length", [])
+        if self.headers.get("Transfer-Encoding") or len(lengths) != 1 or not lengths[0].isdigit():
+            raise APIError("one Content-Length required", 411)
+        length = int(lengths[0])
+        if not 0 < length <= limit:
+            raise APIError("invalid request size", 413)
+        self.connection.settimeout(30)
+        chunks, left = [], length
+        while left:
+            chunk = self.rfile.read(min(left, 1 << 20))
+            if not chunk:
+                raise APIError("request body ended early")
+            chunks.append(chunk)
+            left -= len(chunk)
+        return b"".join(chunks)
+
+    def do_POST(self):
+        try:
+            self._allowed()
+            if unquote(urlsplit(self.path).path) == "/api/quit":
+                payload = {}
+                if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
+                    if self.headers.get_content_type() != "application/json":
+                        raise APIError("application/json required", 415)
+                    payload = json.loads(self._body(1024))
+                if (not isinstance(payload, dict) or set(payload) - {"force"}
+                        or type(payload.get("force", False)) is not bool):
+                    raise APIError("invalid stop request")
+                force = payload.get("force", False)
+                if force and (self.client_address[0] != "127.0.0.1" or
+                              not self._lifecycle_auth(self.headers.get("X-Discprobe-Token", ""))):
+                    raise APIError("local session token required", 403)
+                self.server.backend.request_quit(force=force)
+                try:
+                    self._json(200, dict(exited=True))
+                finally:
+                    # shutdown() must run outside serve_forever's thread.
+                    self.server.shutdown()
+                return
+            if self._works("POST"):
+                return
+            if urlsplit(self.path).path in ("/api/editor-preview", "/api/editor-swatches"):
+                if self.headers.get_content_type() != "application/json":
+                    raise APIError("application/json required", 415)
+                payload=json.loads(self._body(COMPOSE_BYTES if urlsplit(self.path).path == '/api/editor-preview' else 64 * 1024 * 1024))
+                if not isinstance(payload,dict):
+                    raise APIError("invalid preview request")
+                try:
+                    renderer=self.server.backend.editor_renderer
+                    if urlsplit(self.path).path == "/api/editor-swatches":
+                        self._json(200,renderer.swatches(payload.get('pose')))
+                    else:
+                        data,meta=renderer.render(payload)
+                        try:
+                            self._send(200,data,"image/png",{'X-Editor-Document':meta['document_hash'],
+                                       'X-Editor-Quality':meta['quality'],'X-Editor-Cache':'hit' if meta['cache_hit'] else 'miss'})
+                        except (BrokenPipeError,ConnectionResetError,ConnectionAbortedError):
+                            pass  # A pose change may have cancelled this image request.
+                except (ValueError,KeyError,TypeError,IndexError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
+            if self._presetio("POST"):
+                return
+            if self._community('POST'):
+                return
+            if urlsplit(self.path).path == "/api/photos":
+                from .photo import PHOTO_TYPES
+                kind = self.headers.get_content_type()
+                if kind not in PHOTO_TYPES:
+                    raise APIError("JPEG, PNG, HEIC or WebP required", 415)
+                query = parse_qs(urlsplit(self.path).query)
+                run = query.get("run", [""])[0]
+                try:
+                    self.server.backend.photos.run_dir(run)
+                    selected = self._photo_burn(query, run, validate=True)
+                    data = self._body(max(DESIGN_SIDES))
+                    self._photo_body_read = True
+                    same = self.server.backend.duplicate_photo(run, data)
+                    if same:
+                        # The reader would mark a copy as duplicate_photo anyway; say so before it is stored.
+                        self._json(409, dict(error="this photo was already sent", code="duplicate_photo", duplicate_of=same))
+                        return
+                    result = self.server.backend.photos.upload(run, data, kind,
+                                                              self.headers.get("X-Filename", "photo"),
+                                                              token=self._photo_token, device_id=self._photo_device,
+                                                              burn_record=selected)
+                except ValueError as exc:
+                    if isinstance(exc, APIError):
+                        raise
+                    raise APIError(str(exc)) from exc
+                self._json(200, result)
+                return
+            if urlsplit(self.path).path == "/api/compose":
+                if self.headers.get_content_type() != "application/json":
+                    raise APIError("application/json required", 415)
+                self._json(200, self.server.backend.compose_document(json.loads(self._body(COMPOSE_BYTES))))
+                return
+            if urlsplit(self.path).path == "/api/colour-input":
+                from PIL import Image
+                from .colour_input import WEB_BYTES, WEB_TYPES, web_picture
+
+                if self.headers.get_content_type() not in WEB_TYPES:
+                    raise APIError("PNG, JPEG, WebP or BMP required", 415)
+                try:
+                    picture, notice = web_picture(self._body(WEB_BYTES))
+                except APIError:
+                    raise
+                except (OSError, SyntaxError, ValueError, Image.DecompressionBombError) as exc:
+                    raise APIError(str(exc)) from exc
+                if notice is None:
+                    self._send(204, b'')
+                else:
+                    self._send(200, picture, 'image/png', {'X-Discprobe-ICC': json.dumps(notice)})
+                return
+            if urlsplit(self.path).path == "/api/template-preview":
+                from .template_grid import PNG_LIMIT, preview_png
+                if self.headers.get_content_type() != "image/png":
+                    raise APIError("image/png required", 415)
+                notices = []
+                manage_icc = parse_qs(urlsplit(self.path).query).get('icc') == ['1']
+                try:
+                    preview, bounds = preview_png(self._body(PNG_LIMIT), report_icc=notices.append if manage_icc else None)
+                except APIError:
+                    raise
+                except ValueError as exc:
+                    raise APIError(str(exc)) from exc
+                headers = {"X-Discprobe-Artwork-Bounds": json.dumps(bounds)}
+                if notices:
+                    headers['X-Discprobe-ICC'] = json.dumps(notices[0])
+                self._send(200, preview, "image/png", headers)
+                return
+            if urlsplit(self.path).path == "/api/design":
+                if self.headers.get_content_type() != "application/octet-stream":
+                    raise APIError("application/octet-stream required", 415)
+                self._json(200, self.server.backend.save_design(self._body(max(DESIGN_SIDES))))
+                return
+            if self.headers.get_content_type() != "application/json":
+                raise APIError("application/json required", 415)
+            lengths = self.headers.get_all("Content-Length", [])
+            if self.headers.get("Transfer-Encoding") or len(lengths) != 1 or not lengths[0].isdigit():
+                raise APIError("one Content-Length required", 411)
+            length = int(lengths[0])
+            if not 0 < length <= 65536:
+                raise APIError("invalid request size", 413)
+            self.connection.settimeout(5)
+            body = self.rfile.read(length)
+            self._json_body_read = True
+            payload = json.loads(body)
+            path = urlsplit(self.path).path
+            if path == "/api/troubleshoot":
+                from .troubleshoot import search
+                if not isinstance(payload, dict) or set(payload) - {"query", "lang"}:
+                    raise APIError("expected query and optional lang")
+                lang = payload.get("lang", "en")
+                try:
+                    result = search(payload.get("query"), lang)
+                except ValueError as exc:
+                    raise APIError(str(exc)) from exc
+                self._json(200, result)
+                return
+            backend = self.server.backend
+            if path == "/api/photo-alignment":
+                try:
+                    self._json(200, backend.photos.manual_alignment(payload))
+                except (OSError, ValueError, KeyError, TypeError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
+            if path == '/api/files-layout':
+                self._local_files_only()
+                try:
+                    self._json(200, backend.files_layout(payload))
+                except (ValueError, OSError, KeyError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
+            if path == '/api/files-authorize':
+                self._local_files_only()
+                self._json(200, backend.files_authorize(payload))
+                return
+            if path == '/api/burn-check':
+                self._json(200, backend.burn_check(payload))
+                return
+            if path == '/api/burn-token':
+                if not self._on_desktop():
+                    raise APIError("burn tokens can only be requested on the computer running the core", 403)
+                self._json(200, backend.burn_token(payload))
+                return
+            if path == '/api/run' and isinstance(payload, dict) and isinstance(payload.get('args'), dict) and payload['args'].get('files'):
+                self._local_files_only()
+            if path == "/api/template":
+                if isinstance(payload, dict) and 'grid' in payload:
+                    name, archive = backend.grid_template_zip(payload)
+                    disposition = "attachment; filename*=UTF-8''" + quote(name, safe='')
+                    self._send(200, archive, "application/zip", {"Content-Disposition": disposition})
+                else:
+                    self._send(200, backend.template_zip(payload), "application/zip", filename="disc-template.zip")
+                return
+            if re.fullmatch(r'/api/phone-devices/[0-9a-f]{32}/disconnect', path):
+                try:
+                    result = backend.photos.disconnect(path.split('/')[3])
+                except ValueError as exc:
+                    raise APIError(str(exc), 404) from exc
+            elif path == "/api/catalogue":
+                from .measurement_jobs import MeasurementRunning, occupied
+                with backend.lock, backend.works._locked():
+                    try:
+                        backend.library._recover()
+                        result = webui_catalog.save_entry(backend.root, backend.out, payload, occupied=occupied(backend.out))
+                    except MeasurementRunning as exc:
+                        raise APIError(str(exc), exc.status, code=exc.code) from exc
+                    except ValueError as exc:
+                        raise APIError(str(exc)) from exc
+            elif path == "/api/library":
+                from .works import WorkError
+                op, ident = payload.get("operation"), payload.get("id")
+                if not isinstance(ident, str) or not 1 <= len(ident) <= 256:
+                    raise APIError("invalid library id")
+                library = backend.library
+                try:
+                    with backend.lock:
+                        if op == "restore" and backend._busy():
+                            raise APIError("wait for the running task before changing the disc library", 409)
+                        if op == "preview" and set(payload) == {"operation", "id"}:
+                            result = library.preview(ident)
+                        elif op == "delete" and set(payload) == {"operation", "id", "with_works", "revision"} and (
+                            type(payload["with_works"]) is bool and isinstance(payload["revision"], str)
+                        ):
+                            if backend.reading or any(job.exit is None and job.action not in {"calibrate", "timing", "geo"}
+                                                      for job in backend.jobs.values()):
+                                raise APIError("wait for the running task before changing the disc library", 409)
+                            result = library.delete(ident, with_works=payload["with_works"], revision=payload["revision"])
+                        elif op == "restore" and set(payload) == {"operation", "id"}:
+                            result = library.restore(ident)
+                        else:
+                            raise APIError("invalid library operation")
+                except WorkError as exc:
+                    raise APIError(str(exc), exc.status, code=getattr(exc, 'code', None)) from exc
+            elif path == "/api/run":
+                result = backend.start(payload)
+            elif path == "/api/disc":
+                result = backend.read_disc(payload)
+            else:
+                match = re.fullmatch(r"/api/jobs/(j-[0-9a-f]+)/(?P<action>cancel|answer|result-seen)", path)
+                if not match:
+                    raise APIError("not found", 404)
+                if match["action"] == "result-seen":
+                    result = backend.acknowledge_calibration(match[1])
+                else:
+                    result = backend.cancel(match[1]) if match["action"] == "cancel" else backend.answer(match[1], payload)
+            self._json(200, result)
+        except APIError as exc:
+            route = urlsplit(self.path).path
+            if ((route == '/api/photos' and not getattr(self, '_photo_body_read', False)) or
+                    (route.startswith('/api/phone-devices/') and not getattr(self, '_json_body_read', False))):
+                # Drain small rejected bodies so closing with unread socket data does not
+                # turn a useful 403/415 into a TCP reset (especially on Windows). Never
+                # consume oversized uploads, or wait indefinitely for an absent body.
+                length = self.headers.get("Content-Length", "")
+                if length.isdigit() and 0 < int(length) <= 65536:
+                    self.connection.settimeout(0.2)
+                    try:
+                        self.rfile.read(int(length))
+                    except OSError:
+                        pass
+            self._error(exc)
+        except (ValueError, UnicodeError, RecursionError):
+            self._json(400, dict(error=i18n.tr("invalid JSON request")))
+        except OSError:
+            self._json(500, dict(error=i18n.tr("job I/O failed")))
+
+
+def result_signature(run):
+    return tuple((p.name, p.stat().st_mtime_ns, p.stat().st_size)
+                 for p in sorted(Path(run.path).glob("*.json")))
+
+
+def guide_drive_tag(drive):
+    # Mirrors _outdir's device tag; never opens the device.
+    return (drive or "").replace(":", "")
+
+
+def _warn_linux_drive_permissions(drives):
+    blocked = [drive["id"] for drive in drives
+               if re.fullmatch(r"/dev/sr[0-9]+", drive["id"]) and not os.access(drive["id"], os.R_OK | os.W_OK)]
+    if blocked:
+        i18n._prepare(sys.stderr)
+        devices = ", ".join(blocked)
+        print(f"当前用户无法读写 {devices}。请加入 cdrom 组并重新登录。 / "
+              f"No read/write access to {devices}. Join the cdrom group and sign in again.",
+              file=sys.stderr, flush=True)
+
+
+def run(args):
+    from .web_instance import launch
+    from . import texlib
+
+    lan = not args.local_only
+    root = Path.cwd().resolve()
+    no_drives = getattr(args, "no_drives", False) or os.environ.get("DISC_PROBE_NO_DRIVES") == "1"
+    gui = Path(getattr(args, "gui", None) or api.BUNDLED_GUI).expanduser().resolve()
+    # check the options before looking for a running instance: a bad --gui must say so, not open the old one
+    try:
+        api.check_manifest(api.load_manifest(gui)[1])
+    except ValueError as exc:
+        sys.exit(str(exc))
+    path_options = {"texlib": "DISCPROBE_TEXLIB", "table": "DISCPROBE_COLOUR_TABLE",
+                    "materials": "DISCPROBE_COLOUR_MATERIALS"}
+    asset_paths = {}
+    for option, env in path_options.items():
+        value = getattr(args, option, None) or os.environ.get(env)
+        asset_paths[option] = os.path.normcase(os.path.abspath(value)) if value else None
+    config = dict(mode="LAN" if lan else "local-only", port=args.port, media=args.media,
+                  root=os.path.normcase(root), out=os.path.normcase((root / args.out).resolve()), gui=os.path.normcase(gui),
+                  no_drives=no_drives, **asset_paths)
+
+    def server(port):
+        if getattr(args, "texlib", None):
+            texlib.configure(args.texlib)
+        for option in ("table", "materials"):
+            if value := getattr(args, option, None):
+                os.environ[path_options[option]] = str(texlib.safe(value))
+        backend = Backend(media=args.media, out=args.out, drive_provider=(lambda: []) if no_drives else None)
+        server = Server(backend, port, lan=lan, gui=gui)
+        if sys.platform.startswith("linux") and not no_drives:
+            _warn_linux_drive_permissions(backend.drive_provider())
+        return server
+
+    launch(server, config, new_instance=getattr(args, "new_instance", False),
+           open_browser=getattr(args, "open_browser", False))

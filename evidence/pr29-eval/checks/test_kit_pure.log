@@ -1,0 +1,2 @@
+COMMAND: node tests/test_kit_pure.mjs
+UI kit pure helpers passed

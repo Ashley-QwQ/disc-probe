@@ -1,0 +1,195 @@
+{
+  "old": {
+    "value": {
+      "photo": "synthetic-tile.png",
+      "homography_disc_mm_to_px": [
+        [
+          -3.3684152768196522,
+          -1.0862273770294084,
+          400.0074969664179
+        ],
+        [
+          -1.174783293356086,
+          3.0181829601488626,
+          300.02416646720314
+        ],
+        [
+          -0.0006831146390431971,
+          -0.0003326835774993325,
+          1.0
+        ]
+      ],
+      "rim_points": 720,
+      "rim_inliers": 720,
+      "sweep_deg": 2,
+      "mirrored": false,
+      "image_angle_deg": 162.6,
+      "angle_prior": null,
+      "ambiguous_candidates": 0,
+      "optimization": [
+        {
+          "sigma": 12.0,
+          "success": true,
+          "local_probe_improvement": 0.0,
+          "first_order": "unproved: pixel sampling and absolute values need not be differentiable",
+          "covariance": "not estimated by this photo model"
+        },
+        {
+          "sigma": 6.0,
+          "success": true,
+          "local_probe_improvement": 0.0,
+          "first_order": "unproved: pixel sampling and absolute values need not be differentiable",
+          "covariance": "not estimated by this photo model"
+        }
+      ],
+      "focal_px": 560.0,
+      "tiles": 129,
+      "ids_ok": 129
+    },
+    "messages": [
+      "rim: 720 points, 720 on the ellipse; centre (391, 301), axes 198 x 197 px",
+      "rotation sweep: 2 deg, mirrored False, centre (400, 300), score 0.498",
+      "refine (sigma 12.0): score 1.001",
+      "refine (sigma 6.0): score 1.003",
+      "synthetic-tile.png: IDs read 129/129"
+    ],
+    "warnings": []
+  },
+  "new": {
+    "value": {
+      "photo": "synthetic-tile.png",
+      "homography_disc_mm_to_px": [
+        [
+          -3.3684152769018563,
+          -1.0862273767780826,
+          400.0074969663609
+        ],
+        [
+          -1.1747832930789819,
+          3.018182960221411,
+          300.0241664657584
+        ],
+        [
+          -0.0006831146390289212,
+          -0.0003326835775579953,
+          1.0
+        ]
+      ],
+      "rim_points": 720,
+      "rim_inliers": 720,
+      "sweep_deg": 2,
+      "mirrored": false,
+      "image_angle_deg": 162.6,
+      "angle_prior": null,
+      "ambiguous_candidates": 0,
+      "optimization": [
+        {
+          "sigma": 12.0,
+          "success": true,
+          "local_probe_improvement": 0.0,
+          "first_order": "unproved: pixel sampling and absolute values need not be differentiable",
+          "covariance": "not estimated by this photo model"
+        },
+        {
+          "sigma": 6.0,
+          "success": true,
+          "local_probe_improvement": 0.0,
+          "first_order": "unproved: pixel sampling and absolute values need not be differentiable",
+          "covariance": "not estimated by this photo model"
+        }
+      ],
+      "focal_px": 560.0,
+      "tiles": 129,
+      "ids_ok": 129
+    },
+    "messages": [
+      "rim: 720 points, 720 on the ellipse; centre (391, 301), axes 198 x 197 px",
+      "rotation sweep: 2 deg, mirrored False, centre (400, 300), score 0.498",
+      "refine (sigma 12.0): score 1.001",
+      "refine (sigma 6.0): score 1.003",
+      "synthetic-tile.png: IDs read 129/129"
+    ],
+    "warnings": []
+  },
+  "delta": {
+    "homography_disc_mm_to_px[0][0]": 8.220402136771554e-11,
+    "homography_disc_mm_to_px[0][1]": 2.513258490211001e-10,
+    "homography_disc_mm_to_px[0][2]": 5.695710569852963e-11,
+    "homography_disc_mm_to_px[1][0]": 2.771041174298716e-10,
+    "homography_disc_mm_to_px[1][1]": 7.254863376715548e-11,
+    "homography_disc_mm_to_px[1][2]": 1.4447323337662965e-09,
+    "homography_disc_mm_to_px[2][0]": 1.4275906845551134e-14,
+    "homography_disc_mm_to_px[2][1]": 5.866281852645594e-14,
+    "homography_disc_mm_to_px[2][2]": 0.0,
+    "rim_points": 0.0,
+    "rim_inliers": 0.0,
+    "sweep_deg": 0.0,
+    "image_angle_deg": 0.0,
+    "ambiguous_candidates": 0.0,
+    "optimization[0].sigma": 0.0,
+    "optimization[0].local_probe_improvement": 0.0,
+    "optimization[1].sigma": 0.0,
+    "optimization[1].local_probe_improvement": 0.0,
+    "focal_px": 0.0,
+    "tiles": 0.0,
+    "ids_ok": 0.0
+  },
+  "input_sha256": "642c77f720fb54b1a700a8d32fa96298da37c44bbe1011ba967ebe9220d1028c",
+  "scope": "one shared synthetic 800x600 raster; FIT_WIDTH=800 on both paths, default is 1200",
+  "tile_field_max_delta": {
+    "ring": 0,
+    "sector": 0,
+    "radius_mm": 0,
+    "design_angle_deg": 0,
+    "image_angle_deg": 0,
+    "id_ok": 0,
+    "a5_darker": 0,
+    "contrast": 0,
+    "A5_r_mm": 0,
+    "A5_a_deg": 0,
+    "A5_level": 0,
+    "A5_rgb": 0,
+    "A5_level_rgb": 0,
+    "92_r_mm": 0,
+    "92_a_deg": 0,
+    "92_level": 0,
+    "92_rgb": 0,
+    "92_level_rgb": 0,
+    "B9_r_mm": 0,
+    "B9_a_deg": 0,
+    "B9_level": 0,
+    "B9_rgb": 0,
+    "B9_level_rgb": 0,
+    "66_r_mm": 0,
+    "66_a_deg": 0,
+    "66_level": 0,
+    "66_rgb": 0,
+    "66_level_rgb": 0,
+    "MIX:A5,62,B1,61,65,A7_r_mm": 0,
+    "MIX:A5,62,B1,61,65,A7_a_deg": 0,
+    "MIX:A5,62,B1,61,65,A7_level": 0,
+    "MIX:A5,62,B1,61,65,A7_rgb": 0,
+    "MIX:A5,62,B1,61,65,A7_level_rgb": 0,
+    "MIX:92,87,83,8D,60_r_mm": 0,
+    "MIX:92,87,83,8D,60_a_deg": 0,
+    "MIX:92,87,83,8D,60_level": 0,
+    "MIX:92,87,83,8D,60_rgb": 0,
+    "MIX:92,87,83,8D,60_level_rgb": 0,
+    "8B_r_mm": 0,
+    "8B_a_deg": 0,
+    "8B_level": 0,
+    "8B_rgb": 0,
+    "8B_level_rgb": 0,
+    "2AE304_r_mm": 0,
+    "2AE304_a_deg": 0,
+    "2AE304_level": 0,
+    "2AE304_rgb": 0,
+    "2AE304_level_rgb": 0,
+    "ED00_r_mm": 0,
+    "ED00_a_deg": 0,
+    "ED00_level": 0,
+    "ED00_rgb": 0,
+    "ED00_level_rgb": 0
+  },
+  "csv_byte_identical": true
+}

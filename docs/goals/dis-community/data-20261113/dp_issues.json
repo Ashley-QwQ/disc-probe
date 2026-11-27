@@ -1,0 +1,1247 @@
+[
+ {
+  "id": "I_kwDOVh8rBM8AAAABcSiacQ",
+  "updatedAt": "2026-11-06T05:21:02Z",
+  "number": 1,
+  "title": "RuntimeError when executing geo on LG GP57EB40",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1",
+  "state": "OPEN",
+  "createdAt": "2026-11-04T00:03:55Z",
+  "author": {
+   "login": "MasterMT9"
+  },
+  "body": "Im getting the error:\nstopped: the spindle speed never settled; is the read speed fixed (--speed)?\nwhen attempting to execute the geo function on my LG GP57EB40 with a DVD with the randomised ISO, even when manually setting --speed.\nIs this a hardware limitation or a bug?",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 20,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAY4EhHI="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABipf-hg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6620184198",
+     "updatedAt": "2026-11-04T01:38:42Z",
+     "author": {
+      "login": "Sliicy"
+     },
+     "createdAt": "2026-11-04T01:38:42Z",
+     "body": "I'm getting the same issue, I tried also with a DVD that was written to normally (not via DiscImageStudio).\nI'm using an LG SP80NB80 Slim Portable DVD Writer with Memorex DVD+R 16X 4.7GB (unfortunately do not have the model number of these discs). I also tried adding a speed parameter:\n```\n> python -m discprobe geo --drive E: --speed 5540\n\nReference LBA 1009840; readable ranges [(68848, 1950832)]\nstopped: the spindle speed never settled; is the read speed fixed (--speed)?\ntargets.csv, summary.json, events.csv: C:\\...\\disc-probe\\results\\geo-E-20261103-203337\n```\n\nIn case it helps, here is a log from ImgBurn's report about the disc:\n```\nHL-DT-ST DVDRAM SP80NB80 RC00 (USB)\nCurrent Profile: DVD+R\n\nDisc Information:\nStatus: Complete\nState of Last Session: Complete\nErasable: No\nSessions: 1\nSectors: 2,295,104\nSize: 4,700,372,992 bytes\nTime: 510:03:29 (MM:SS:FF)\nMID: MBIPG101-R05-01\nSupported Write Speeds: 4x, 8x\n\nTOC Information:\nSession 1... (LBA: 0)\n-> Track 01  (Mode 1, LBA: 0 - 2295103)\n-> LeadOut  (LBA: 2295104)\n\nDisc Control Blocks Information:\nHL-DT-ST SP80NB80\n\nPhysical Format Information (ADIP):\nDisc ID: MBIPG101-R05-01\nBook Type: DVD+R\nPart Version: 1\nDisc Size: 120 mm\nMaximum Read Rate: Not Specified\nNumber of Layers: 1\nTrack Path: Parallel Track Path (PTP)\nLinear Density: 0.267 um/bit\nTrack Density: 0.74 um/track\nFirst Physical Sector of Data Area: 196,608\nLast Physical Sector of Data Area: 2,491,711\nLast Physical Sector in Layer 0: 0\n\nPhysical Format Information (Last Recorded):\nDisc ID: MBIPG101-R05-01\nBook Type: DVD-ROM\nPart Version: 1\nDisc Size: 120 mm\nMaximum Read Rate: Not Specified\nNumber of Layers: 1\nTrack Path: Parallel Track Path (PTP)\nLinear Density: 0.267 um/bit\nTrack Density: 0.74 um/track\nFirst Physical Sector of Data Area: 196,608\nLast Physical Sector of Data Area: 2,491,711\nLast Physical Sector in Layer 0: 0\n\nPerformance (Write Speed):\nDescriptor 1...\n-> B0: 0x00, B1: 0x00, B2: 0x00, B3: 0x00\n-> EL: 2295103 (0x0023053F)\n-> RS: 5,540 KB/s (4x) - WS: 5,540 KB/s (4x)\nDescriptor 2...\n-> B0: 0x00, B1: 0x00, B2: 0x00, B3: 0x00\n-> EL: 2295103 (0x0023053F)\n-> RS: 5,540 KB/s (4x) - WS: 11,080 KB/s (8x)\n```\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABitPdIw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6624107811",
+     "updatedAt": "2026-11-04T06:19:24Z",
+     "author": {
+      "login": "Sliicy"
+     },
+     "createdAt": "2026-11-04T06:19:00Z",
+     "body": "Upon further inspection and asking AI for help, it seems the problem is that using a DVD player over USB does not provide consistent speeds, and when I tested on another machine with a dedicated internal DVD player, it seemed to have worked:\n\n> ChatGPT: The script enforces a strict DVD rotation speed stability threshold of 0.2% (2e-3), which appears to be too restrictive for slim portable USB drives like the HL-DT-ST SP80NB80. Due to their lightweight motors and USB power management, these drives naturally experience minor rotational speed fluctuations that exceed this threshold under normal operation. As a result, the script incorrectly interprets normal drive behavior as instability and aborts prematurely.\n\nWhen I tested on an internal DVD player:\n\n```\nPS C:\\...\\disc-probe-main> python -m discprobe geo --drive E: --speed 5540\nwarning: cache strategy flush; phases will be noisier\nReference LBA 1009840; readable ranges [(68848, 1950832)]\nSpindle settled: T = 13.6309 ms (4401.8 rpm), jitter 108.3 us\n  rung  1: LBA  1009920 (+1.5 turns) phase  197.588 +/- 0.826 deg\n  rung  2: LBA  1010048 (+4.0 turns) phase    9.870 +/- 1.361 deg\n  LBA 1016464: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 13.6337 ms (4400.9 rpm), jitter 130.6 us\n  rung  3: LBA  1016464 predicted +/-  79.84 deg, whole turns     128, residual  -0.003 deg, chi2/dof 0.08\n  LBA 1036416: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 16.7118 ms (3590.3 rpm), jitter 187.1 us\n  rung  4: LBA  1036416 predicted +/-   7.19 deg, whole turns     512, residual  -0.128 deg, chi2/dof 0.29\n  rung  5: LBA  1082208 predicted +/-  22.09 deg, whole turns    1384, residual  +0.011 deg, chi2/dof 0.25\n  LBA 1178720: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 16.7072 ms (3591.3 rpm), jitter 153.7 us\n  LBA 1178720: skipped (no stable measurement)\n  rung  6: LBA  1130464 predicted +/-   6.20 deg, whole turns    2289, residual  +0.033 deg, chi2/dof 0.24\n  LBA 1371744: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 16.7097 ms (3590.7 rpm), jitter 165.2 us\n  rung  7: LBA  1371744 predicted +/-  21.28 deg, whole turns    6622, residual  -0.022 deg, chi2/dof 0.19\n  rung  8: LBA  1950816 predicted +/-  12.64 deg, whole turns   15984, residual  +0.015 deg, chi2/dof 0.18\n  rung  9: LBA  1902560 predicted +/-   0.67 deg, whole turns   15250, residual  +1.261 deg, chi2/dof 0.29\n  rung 10: LBA   165344 predicted +/-  22.79 deg, whole turns  -19745, residual  +0.272 deg, chi2/dof 2.27\n  rung 11: LBA    68848 predicted +/-   2.64 deg, whole turns  -22710, residual +77.244 deg, chi2/dof 505.28\nstopped: after the rung at LBA 68848: chi2/dof 505.3, worst residual 77.2 deg; a whole-turn count is probably wrong, so the fit was stopped\ntargets.csv, summary.json, events.csv: C:\\...\\disc-probe-main\\results\\geo-E-20261103-232812\n```\nFiles generated:\n[summary.json](https://github.com/user-attachments/files/34355951/summary.json)\n[targets.csv](https://github.com/user-attachments/files/34355952/targets.csv)\nI did not include events.csv here due to its massive size."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABiwRIwQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6627281089",
+     "updatedAt": "2026-11-04T09:21:23Z",
+     "author": {
+      "login": "Sliicy"
+     },
+     "createdAt": "2026-11-04T09:21:23Z",
+     "body": "On doing further research, I found the parameters for my specific Staples DVD-R as follows:\n```\nInner r0: 24.1452550866927\nOuter r1: 57.882832192116844\nSectors: 2297888\nLinear term: -0.00016392344332015821\nQuadratic term: 0.00023400464976339858\nCubic term: -9.7388669402629244E-05\nDisc Type: DVD\n```\nAnd I was able to make this design:\n<img width=\"966\" height=\"897\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/741cd3a5-9dee-451f-a8d5-c2c2747f2859\" />\n\nSo to conclude, @MasterMT9 I think you need to use a SATA-connected DVD writer, not USB for calculating the DVD."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjEC4QA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6648019008",
+     "updatedAt": "2026-11-05T02:28:01Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T02:28:01Z",
+     "body": "Sorry for the slow reply, and thanks to both of you for the logs.\n\n@MasterMT9 \"The spindle speed never settled\" was mostly our bug. `geo` required a coherence above 0.99 while settling, and many working drives never reach that. The limit is now 0.95, so please `git pull` and try again. Please run `python -m discprobe timing --drive E:` first and post its output, since it shows whether your GP57EB40 holds a steady speed (CAV) and how noisy its timing is.\n\n@Sliicy Thanks for the extra detail, and I'm glad you got a good result with your parameters. I don't think USB itself is the cause, though. Several USB drives have now given usable timing, including a PLDS DS8A8SH through a SATA-to-USB adapter (`geo` result within about 0.05° rms of our SATA drive), a Panasonic UJ260AF and an LG GP65NB60. Others are much noisier, such as an ASUS BW-16D1H-U at about 200 µs. So it depends on the drive more than the connection. The [compatibility table](https://github.com/Ashley-QwQ/disc-probe#光驱兼容表) lists what has been tested so far. Your SP80NB80 may well work after the same `git pull`, if you'd like to try it again.\n\nYour internal drive's stop at LBA 68848 (chi2/dof 505, residual 77°) is a different problem. The fit had been fine until then, so a whole-turn count was probably wrong on that long jump. That drive ran at 3590 rpm using the `flush` strategy with about 165 µs of jitter, which makes such a miscount more likely. If you have time, `timing` output from that drive would help, and so would a lower `--speed` if the drive accepts one. If you can share the drive model too, I'll add it to the table.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjFsPjA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6649745292",
+     "updatedAt": "2026-11-05T04:32:44Z",
+     "author": {
+      "login": "Sliicy"
+     },
+     "createdAt": "2026-11-05T04:32:44Z",
+     "body": "@Ashley-QwQ I want to take a moment to say thank you! I really appreciate the work you put into making this script and you saved me countless hours of painfully calibrating with it!\nI have here the timing output as well as the drive model of the other drive.\n\nFor clarity sake, I am referring to one as **LG** which is the external DVD reader that failed and the other one as **HP** which is the internal one that worked.\n\nHere is the HP drive that worked:\n```\nDrive: hp HLDS DVDRW  GUD0N rev SD03\nCurrent profile: DVD-ROM (0x0010)\nDisc status: complete, sessions 1, erasable False\nReadable capacity: last LBA 2297887 x 2048 B\nDVD physical: DVD-R 120 mm, 1 layer(s), 0.267 um/bit, 0.74 um/track (nominal codes), PSN 0x030000..0x26101F\nDVD-R MID: 'CMC MAG. AM3'\nRead perf: LBA 0..2298495  4570 -> 11080 kB/s (ratio 2.4245)\nWrite perf: LBA 0..2298495  4570 -> 11080 kB/s (ratio 2.4245)\nWrite speed descriptor: read 11080 / write 11080 kB/s to LBA 2297887\nWrite speed descriptor: read 11080 / write 5540 kB/s to LBA 2297887\nPage 2A: buffer 512 kB, rotation CLV, write speeds [(11080, 'CLV'), (5540, 'CLV')]\nNot available on this drive/disc: atip (5/24/00), dvd_plus_adip_11 (5/24/00), bd_disc_information (5/30/02)\n\nFull dump: C:\\...\\disc-probe-main\\results\\\n```\n\n[hp drive info.json](https://github.com/user-attachments/files/34407133/hp.drive.info.json)\n\nAnd here are my timings for the LG drive after testing it a few times & pulling latest tonight (I ran it as admin):\n\n```\nC:\\...\\disc-probe>python -m discprobe timing --drive E:\nnote: could not raise process priority\nDisc: DVD-ROM, last LBA 2297887, reading with read12\nCache: plain p50 6181.7 us, fua p50 202788.9 us -> strategy fua\nSpindle steady: T = 25.481 ms (2354.7 rpm)\nZone 0.05 (LBA 114880): T = 25.4801 ms (2354.78 rpm), jitter 1713.96 us = 24.216 deg, coherence 0.8617\nZone 0.50 (LBA 1148928): T = 25.47762 ms (2355.01 rpm), jitter 913.65 us = 12.91 deg, coherence 0.9749\nZone 0.95 (LBA 2182992): T = 25.47602 ms (2355.16 rpm), jitter 236.02 us = 3.335 deg, coherence 0.9959\nRotation: CAV\nWarning: a FUA read takes 8.37 turns of this period, not a whole number, so this period may not be the spindle\nTarget 0.15 (LBA 344672): phase 121.057 deg +/- 5.688 (single-shot std 35.974, n=40), ref jitter 43.969 deg\nTarget 0.35 (LBA 804256): phase 245.354 deg +/- 4.907 (single-shot std 31.036, n=40), ref jitter 36.858 deg\nTarget 0.55: not enough usable reads\nTarget 0.75 (LBA 1723408): phase 206.808 deg +/- 4.127 (single-shot std 25.776, n=39), ref jitter 45.335 deg\nTarget 0.95 (LBA 2182992): phase 298.107 deg +/- 4.082 (single-shot std 25.816, n=40), ref jitter 28.503 deg\n\nRaw events and summary: C:\\...\\disc-probe\\results\\timing-E-20261104-230400\n```\n\n[lg events.csv](https://github.com/user-attachments/files/34407215/lg.events.csv)\n[lg summary.json](https://github.com/user-attachments/files/34407216/lg.summary.json)\n\nHere is the result of running geo again from tonight's latest with the LG drive. Both runs produced empty folders. The 2nd run I also added the speed flag which didn't help:\n```\nC:\\...\\disc-probe> python -m discprobe geo --drive E:\nReference LBA 1011056; readable ranges [(68928, 1953200)]\nSpindle settled: T = 25.4896 ms (2353.9 rpm), jitter 608.0 us\n  rung  1: LBA  1011136 (+1.5 turns) phase   52.350 +/- 1.303 deg\n  LBA 1011264: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 25.4758 ms (2355.2 rpm), jitter 672.0 us\nstopped: could not measure LBA 1011264 near the reference\ntargets.csv, summary.json, events.csv: C:\\...\\disc-probe\\results\\geo-E-20261104-232744\n\nC:\\...\\disc-probe> python -m discprobe geo --drive E: --speed 5540\nReference LBA 1011056; readable ranges [(68928, 1953200)]\nSpindle settled: T = 25.4724 ms (2355.5 rpm), jitter 622.2 us\n  rung  1: LBA  1011136 (+1.5 turns) phase   47.786 +/- 0.591 deg\n  LBA 1011264: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 25.4786 ms (2354.9 rpm), jitter 74.6 us\nstopped: could not measure LBA 1011264 near the reference\ntargets.csv, summary.json, events.csv: C:\\...\\disc-probe\\results\\geo-E-20261104-232224\n```"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjFucKg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6649781290",
+     "updatedAt": "2026-11-05T04:35:26Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T04:35:26Z",
+     "body": "Thank you, that's kind of you to say, and these logs help a lot. I was too optimistic last time when I said the SP80NB80 might work after a `git pull`. Here's what your timing run shows:\n\n- The spindle is fine. It holds about 2355 rpm at all three zones, so the drive is CAV.\n- The read timing is very noisy: 1714 µs at the inner zone, 914 µs in the middle and 236 µs at the outer zone. Single phase readings scatter by 25 to 36°. A drive that works here is usually under 100 µs, and some are around 20 µs.\n- A FUA re-read takes about 200 ms, which is about 8 turns. Other drives so far take 1 to 3.\n\nSo I don't think the disc is the cause. Your HP reports the MID `CMC MAG. AM3`, and another user's GP90NB70 measured the same MID at about 18 to 20 µs. If this is the same disc you used in the LG, it looks like this particular drive at this speed.\n\nThe \"8.37 turns\" warning is a side effect of the same noise. With such varied read times, the turn count isn't a reliable check. The period itself looks right, because it matches other drives at this speed.\n\nIt's worth one more try at a lower speed, if the drive accepts it. Lower speeds have helped other drives:\n\n```bash\npython -m discprobe timing --drive E: --speed 3324\n```\n\nIf the jitter stays in the hundreds of µs, I'd use the HP for `geo` and not this drive.\n\nThe empty folders were our bug. `geo` stopped before its first fit, so it had nothing to save, yet it still printed the file names. It now says that no results were written.\n\nCould you also run the latest version on the HP? The output you posted is `info` for the HP and `timing` for the LG, so I don't have current timing for the HP:\n\n```bash\npython -m discprobe timing --drive <HP drive letter>:\n```\n\n```bash\npython -m discprobe geo --drive <HP drive letter>:\n```\n\nYour earlier HP run stopped at LBA 68848 with a 77° residual. That looks like a whole-turn miscount, and at 3590 rpm with the `flush` strategy the readings were noisy (about 165 µs), so a lower `--speed` may help there too.\n\nOne more thing that may interest you: `CMC MAG. AM3` discs seem to have a track pitch that drifts slowly. On the GP90NB70 report, the fit improved from 0.38° with a constant pitch to 0.087° with a quadratic one. That might also be why your parameters have larger pitch terms. If `geo` finishes on the HP, `python tools/geo_polyfit.py results/geo-...` will show the same comparison.\n\n@MasterMT9 If you're still around, the same `timing` command on your GP57EB40 would tell us whether it behaves the same way.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjGlP1w",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6650679255",
+     "updatedAt": "2026-11-05T05:39:37Z",
+     "author": {
+      "login": "Sliicy"
+     },
+     "createdAt": "2026-11-05T05:39:37Z",
+     "body": "@MasterMT9 for the LG drive:\n```\npython -m discprobe timing --drive E: --speed 3324\nnote: could not raise process priority\nDisc: DVD-ROM, last LBA 2297887, reading with read12\nCache: plain p50 4973.5 us, fua p50 101831.4 us -> strategy fua\nSpindle steady: T = 25.475 ms (2355.3 rpm)\nZone 0.05 (LBA 114880): T = 25.48045 ms (2354.75 rpm), jitter 3367.94 us = 47.584 deg, coherence 0.7357\nZone 0.50 (LBA 1148928): T = 25.48387 ms (2354.43 rpm), jitter 1701.31 us = 24.034 deg, coherence 0.8422\nZone 0.95 (LBA 2182992): T = 25.46472 ms (2356.2 rpm), jitter 722.67 us = 10.217 deg, coherence 0.9843\nRotation: CAV\nWarning: a FUA read takes 4.57 turns of this period, not a whole number, so this period may not be the spindle\nTarget 0.15 (LBA 344672): phase 116.933 deg +/- 0.224 (single-shot std 1.418, n=40), ref jitter 2.168 deg\nTarget 0.35 (LBA 804256): phase 231.248 deg +/- 2.549 (single-shot std 16.122, n=40), ref jitter 22.93 deg\nTarget 0.55: not enough usable reads\nTarget 0.75 (LBA 1723408): phase 197.318 deg +/- 3.84 (single-shot std 24.287, n=40), ref jitter 39.004 deg\nTarget 0.95 (LBA 2182992): phase 288.159 deg +/- 3.232 (single-shot std 20.442, n=40), ref jitter 32.659 deg\n\nRaw events and summary: C:\\...\\disc-probe\\results\\timing-E-20261105-002746\n```\n\n[summary.json](https://github.com/user-attachments/files/34408943/summary.json)\n[events.csv](https://github.com/user-attachments/files/34408944/events.csv)\n\nI will try again later to run the other 2 commands on the HP drive."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjGzVGQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6650909977",
+     "updatedAt": "2026-11-05T05:55:59Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T05:55:59Z",
+     "body": "Thanks for trying it. That settles the LG for me: `--speed 3324` didn't slow it down (still about 2355 rpm), and the noise got worse, at 723 to 3368 µs. I'd stop spending time on this drive for `geo`. I also need to correct something. The \"4.57 turns\" and \"8.37 turns\" warnings were our bug, not a sign from your drive. My earlier fix timed those reads with the random pause included, which hides the whole turns. That's now fixed.\r\n\r\nNo rush on the HP. When you run it, please `git pull` first, since `geo` now says clearly when it stops before saving anything. If it finishes with a high residual, it will also suggest the pitch refit.\r\n\r\nOne thing that might save you time: `CMC MAG. AM3` turns out not to pin down the geometry. Two other users' discs with that MID differ by about 0.7% in track pitch, so a preset from someone else's `CMC MAG. AM3` disc may not fit yours, even with the same label.\r\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjToy6g",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6664368874",
+     "updatedAt": "2026-11-05T17:14:44Z",
+     "author": {
+      "login": "MasterMT9"
+     },
+     "createdAt": "2026-11-05T17:14:44Z",
+     "body": "@Ashley-QwQ I have now run both timing and geo on the latest commit (results attached):\n\nTiming:\n\n[summary.json](https://github.com/user-attachments/files/34437633/summary.json)\n[events.csv](https://github.com/user-attachments/files/34437647/events.csv)\n\nGeo:\n\n[events.csv](https://github.com/user-attachments/files/34437659/events.csv)\n[summary.json](https://github.com/user-attachments/files/34437658/summary.json)\n[targets.csv](https://github.com/user-attachments/files/34437657/targets.csv)"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjT8FmA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6664684952",
+     "updatedAt": "2026-11-05T17:28:57Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T17:28:57Z",
+     "body": "@MasterMT9 Thanks, this worked. `geo` finished all 22 steps, and the \"never settled\" error is gone. `summary.json` doesn't record the drive model, so please confirm this is still the GP57EB40.\n\nThe timing is very clean: jitter is 7.5 to 11 µs (0.11 to 0.16°), the lowest in our reports so far, and the spindle holds 2355 rpm. So the earlier stop came from our settling check, not from the drive.\n\nThe fit gives u = 179792.143 and v = 5.5374125. That almost exactly matches li-yifei's result on a `CMC MAG. AM3` disc (179792.142 and 5.5374129). Could you run `python -m discprobe info --drive D:` and post the disc's MID? If it's also AM3, that's two drives agreeing on the same disc type.\n\nI ran the pitch refit on your `targets.csv`, so you don't need to scan again:\n\n| Pitch model | rms | chi2/dof |\n|---|---|---|\n| Constant | 0.776° | 8.01 |\n| Quadratic | 0.526° | 2.78 |\n| Cubic | 0.515° | 2.75 |\n\nQuadratic is worth using, and cubic adds almost nothing. Most of what remains comes from three noisy steps, at 32.7, 52.0 and 53.7 mm, which are off by 1 to 2.3° and scattered more than the others. I can't tell yet whether that's read noise or the disc. On li-yifei's disc quadratic got down to about 0.09°, so a second `geo` run on your disc would show whether these three steps repeat.\n\n0.5° is about 0.35 mm at a 40 mm radius, so you can already burn a test picture on a blank from the same batch:\n\n```bash\npython tools/geo_polyfit.py results/geo-D-... --write-correction correction.json --order quadratic\npython -m discprobe image --geo results/geo-D-.../summary.json --correction correction.json --picture my_picture.png --output iso/picture.iso\n```\n\nIf you don't mind, I'd like to add this drive and result to the README table of test reports.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjUv4Pg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6665533502",
+     "updatedAt": "2026-11-05T18:09:34Z",
+     "author": {
+      "login": "MasterMT9"
+     },
+     "createdAt": "2026-11-05T18:09:34Z",
+     "body": "@Ashley-QwQ It is the same drive, I will provide the information later in another comment (may take 2-3 hours)\n\nYou can add all the information to the test reports, I will later attempt to export the config to DiscImageStudio and confirm if the measurements are accurate"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjU4FiQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6665667977",
+     "updatedAt": "2026-11-05T18:16:15Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T18:16:15Z",
+     "body": "@MasterMT9 Thanks. No rush on the details. I've added the GP57EB40 to the README table, with the MID still to come.\n\nIf you export to DiscImageStudio, use the range `geo` measured and add the correction file if you made one:\n\n```bash\npython -m discprobe disexport --geo results/geo-D-.../summary.json --sectors 2295104 --r-min 25.65 --r-max 54.20 --correction correction.json --output dis_preset.json\n```\n\n`--sectors` should be your blank disc's sector count, which is 2295104 for this image but may differ on another disc type. The command prints how far the preset is from the measurement, so please post that line along with what you see on the disc.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjaoglg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6671704214",
+     "updatedAt": "2026-11-05T22:56:46Z",
+     "author": {
+      "login": "MasterMT9"
+     },
+     "createdAt": "2026-11-05T22:56:46Z",
+     "body": "`info`: \n\n[info.json](https://github.com/user-attachments/files/34450357/info.json)\n\nDVD-R MID is indeed reported as CMC MAG. AM3, its this model: \n\n<img width=\"416\" height=\"416\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/82f3211e-9bd8-48f9-abc0-159d008106fa\" />\n\n`geo` result with correction applied:\n\n```\ninner 23.966255108 mm, outer 57.925333194 mm, pitch shape -1.013e-05 -1.713e-06 -1.817e-06\nangle difference to the measured map over 25.65-54.2 mm: max 0.3660 deg, rms 0.0857 deg\n```"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjbM1oA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6672299424",
+     "updatedAt": "2026-11-05T23:33:28Z",
+     "author": {
+      "login": "Sliicy"
+     },
+     "createdAt": "2026-11-05T23:33:28Z",
+     "body": "@Ashley-QwQ Here are the results for the HP drive from your latest commits like you asked for both a timing and geo test (I ran a few times):\n\n\n```\nPS C:\\...\\disc-probe-main> python -m discprobe timing --drive E:\nnote: could not raise process priority\nMeasuring on E:. Ctrl+C stops and keeps what was measured. It gives up after 15 minutes.\nDisc: DVD-ROM, last LBA 2297887, reading with read12\nCache: plain p50 1219.9 us, fua p50 1148.8 us, after_flush p50 76912.1 us -> strategy flush\nSpindle steady: T = 12.765 ms (4700.2 rpm)\nZone 0.05 (LBA 114880): T = 186.45932 ms (321.79 rpm), jitter 19210.71 us = 37.09 deg, coherence 0.8133\nZone 0.50 (LBA 1148928): T = 12.76424 ms (4700.63 rpm), jitter 307.81 us = 8.681 deg, coherence 0.9265\nZone 0.95 (LBA 2182992): T = 12.76287 ms (4701.14 rpm), jitter 270.86 us = 7.64 deg, coherence 0.9912\nRotation: mixed (P-CAV / Z-CLV?)\nRotation is mixed (P-CAV / Z-CLV?), not CAV, so the phase test would not give disc angles; skipping it. Try another --speed, or pass --force to run it anyway.\n\nRaw events and summary: C:\\...\\disc-probe-main\\results\\timing-E-20261105-175059\n\nVerdict: rotation is mixed (P-CAV / Z-CLV?), not CAV, so sector angles cannot be read at this speed.\nNext, try another speed. Some drives never leave one, and the rotation test will show that:\n  python -m discprobe timing --drive E: --speed 3324\nPS C:\\...\\disc-probe-main> python -m discprobe timing --drive E:\nnote: could not raise process priority\nMeasuring on E:. Ctrl+C stops and keeps what was measured. It gives up after 15 minutes.\nDisc: DVD-ROM, last LBA 2297887, reading with read12\nCache: plain p50 1112.6 us, fua p50 1146.9 us, after_flush p50 78146.7 us -> strategy flush\nSpindle steady: T = 19.908 ms (3013.8 rpm)\nZone 0.05 (LBA 114880): T = 24.15131 ms (2484.34 rpm), jitter 329.62 us = 4.913 deg, coherence 0.9963\nZone 0.50 (LBA 1148928): T = 39.75907 ms (1509.09 rpm), jitter 295.98 us = 2.68 deg, coherence 0.9957\nZone 0.95 (LBA 2182992): T = 50.80179 ms (1181.06 rpm), jitter 271.68 us = 1.925 deg, coherence 0.9991\nRotation: CLV\nRotation is CLV, not CAV, so the phase test would not give disc angles; skipping it. Try another --speed, or pass --force to run it anyway.\n\nRaw events and summary: C:\\...\\disc-probe-main\\results\\timing-E-20261105-175301\n\nVerdict: rotation is CLV, not CAV, so sector angles cannot be read at this speed.\nNext, try another speed. Some drives never leave one, and the rotation test will show that:\n  python -m discprobe timing --drive E: --speed 3324\nPS C:\\...\\disc-probe-main> python -m discprobe timing --drive E: --speed 3324\nnote: could not raise process priority\nMeasuring on E:. Ctrl+C stops and keeps what was measured. It gives up after 15 minutes.\nDisc: DVD-ROM, last LBA 2297887, reading with read12\nCache: plain p50 1094.4 us, fua p50 1164.7 us, after_flush p50 53281.1 us -> strategy flush\nSpindle steady: T = 24.992 ms (2400.7 rpm)\nZone 0.05 (LBA 114880): T = 24.99038 ms (2400.92 rpm), jitter 228.43 us = 3.291 deg, coherence 0.9549\nZone 0.50 (LBA 1148928): T = 24.99081 ms (2400.88 rpm), jitter 206.96 us = 2.981 deg, coherence 0.9969\nZone 0.95 (LBA 2182992): T = 24.98953 ms (2401.01 rpm), jitter 206.09 us = 2.969 deg, coherence 0.9987\nRotation: CAV\nTarget 0.15 (LBA 344672): phase 161.004 deg +/- 0.612 (single-shot std 3.821, n=39), ref jitter 2.214 deg\nTarget 0.35 (LBA 804256): phase 237.925 deg +/- 0.671 (single-shot std 4.193, n=39), ref jitter 3.508 deg\nTarget 0.55 (LBA 1263824): phase 261.9 deg +/- 0.637 (single-shot std 4.031, n=40), ref jitter 2.69 deg\nTarget 0.75 (LBA 1723408): phase 18.266 deg +/- 0.715 (single-shot std 4.523, n=40), ref jitter 4.098 deg\nTarget 0.95 (LBA 2182992): phase 96.657 deg +/- 0.777 (single-shot std 4.855, n=39), ref jitter 1.973 deg\n\nRaw events and summary: C:\\...\\disc-probe-main\\results\\timing-E-20261105-175536\n\nVerdict: CAV, but 2.97-3.29 deg jitter is noisy. A lower speed may help:\n  python -m discprobe timing --drive E: --speed 5540\n  Or read whole ECC blocks, which was cleaner on one drive: python -m discprobe timing --drive E: --sectors 16\n\nNext, measure the geometry:\n  python -m discprobe geo --drive E: --speed 3324\nPS C:\\...\\disc-probe-main> python -m discprobegeo --drive E:\nC:\\Users\\...\\AppData\\Local\\Programs\\Python\\Python315\\python.exe: No module named discprobegeo\nPS C:\\...\\disc-probe-main> python -m discprobe geo --drive E:\nMeasuring on E:. Ctrl+C stops and keeps what was measured.\nwarning: cache strategy flush; phases will be noisier\nReference LBA 1011056; readable ranges [(68928, 1953200)]\nSpindle settled: T = 24.9931 ms (2400.7 rpm), jitter 33.9 us\n  LBA 1011136: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 24.9898 ms (2401.0 rpm), jitter 170.2 us\n  rung  1: LBA  1011136 (+1.5 turns) phase  199.446 +/- 0.677 deg\n  rung  2: LBA  1011264 (+4.0 turns) phase    8.346 +/- 0.656 deg\n  rung  3: LBA  1017712 predicted +/-  47.70 deg, whole turns     129, residual  +0.020 deg, chi2/dof 6.14\n  rung  4: LBA  1037648 predicted +/-  15.21 deg, whole turns     512, residual  +0.024 deg, chi2/dof 6.31\n  rung  5: LBA  1064480 predicted +/-  16.83 deg, whole turns    1024, residual  -0.001 deg, chi2/dof 3.16\n  rung  6: LBA  1131840 predicted +/-  13.30 deg, whole turns    2291, residual  -0.225 deg, chi2/dof 4.45\n  LBA 1325088: spindle unsteady or reads failing; settling and retrying\nSpindle settled: T = 24.9905 ms (2400.9 rpm), jitter 138.8 us\n  rung  7: LBA  1325088 predicted +/-  21.94 deg, whole turns    5785, residual  -0.033 deg, chi2/dof 3.59\n  rung  8: LBA  1953184 predicted +/-  24.85 deg, whole turns   16008, residual  -0.098 deg, chi2/dof 3.23\n  rung  9: LBA  1912800 predicted +/-   1.61 deg, whole turns   15393, residual  +2.586 deg, chi2/dof 5.61\n  rung 10: LBA  1904864 predicted +/-   1.46 deg, whole turns   15272, residual  +3.031 deg, chi2/dof 6.32\n  rung 11: LBA  1856544 predicted +/-   1.24 deg, whole turns   14529, residual  +0.836 deg, chi2/dof 5.73\n  rung 12: LBA  1808240 predicted +/-   0.96 deg, whole turns   13778, residual  -0.210 deg, chi2/dof 5.12\n  rung 13: LBA   262176 predicted +/-  22.09 deg, whole turns  -16976, residual  +1.377 deg, chi2/dof 5.50\n  rung 14: LBA    68928 predicted +/-   8.95 deg, whole turns  -22663, residual  -0.900 deg, chi2/dof 9.20\n  rung 15: LBA   165552 predicted +/-   1.63 deg, whole turns  -19713, residual  +7.995 deg, chi2/dof 9.94\n  rung 16: LBA   648688 predicted +/-   0.99 deg, whole turns   -7495, residual  +2.362 deg, chi2/dof 9.49\n  rung 17: LBA   117232 predicted +/-   1.80 deg, whole turns  -21159, residual  -0.774 deg, chi2/dof 8.96\n  rung 18: LBA   213856 predicted +/-   1.09 deg, whole turns  -18321, residual  +2.391 deg, chi2/dof 8.94\n  rung 19: LBA  1566656 predicted +/-   0.69 deg, whole turns    9899, residual  -0.769 deg, chi2/dof 8.45\n  rung 20: LBA   283984 predicted +/-   0.90 deg, whole turns  -16384, residual  +3.760 deg, chi2/dof 10.33\n  rung 21: LBA   310496 predicted +/-   0.89 deg, whole turns  -15674, residual  +1.190 deg, chi2/dof 9.91\n  rung 22: LBA   841952 predicted +/-   0.77 deg, whole turns   -3369, residual  -0.631 deg, chi2/dof 9.43\n\nu = r0/b = 181139.032, v = p/b = 5.5037509  (chi2/dof 9.43, residual rms 3.729 deg)\nWith bit length 133.3 nm: r0 24.14583 mm, pitch 0.733650 um\nAngle uncertainty across the measured span 25.808-54.179 mm: 1.609 deg (1 sigma); across 24-58 mm: 1.92 deg\nThe constant-pitch fit leaves more than noise. See whether a varying pitch fits better: python tools/geo_polyfit.py results\\geo-E-20261105-175655\ntargets.csv, summary.json, events.csv: C:\\...\\disc-probe-main\\results\\geo-E-20261105-175655\n\nThe fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is\nclearly better, write a correction and add --correction correction.json to the commands below:\n  python tools/geo_polyfit.py results\\geo-E-20261105-175655\n  python tools/geo_polyfit.py results\\geo-E-20261105-175655 --write-correction correction.json --order quadratic\n\nNext, make a picture ISO from your own image:\n  python -m discprobe image --geo results\\geo-E-20261105-175655\\summary.json --picture my_picture.png --output iso/picture.iso\nOr export a DiscImageStudio preset:\n  python -m discprobe disexport --geo results\\geo-E-20261105-175655\\summary.json --sectors 2297888 --r-min 25.808 --r-max 54.179 --output dis_preset.json\n  (--sectors is the recorded size of the measured disc; it must match the count in DiscImageStudio.)\n```\n\n[results.zip](https://github.com/user-attachments/files/34453082/results.zip)"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjbX8XA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6672481372",
+     "updatedAt": "2026-11-05T23:42:03Z",
+     "author": {
+      "login": "MasterMT9"
+     },
+     "createdAt": "2026-11-05T23:42:03Z",
+     "body": "Design in DiscImageStudio:\n\n<img width=\"751\" height=\"716\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/b1155697-bcc9-4284-9d84-67fd20dbac40\" />\n\nResult with Discprobe preset:\n\n<img width=\"1200\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/0382bfb8-dc17-49e1-ade1-f293b5dc5360\" />\n\n@Ashley-QwQ Thank you for your help!"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjclt6Q",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6673755625",
+     "updatedAt": "2026-11-06T01:00:32Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-06T01:00:32Z",
+     "body": "@MasterMT9 Thanks, that confirms it. With the MID `CMC MAG. AM3`, your drive and li-yifei's GP90NB70 measured the same disc type almost identically (u 179792.143 against 179792.142), on different drives and discs. That's a nice independent check, and I've updated the README table.\n\nThe export looks fine too: at most 0.366° from the measured map, rms 0.086°. The largest difference most likely comes from the few noisy points in your `geo`, but I can't tell which from this output.\n\nAnd your picture looks great! Both figures came out clean with the same outline as the design, which is a nice result for a drive that first stopped at \"the spindle never settled\". Thanks for sticking with it, and I've added this to the README too.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjclu-A",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6673755896",
+     "updatedAt": "2026-11-06T01:00:33Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-06T01:00:33Z",
+     "body": "@Sliicy Thanks for running all of that. `geo` finishing here is progress, but I wouldn't trust this result for a picture yet.\n\n- **Speed:** at the default speed the drive changes behaviour between runs (mixed, then CLV), while `--speed 3324` gives a steady CAV at about 2401 rpm. So 3324 is the one to use.\n- **Noise:** the jitter is still about 3° (206 to 228 µs), and a single reading scatters by about 4 to 5°. The cache also forces the slower `flush` strategy. Good drives here are usually under 1°.\n- **Result:** rms is 3.7° and chi2/dof 9.4, with single steps off by up to 8°. A correct fit on a good drive is well under 1°. `u` = 181139 and `v` = 5.5038 are also about 0.7% away from MasterMT9's and li-yifei's `CMC MAG. AM3` discs. That size of difference has been seen between AM3 discs before, so it could be real, but this run can't show it.\n\nTwo things worth trying, if you have the time:\n\n1. `python tools/geo_polyfit.py results\\geo-E-20261105-175655` on what you have. It needs no new reading and shows whether a varying pitch explains any of this. I don't expect much, because the large errors jump between neighbouring steps.\n2. `python -m discprobe timing --drive E: --speed 3324 --sectors 16` to see whether reading whole ECC blocks is cleaner, as it was on one other drive. `geo` can't read that way yet, so this would only tell us whether it's worth adding.\n\nIf it stays this noisy, I'd treat this drive as a rough starting point only. You could export a preset to get close, then finish with the fine calibration in DiscImageStudio, which is the route that worked for pugod124 on CD.\n\nAlso, the hint saying \"a lower speed may help\" and suggesting `--speed 5540` was wrong: that's a faster speed than the 3324 you'd just used, and it's our wording, not your setup. I've fixed it.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABje1cdw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6676110455",
+     "updatedAt": "2026-11-06T03:30:56Z",
+     "author": {
+      "login": "Sliicy"
+     },
+     "createdAt": "2026-11-06T03:30:56Z",
+     "body": "@Ashley-QwQ good news! I got my external LG drive to work!\nHere are my results:\n\n<img width=\"859\" height=\"832\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/07fa1da0-c936-4eef-99f3-a1c9c53e9c81\" />\n\nI had to run a few commands with the help of Gemini to get my results.\n\n```\nPS C:\\...\\disc-probe> python -m discprobe geo --drive E: --speed 3324\nMeasuring on E:. Ctrl+C stops and keeps what was measured.\nReference LBA 1009840; readable ranges [(68848, 1950832)]\nSpindle settled: T = 41.8846 ms (1432.5 rpm), jitter 8.5 us\n  rung  1: LBA  1009920 (+1.5 turns) phase  197.291 +/- 0.200 deg\n  rung  2: LBA  1010048 (+4.0 turns) phase    8.855 +/- 0.200 deg\n  rung  3: LBA  1016464 predicted +/-  14.32 deg, whole turns     128, residual  +0.000 deg, chi2/dof 0.02\n  rung  4: LBA  1036432 predicted +/-   5.52 deg, whole turns     512, residual  +0.002 deg, chi2/dof 0.02\n  rung  5: LBA  1130464 predicted +/-  18.94 deg, whole turns    2289, residual  -0.008 deg, chi2/dof 1.00\n  rung  6: LBA  1613024 predicted +/-  24.22 deg, whole turns   10679, residual  +0.015 deg, chi2/dof 4.48\n  rung  7: LBA  1950816 predicted +/-   2.99 deg, whole turns   15985, residual  +0.017 deg, chi2/dof 3.45\n  rung  8: LBA   117088 predicted +/-  14.84 deg, whole turns  -21177, residual  +0.001 deg, chi2/dof 2.76\n  rung  9: LBA   165344 predicted +/-   0.29 deg, whole turns  -19727, residual  +0.353 deg, chi2/dof 3.22\n  rung 10: LBA   599648 predicted +/-   0.22 deg, whole turns   -8577, residual  +0.792 deg, chi2/dof 5.85\n  rung 11: LBA   213600 predicted +/-   0.28 deg, whole turns  -18331, residual  +0.208 deg, chi2/dof 5.19\n  rung 12: LBA  1757792 predicted +/-   0.33 deg, whole turns   13002, residual  +0.631 deg, chi2/dof 6.01\n  rung 13: LBA  1371744 predicted +/-   0.20 deg, whole turns    6621, residual  -0.087 deg, chi2/dof 5.43\n  rung 14: LBA    68848 predicted +/-   0.41 deg, whole turns  -22686, residual  -0.511 deg, chi2/dof 5.99\n  rung 15: LBA  1902560 predicted +/-   0.33 deg, whole turns   15251, residual  +0.260 deg, chi2/dof 5.70\n  rung 16: LBA   805712 predicted +/-   0.22 deg, whole turns   -4096, residual  +0.013 deg, chi2/dof 5.26\n  rung 17: LBA   261856 predicted +/-   0.19 deg, whole turns  -16983, residual  +0.414 deg, chi2/dof 5.25\n  rung 18: LBA  1854304 predicted +/-   0.24 deg, whole turns   14509, residual  -0.259 deg, chi2/dof 5.04\n  rung 19: LBA   406624 predicted +/-   0.18 deg, whole turns  -13185, residual  +0.594 deg, chi2/dof 5.36\n  rung 20: LBA  1806048 predicted +/-   0.20 deg, whole turns   13759, residual  -0.410 deg, chi2/dof 5.30\n  rung 21: LBA   283840 predicted +/-   0.16 deg, whole turns  -16384, residual  +0.091 deg, chi2/dof 5.02\n  rung 22: LBA   905888 predicted +/-   0.17 deg, whole turns   -2048, residual  +0.182 deg, chi2/dof 4.79\n\nu = r0/b = 179981.195, v = p/b = 5.5374156  (chi2/dof 4.79, residual rms 0.431 deg)\nWith bit length 133.3 nm: r0 23.99149 mm, pitch 0.738138 um\nAngle uncertainty across the measured span 25.672-54.216 mm: 0.308 deg (1 sigma); across 24-58 mm: 0.37 deg\nThe constant-pitch fit leaves more than noise. See whether a varying pitch fits better: python tools/geo_polyfit.py results\\geo-E-20261105-185114\ntargets.csv, summary.json, events.csv: C:\\...\\disc-probe\\results\\geo-E-20261105-185114\n\nThe fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is\nclearly better, write a correction and add --correction correction.json to the commands below:\n  python tools/geo_polyfit.py results\\geo-E-20261105-185114\n  python tools/geo_polyfit.py results\\geo-E-20261105-185114 --write-correction correction.json --order quadratic\n\nNext, make a picture ISO from your own image:\n  python -m discprobe image --geo results\\geo-E-20261105-185114\\summary.json --picture my_picture.png --output iso/picture.iso\nOr export a DiscImageStudio preset:\n  python -m discprobe disexport --geo results\\geo-E-20261105-185114\\summary.json --sectors 2295104 --r-min 25.672 --r-max 54.216 --output dis_preset.json\n  (--sectors is the recorded size of the measured disc; it must match the count in DiscImageStudio.)\n\nPS C:\\...\\disc-probe> python tools/geo_polyfit.py results\\geo-E-20261105-185114\nconstant  chi2/dof     4.79  rms 0.431 deg  r0 23.99149 mm  pitch(40 mm) 0.738138 um  b = -\nquadratic chi2/dof     2.95  rms 0.333 deg  r0 23.99145 mm  pitch(40 mm) 0.738137 um  b = +3.784e-06, -3.793e-06\ncubic     chi2/dof     3.25  rms 0.339 deg  r0 23.99144 mm  pitch(40 mm) 0.738137 um  b = +2.382e-06, -4.174e-06, +3.907e-06\n\nconstant-pitch residual vs radius:\n   25.672 mm   +0.609 deg  (+/- 0.200)\n   26.786 mm   +0.224 deg  (+/- 0.200)\n   27.856 mm   -0.319 deg  (+/- 0.200)\n   28.886 mm   -0.280 deg  (+/- 0.301)\n   29.881 mm   -0.297 deg  (+/- 0.200)\n   30.324 mm   -0.082 deg  (+/- 0.251)\n   32.685 mm   -0.559 deg  (+/- 0.200)\n   36.086 mm   -0.650 deg  (+/- 0.200)\n   39.394 mm   +0.150 deg  (+/- 0.200)\n   40.906 mm   -0.183 deg  (+/- 0.230)\n   42.418 mm   +0.554 deg  (+/- 0.200)\n   42.420 mm   +0.599 deg  (+/- 0.200)\n   42.512 mm   +0.601 deg  (+/- 0.200)\n   42.795 mm   -0.447 deg  (+/- 0.254)\n   44.107 mm   +0.567 deg  (+/- 0.334)\n   47.305 mm   +0.140 deg  (+/- 0.200)\n   50.300 mm   +0.159 deg  (+/- 0.323)\n   52.015 mm   -0.753 deg  (+/- 0.214)\n   52.574 mm   +0.409 deg  (+/- 0.212)\n   53.127 mm   +0.151 deg  (+/- 0.200)\n   53.674 mm   -0.484 deg  (+/- 0.200)\n   54.216 mm   -0.108 deg  (+/- 0.200)\n\nphi(r) polynomial, fit and leave-one-out rms (deg):\n  degree  2  fit 0.427  leave-one-out 0.502\n  degree  3  fit 0.341  leave-one-out 0.404\n  degree  4  fit 0.327  leave-one-out 0.397\n  degree  5  fit 0.321  leave-one-out 0.417\n  degree  6  fit 0.321  leave-one-out 0.442\n  degree  7  fit 0.310  leave-one-out 0.441\n  degree  8  fit 0.309  leave-one-out 0.521\n  degree  9  fit 0.309  leave-one-out 0.724\n  degree 10  fit 0.306  leave-one-out 0.851\n  degree 11  fit 0.302  leave-one-out 0.853\n  degree 12  fit 0.300  leave-one-out 1.295\n\nPS C:\\...\\disc-probe> python tools/geo_polyfit.py results\\geo-E-20261105-185114 --write-correction correction.json --order quadratic\nconstant  chi2/dof     4.79  rms 0.431 deg  r0 23.99149 mm  pitch(40 mm) 0.738138 um  b = -\nquadratic chi2/dof     2.95  rms 0.333 deg  r0 23.99145 mm  pitch(40 mm) 0.738137 um  b = +3.784e-06, -3.793e-06\ncubic     chi2/dof     3.25  rms 0.339 deg  r0 23.99144 mm  pitch(40 mm) 0.738137 um  b = +2.382e-06, -4.174e-06, +3.907e-06\n\nconstant-pitch residual vs radius:\n   25.672 mm   +0.609 deg  (+/- 0.200)\n   26.786 mm   +0.224 deg  (+/- 0.200)\n   27.856 mm   -0.319 deg  (+/- 0.200)\n   28.886 mm   -0.280 deg  (+/- 0.301)\n   29.881 mm   -0.297 deg  (+/- 0.200)\n   30.324 mm   -0.082 deg  (+/- 0.251)\n   32.685 mm   -0.559 deg  (+/- 0.200)\n   36.086 mm   -0.650 deg  (+/- 0.200)\n   39.394 mm   +0.150 deg  (+/- 0.200)\n   40.906 mm   -0.183 deg  (+/- 0.230)\n   42.418 mm   +0.554 deg  (+/- 0.200)\n   42.420 mm   +0.599 deg  (+/- 0.200)\n   42.512 mm   +0.601 deg  (+/- 0.200)\n   42.795 mm   -0.447 deg  (+/- 0.254)\n   44.107 mm   +0.567 deg  (+/- 0.334)\n   47.305 mm   +0.140 deg  (+/- 0.200)\n   50.300 mm   +0.159 deg  (+/- 0.323)\n   52.015 mm   -0.753 deg  (+/- 0.214)\n   52.574 mm   +0.409 deg  (+/- 0.212)\n   53.127 mm   +0.151 deg  (+/- 0.200)\n   53.674 mm   -0.484 deg  (+/- 0.200)\n   54.216 mm   -0.108 deg  (+/- 0.200)\n\nphi(r) polynomial, fit and leave-one-out rms (deg):\n  degree  2  fit 0.427  leave-one-out 0.502\n  degree  3  fit 0.341  leave-one-out 0.404\n  degree  4  fit 0.327  leave-one-out 0.397\n  degree  5  fit 0.321  leave-one-out 0.417\n  degree  6  fit 0.321  leave-one-out 0.442\n  degree  7  fit 0.310  leave-one-out 0.441\n  degree  8  fit 0.309  leave-one-out 0.521\n  degree  9  fit 0.309  leave-one-out 0.724\n  degree 10  fit 0.306  leave-one-out 0.851\n  degree 11  fit 0.302  leave-one-out 0.853\n  degree 12  fit 0.300  leave-one-out 1.295\nwrote correction.json: phi peak to peak 1.232 deg, polynomial error 0.0033 deg\n\nPS C:\\...\\disc-probe> python -m discprobe disexport --geo results\\geo-E-20261105-185114\\summary.json --sectors 2295104 --r-min 25.672 --r-max 54.216 --correction correction.json --output dis_preset.json\ninner 23.991485959 mm, outer 57.935822252 mm, pitch shape -2.129e-06 -1.073e-06 -5.797e-08\nangle difference to the measured map over 25.672-54.216 mm: max 0.7739 deg, rms 0.1690 deg\nDiscImageStudio DVD preset object in C:\\...\\disc-probe\\dis_preset.json (key 'preset')\n\nNext, check the angle difference above, then enter the preset in DiscImageStudio\n(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md.\n```\n\nAll that's left is for me to do one more calibration to hone in on the correct measurements.\n\n[summary.json](https://github.com/user-attachments/files/34459184/summary.json)\n[targets.csv](https://github.com/user-attachments/files/34459186/targets.csv)\n[events.csv](https://github.com/user-attachments/files/34459185/events.csv)"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABje3_AQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6676152065",
+     "updatedAt": "2026-11-06T03:33:55Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-06T03:33:55Z",
+     "body": "@Sliicy Congratulations, that's a real result, and the grid in your photo looks close already. Going by eye, the arcs look round and the radial lines look nearly straight, though a photo at an angle can't show small errors.\n\nYour numbers agree with that:\n\n- **Fit:** rms 0.43° and chi2/dof 4.79 with constant pitch, then 0.33° and 2.95 with the quadratic pitch. So using `correction.json` was the right call.\n- **Export:** at most 0.77° from the measured map, rms 0.17°. At a radius of 50 mm that is about 0.67 mm at worst and 0.15 mm typically.\n- **What's left:** some of the residual jumps between nearby radii, for example +0.60° at 42.5 mm and -0.45° at 42.8 mm. A smooth curve can't follow that, so I wouldn't add more correction terms. The quadratic is a good place to stop.\n\nOne more calibration in DiscImageStudio sounds like the right next step. If you burn a picture afterwards, I'd love to see it.\n\nTwo things would help, if you have a moment:\n\n1. Which LG drive is this, and what does `python -m discprobe info --drive E:` report as the MID? I'd like to add it to the README table with your result, if that's OK with you. This run settled at 1432.5 rpm with `--speed 3324`, so I want to record it against the right drive and disc.\n2. What did you need Gemini's help with? If a step or an error message was confusing, that's on our side, and I'd like to fix it.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjgSEcg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6677628018",
+     "updatedAt": "2026-11-06T05:21:02Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-06T05:21:02Z",
+     "body": "@Sliicy @MasterMT9 I need to correct something: `disexport` had a bug, and it affects both of your exports. When you passed `--correction`, the fit could stop almost where it started, so most of the correction never reached the preset. It gave no warning.\r\n\r\nThat is why the difference was so large. In your run, Sliicy, the export was up to 0.77° from the measured map. With the fix and the same data, I get 0.0035°. So my earlier comment that this was fine was wrong, and that number came from our bug.\r\n\r\nTo get the better preset you don't need to measure again. Update disc-probe, then run the same `disexport` command on your existing results. The pitch terms should come out larger than before.\r\n\r\nYour burned discs aren't wrong, and MasterMT9's picture is still a good result. They just didn't get the full correction. Sliicy, a preset you've already tuned by fine calibration in DiscImageStudio is a separate result, so if it looks right there's no need to change it. If you do try the new export, I'd be glad to hear how it compares.\r\n\r\nSorry about that, and thanks: this came up while checking results people posted here.\r\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABcWrvKQ",
+  "updatedAt": "2026-11-05T22:46:43Z",
+  "number": 2,
+  "title": "would this work on cds?",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2",
+  "state": "OPEN",
+  "createdAt": "2026-11-04T06:41:04Z",
+  "author": {
+   "login": "pugod124"
+  },
+  "body": "just asking if its possable for this program to work with a cd instead of a dvd\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 10,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAY2nbBA="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjEC5Og",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6648019258",
+     "updatedAt": "2026-11-05T02:28:02Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T02:28:02Z",
+     "body": "Sorry for the slow reply. Yes, CD-R works now, using `--media cd`:\n\n```bash\npython -m discprobe timing --drive E: --media cd --speed 1411\npython -m discprobe geo --drive E: --media cd --speed 1411\n```\n\nThe measuring disc has to hold plain data rather than a picture, so burn a random-data ISO first:\n\n```bash\npython -m discprobe random --media cd --output cd-random.iso\n```\n\nSome limits to know about:\n\n- We have only verified this on one setup: an LG GH70N with CMC CD-R, burned at 8x with Windows' built-in burner. Fast reads can give wrong results near the outer edge. On our drive, `--speed 2822` (3226 rpm) was wrong past 49.8 mm, so use the low speed.\n- Timing can't measure one constant on CD: how far along the track the data really lands. On our setup that came to about 206 frames, measured from a burned test grid and confirmed on a second disc. Another drive will probably need its own value, so expect to burn a test grid before a final picture.\n- The CD-R we tested also has small waves in its track spacing (about 0.45° peak to peak), so results aren't quite as clean as on DVD yet.\n\nIf you try it, please post your drive model and the `timing` output. It would be a useful data point.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjFgeUg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6649552466",
+     "updatedAt": "2026-11-05T04:18:12Z",
+     "author": {
+      "login": "pugod124"
+     },
+     "createdAt": "2026-11-05T04:18:12Z",
+     "body": "thanks! i got it to work and i had no problems. i am using memorex CD-Rs the model is RFD80M-79944 80. the cd burner i am using is a sony optiarc AD-7201S.\n\ngeo\n[events.csv](https://github.com/user-attachments/files/34407080/events.csv)\n[summary.json](https://github.com/user-attachments/files/34407079/summary.json)\n[targets.csv](https://github.com/user-attachments/files/34407081/targets.csv)\n\ninfo\n[info.json](https://github.com/user-attachments/files/34407092/info.json)\n\ntiming\n[events.csv](https://github.com/user-attachments/files/34407070/events.csv)\n[summary.json](https://github.com/user-attachments/files/34407069/summary.json)\n\nand here is the stuff from my info, timing, and geo.\n\ni also did it with DVD-Rs and it worked perfectly too."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjFkQPQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6649614397",
+     "updatedAt": "2026-11-05T04:22:50Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T04:22:50Z",
+     "body": "Thanks for testing, and for including all the files! This is the first CD result we've seen from a drive other than ours, so it helps a lot.\r\n\r\nFrom your files:\r\n\r\n- The drive is an Optiarc AD-7201S (firmware 1H9K) and the disc's ATIP lead-in is 97:15:17.\r\n- Timing looks good. It holds a constant 2168 rpm at all three zones (CAV), FUA works (one re-read takes one turn), and jitter is 0.61 to 0.68° (47 to 53 µs).\r\n- `geo` finished all 36 steps: r0 24.887 mm and pitch 1.4865 µm at our assumed bit length.\r\n- The fit left 0.51° rms with a constant pitch and 0.35° with a quadratic one. That's more than your jitter explains (about 0.12° per point). Most of it comes from a few points: 26.5 mm (+1.5°), the two steps right next to the reference near 42.6 mm (+1.2°), and a dip around 50.3 to 50.9 mm (−0.6 to −0.8°). I can't tell yet whether those come from the disc or from how the drive reads them.\r\n\r\nThe geometry alone isn't enough to burn a picture on CD yet. Timing can't see one constant: how far along the track the data really lands. On our drive that's about 206 frames, and yours may differ. A grid disc would show it, because the lines come out twisted if the constant is off:\r\n\r\n```bash\r\npython -m discprobe image --media cd --geo results/geo-D-.../summary.json --line-mm 0.6 --output iso/cd-grid.iso\r\n```\r\n\r\nIf you burn one, a photo or scan would let us work out the value for your drive. We'd compare the radial lines, because the square grid can give false matches every 5 mm.\r\n\r\nPlease also `git pull`. The default CD read speed is now `--speed 1411` because of a problem at higher speed on our drive. Your drive ran at 2168 rpm with the older default of 2822, which is slower than ours at that setting, so your results should be fine. A run at 1411 would be a useful comparison if you have time.\r\n\r\nTwo questions:\r\n\r\n1. Could you post the `info.json`, `timing` `summary.json` and `geo` `targets.csv` and `summary.json` from your DVD-R run? We'd like to compare it with other discs.\r\n2. By \"worked perfectly\", do you mean the measurement finished, or did you also burn a picture with the result? If you burned one, I'd love to see a photo.\r\n\r\nI've added your drive to the [table of reports](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107).\r\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjGeUSg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6650565706",
+     "updatedAt": "2026-11-05T05:31:25Z",
+     "author": {
+      "login": "pugod124"
+     },
+     "createdAt": "2026-11-05T05:31:25Z",
+     "body": "by worked perfectly it was close enough to where i just did the fine calabration in disk image studio and then from that i got the quality to make images. your program is very usefull to just get it close enough to where the image methond in disk image studio could work easily i went through like 15 cds and never got a good result using disk image studo and playing with the numbers. so i would say your program is excellent with that.\n\nhere is the DVD-R stuff:\n\ngeo\n[events.csv](https://github.com/user-attachments/files/34408675/events.csv)\n[summary.json](https://github.com/user-attachments/files/34408674/summary.json)\n[targets.csv](https://github.com/user-attachments/files/34408676/targets.csv)\n\ntiming\n[events.csv](https://github.com/user-attachments/files/34408684/events.csv)\n[summary.json](https://github.com/user-attachments/files/34408683/summary.json)\n\ninfo\n[info.json](https://github.com/user-attachments/files/34408698/info.json)\n\nand here is a photo of the cd after the doing geo and stuff\n\n<img width=\"3304\" height=\"3411\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/2e269c0c-d801-4824-90d6-fa75a96c00fc\" />\n\nand two of the dvds and the cd after i did all the calibration with disk image studio\n\n<img width=\"1512\" height=\"2016\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/d2f9fcd8-c88a-472a-802d-8afef84e904b\" />\n<img width=\"1512\" height=\"2016\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/7f675a16-7f66-4e9b-8610-1efd693ca764\" />\n<img width=\"1512\" height=\"2016\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/6af61859-6b5b-4fe5-847b-a4a23421238a\" />\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjGzWbQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6650910317",
+     "updatedAt": "2026-11-05T05:56:01Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T05:56:01Z",
+     "body": "That's great to hear, thank you! Going from about 15 failed CDs to clean images is the kind of result we were hoping for. Using `geo` to get close and then finishing with the image method in DiscImageStudio is also a workflow I hadn't thought to recommend. Would you mind if we mentioned it in the README, with your name and maybe one of your photos? Only if you're happy with that.\n\nYour first photo fits the numbers too. The radial line has a smooth S-shaped bend, and most of that is what we'd expect on CD from the along-track constant that timing can't measure, plus the uneven pitch your `geo` run showed. The circles look fine, which is why it was close enough for fine calibration to finish the job.\n\nA few things from the DVD-R data:\n\n- The disc reports MID `CMC MAG. AM3`. Your `geo` gives r0 24.097 mm and pitch 0.7331 µm. Another user's disc with the same MID measured r0 23.966 mm and pitch 0.7381 µm, about 0.7% different. So this MID doesn't pin down the geometry, and presets from other people's `CMC MAG. AM3` discs may not fit yours.\n- The drive ran at about 7514 rpm, even though `geo` requests 4x. That's fast: jitter was about 1.7 to 2.1° in the middle and outer zones, and the inner zone was much noisier (coherence 0.90).\n- The fit left 0.51° rms with a constant pitch and 0.41° with a quadratic one. That's a smaller improvement than the 0.087° the other disc reached at 2355 rpm, so some of this may come from the high speed.\n\nIf you have time, you could try a lower speed. It may or may not slow this drive down, and the `Spindle steady` line will show whether it did:\n\n```bash\npython -m discprobe timing --drive D: --speed 2770\n```\n\nIf the rpm drops and jitter improves, a `geo` run at that speed would be a useful comparison. If not, your current results are still good enough to start from, as your discs show.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjG7dxQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6651043269",
+     "updatedAt": "2026-11-05T06:05:09Z",
+     "author": {
+      "login": "pugod124"
+     },
+     "createdAt": "2026-11-05T06:05:09Z",
+     "body": "yea it would be cool if i got into the read me. and ill do that test tomorrow with the DVD at a lower speed."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjOqvjA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6659157900",
+     "updatedAt": "2026-11-05T13:26:01Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T13:26:01Z",
+     "body": "Thanks! I've added a short section to the README about your workflow, using `geo` to get close and then the image method in DiscImageStudio, with a link to your comment. I haven't added a photo, so tell me if you'd like one in. I'm happy to look at the DVD results when you've run the lower-speed test."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjZtnrQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6670739373",
+     "updatedAt": "2026-11-05T22:04:32Z",
+     "author": {
+      "login": "pugod124"
+     },
+     "createdAt": "2026-11-05T22:04:32Z",
+     "body": "thanks! i would like a photo in too! and i did the timing thing and it was the same speed i think its my burner becuese if i try to juts burn somthing at like 1x it just goes to 8x for DVDs and 6x for CDs. so i think my burner has a minimum speed\n\nhere are the timing things\n[events.csv](https://github.com/user-attachments/files/34450440/events.csv)\n[summary.json](https://github.com/user-attachments/files/34450441/summary.json)"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjZ9Tnw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6670996383",
+     "updatedAt": "2026-11-05T22:18:01Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T22:18:01Z",
+     "body": "@pugod124 Thanks for running that! Your timing shows the same thing: with `--speed 2770` the drive still spins at about 7514 rpm, so it doesn't slow down for reading. Jitter is about 39 to 68 µs (1.8 to 3.1°), a little worse in the inner zone.\n\nOne thing to separate: `--speed` only asks for a reading speed. The 8x and 6x you see when burning are the drive's writing speeds, and they don't affect this test. So your burner may well have a minimum writing speed, but this result is about reading.\n\nThis drive won't give the cleanest timing on DVD because it spins so fast, so the same microseconds of noise turn into more degrees. Your earlier `geo` still finished, though, so the route you already used is a good fit: `geo` to get close, then fine calibration in DiscImageStudio.\n\nI've added your CD photo to the README next to your workflow, cropped to the disc with the background and photo metadata removed. If you'd rather use one of the DVD photos or anything else, just tell me. Thanks for sharing it!\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjadsEA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6671526928",
+     "updatedAt": "2026-11-05T22:46:43Z",
+     "author": {
+      "login": "pugod124"
+     },
+     "createdAt": "2026-11-05T22:46:43Z",
+     "body": "yea your welcome! and thanks for adding me to the readme i hope it helps other people with trying to make images work!\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABcvamGg",
+  "updatedAt": "2026-11-10T13:23:31Z",
+  "number": 6,
+  "title": "Thankyou",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/6",
+  "state": "CLOSED",
+  "createdAt": "2026-11-05T13:03:54Z",
+  "author": {
+   "login": "NO-ob"
+  },
+  "body": "Thanks this tool works perfectly i used the linux fork https://github.com/bczhc/disc-probe/\n\n<img width=\"3072\" height=\"4096\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/98ba1469-3b59-4255-afc2-155358d0b6fc\" />",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 3,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZNuvwE="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjOeQQQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/6#issuecomment-6658953281",
+     "updatedAt": "2026-11-05T13:16:14Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-05T13:16:14Z",
+     "body": "Thanks for trying it and for sharing the photo, glad it worked. Credit to bczhc for the Linux port. If you remember the drive and disc model, I'd like to add them to the README's drive table."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABjPCHaw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/6#issuecomment-6659540843",
+     "updatedAt": "2026-11-05T13:44:14Z",
+     "author": {
+      "login": "NO-ob"
+     },
+     "createdAt": "2026-11-05T13:44:14Z",
+     "body": "\n\n\n> 1. Thanks for trying it and for sharing the photo, glad it worked. Credit to bczhc for the Linux port. If you remember the drive and disc model, I'd like to add them to the README's drive table.\n\nThis is with a usb disc drive - ASUS SDRW-08D2S-U rev B911\n\nThe disc is Verbatim DVD+R, the code on the non writable area is ZE0460-DVR-T47D"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk26_AQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/6#issuecomment-6768475905",
+     "updatedAt": "2026-11-10T13:23:30Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T13:23:30Z",
+     "body": "@NO-ob Thanks! Your drive and disc are in the README's drive table now, with a link back here. I'll close this one, but feel free to reopen anytime.\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdP69Cg",
+  "updatedAt": "2026-11-07T18:05:08Z",
+  "number": 9,
+  "title": "Thank you for disc-probe / 感谢 disc-probe",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/9",
+  "state": "OPEN",
+  "createdAt": "2026-11-07T10:13:50Z",
+  "author": {
+   "login": "POPCORNBOOM"
+  },
+  "body": "Thanks for publishing disc-probe! Its timing-based calibration made [Discratcher](https://github.com/POPCORNBOOM/Discratcher) possible, a desktop app that burns images onto DVD-R.\n\nthe default geo range stops at 85%, and I saw pitch distortion further out, so measuring up to about 96% may be worthwhile.\n\n---\n\n感谢你们公开 disc-probe！[Discratcher](https://github.com/POPCORNBOOM/Discratcher) 这个把图像刻到 DVD-R 的桌面应用，正是基于你们的读取时序标定方法做出来的。\n\ngeo 的默认范围到 85% 为止，我在更外圈看到了轨距畸变，也许值得测到 96% 左右。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 4,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAC52k="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABj-GDyQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/9#issuecomment-6708888521",
+     "updatedAt": "2026-11-07T15:19:33Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T15:19:33Z",
+     "body": "Thanks for writing, and congratulations on Discratcher. A desktop app on three systems is something we hadn't got to.\n\nWe stopped at 85% because the drive we started on, a GH70N, changes speed past about 53 mm, and we never went back to look again. Your result fits what others have reported since. FanJZSS measured out to 58 mm on a GP65NB60 with `--ranges 10000-2290000 --chi2-abort 100`, and on Doctor-shengru's UJ8B1 the fit error is already rising at the 54.4 mm end of our range.\n\nSo I'd like to raise the default, but a run must not fail on a drive that changes speed out there, or on a disc that needs the higher limit. I'll test that on the GH70N first. Until then, `--ranges` covers it.\n\nWhich drives did you see the 2.9° on, and did any of them have trouble in the outer part?\n\n---\n\n谢谢你来说一声，也恭喜 Discratcher 做出来了。三个系统上的桌面应用，是我们还没做到的。\n\n我们停在 85%，是因为最早用的 GH70N 过了约 53 mm 会换转速，之后一直没有回头再看。你的结果和后来其他人的报告对得上：FanJZSS 在 GP65NB60 上用 `--ranges 10000-2290000 --chi2-abort 100` 测到了 58 mm，Doctor-shengru 的 UJ8B1 在我们范围的尽头 54.4 mm 处，拟合误差已经在变大。\n\n所以我想把默认范围调大，但不能让外圈换转速的光驱，或者需要更高上限的盘，因此跑失败。我会先在 GH70N 上试。在那之前可以用 `--ranges`。\n\n想问一下，你看到的 2.9° 是在哪些光驱上测的？有没有光驱在外圈出问题？\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABj-hYcQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/9#issuecomment-6709336177",
+     "updatedAt": "2026-11-07T15:51:22Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T15:51:22Z",
+     "body": "One more question about Discratcher, unrelated to the measuring range.\n\nFirst, using the published method is absolutely fine, and I appreciate you crediting the original work! ξ( ✿＞◡❛)\n\nI noticed a few implementation details that overlap with disc-probe, such as the 40001-point grid in `spiral.rs`, some constants in `calib/ladder.rs`, and the `DISCPROBE_RANDOM` volume label. Of course, these could just as well come from the published method, compatibility requirements, or DiscImageStudio. I also recognize that much of Discratcher is clearly its own work.\n\nI'm only asking because Discratcher is MIT-licensed, while disc-probe is GPL-3.0-or-later, and I wanted to make sure there isn't an unintended licensing issue.\n\nCould you clarify whether these parts were independently implemented from the published method, or whether any code was adapted or translated from disc-probe or discprobe-macos, either manually or with AI assistance?\n\nIf they were independently implemented, that clears up my question. If any code was carried over, no worries — we can figure out the simplest way to handle the licensing together. I'm certainly not asking for anything to be taken down.(*´ω`)人(´ω`*)\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkAGgWw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/9#issuecomment-6710992987",
+     "updatedAt": "2026-11-07T17:57:28Z",
+     "author": {
+      "login": "POPCORNBOOM"
+     },
+     "createdAt": "2026-11-07T17:57:28Z",
+     "body": "是的！我们的ladder.rs部分直接使用了来自你仓库geo.py的逻辑，例如settle流程、_candidates etc.，现在已在项目的NOTICE、README以及ladder.rs文件开头等位置更加清晰地标注了你们的工作。抱歉许可证用错了，Discratcher 的许可证现在已经从MIT变更为GPL-3.0-or-later。\n\n感谢提醒！\n\n此外，2.9°来自一次56阶测量，用的是一台HL-DT-ST DVDRAM GUD1N 1.01（USB，华硕外壳）光驱和一张IronDisc的杂牌光盘：，盘片MID为CMC MAG. AM3。2.9是恒定轨距模型的残差，从53.5 mm处的−1.07°到56.9 mm处的+1.83°。内圈25–31 mm也有大概2°的起伏，所以不只是外圈的现象。这次测量没有出现换转速或读取问题，周期在 25.3–56.9 mm范围内一直保持在25.473–25.487ms。"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkALnaQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/9#issuecomment-6711076713",
+     "updatedAt": "2026-11-07T18:05:07Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T18:05:07Z",
+     "body": "谢谢你这么快就处理好了，也谢谢你标注得这么清楚 (*´ω`)人(´ω`*) 改成 GPL 之后，两边的代码以后也可以互相借鉴了。Discratcher 里直接拟合实测角度的做法，我们也很想试试。\n\n2.9° 的数据也很有用：GUD1N 到 56.9 mm 都没有换转速，内圈也有约 2° 的起伏，说明不只是外圈的问题。我们这边的 GH70N 配 RITEKF1 测到 96% 也没有问题，但这张盘外圈几乎看不到畸变，所以这件事确实和盘、光驱有关。接下来我们打算把默认范围调大，外圈出问题时保留内圈的结果，不让整次测量失败。\n\n祝 Discratcher 越来越好 ξ( ✿＞◡❛)\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdVgxtg",
+  "updatedAt": "2026-11-08T17:03:52Z",
+  "number": 13,
+  "title": "[Research/PR] CD 沿轨道常数 C 的结构性不可测机理分析、实验验证与后续 PR 意向咨询",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/13",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T20:13:26Z",
+  "author": {
+   "login": "domerawind"
+  },
+  "body": "#### 1. 背景与核心结论\n\n在针对 `disc-probe` 的几何测量机理研究与代码测试中，我们对 CD 几何计算中缺失的 **“沿轨道常数（Along-track constant $C$）”** 进行了系统性的数学推导、代码扫描复拟合与实盘验证。\n\n**核心结论：**\n在仅通过标准光驱 MMC 读取及盘片数据布局的前提下，沿轨道常数 $C$ 与初始半径 $r_0$ 存在严格的数学简并性（Gauge Freedom）。该参数在信息论与微分几何层面**无法通过任何纯读盘方式测量得到**，必须作为外部标定输入（Calibration Input），或通过外部光学基准（如平板扫描仪）测定。\n\n---\n\n#### 2. 物理定义与参数敏感度\n\n光驱报告“读完第 $k$ 个扇区”的时刻，对应的物理螺旋位置与标称模型存在恒定平移量 $C$（单位：通道位 channel bit 或 EFM 帧）：\n\n$$n_{\\text{end}}(k) = ((k + 1) \\cdot 98 + 108) \\cdot 588 + C$$\n\n物理上 $C$ 是刻录端与读取端的复合系统常数：\n$$C = W(\\text{刻录机}, \\text{模式}, \\text{命令}) + R(\\text{读取光驱}, \\text{读取命令})$$\n\n- 社区历史实测中不同驱动器与模式下的 $C$ 存在离散差异（如 BU20N 读自刻盘 $\\approx 0 \\pm 4$ 帧，GH70N + IMAPI $\\approx 206$ 帧，PLDS DU-8A5LH 读同张盘相差约 25 帧）。\n- **几何敏感度**：\n  $$\\frac{\\Delta r_0}{\\Delta C} = \\frac{p \\cdot b \\cdot 588}{2\\pi \\cdot r_0} \\approx 1.57 \\sim 1.66\\text{ nm/frame} \\quad (p \\approx 1.5 \\sim 1.6\\ \\mu\\text{m},\\ r_0 \\approx 25\\text{ mm})$$\n  $C = 206$ 帧对应的物理起始半径偏差仅为 $\\approx 0.33\\ \\mu\\text{m}$，但映射到 DiscImageStudio (DIS) 的 $24 \\to 58\\text{ mm}$ 盘面重构成像上，会产生 **$44^\\circ$ 的累积几何旋转扭转**，导致视觉对齐严重失真。\n\n---\n\n#### 3. 数学简并性证明（No-Go 定理）\n\n阿基米德螺旋线在相位梯子算法中满足如下严格恒等式：\n\n$$\\theta(n + C; u, v) - \\theta(C; u, v) \\equiv \\theta(n; u', v), \\quad \\text{其中 } u' = \\sqrt{u^2 + \\frac{v C}{\\pi}}$$\n\n- **解析意义**：整条物理螺旋沿轨道平移 $C$ 通道位，**严格等价于将初始有效半径替换为 $u'$**，而轨距参数 $v$ 完全不发生改变。\n- **数值与复拟合验证**：\n  - 在 $v=1.6\\ \\mu\\text{m},\\ C=206$ 帧（121,128 通道位）条件下，恒等式两端最大偏差仅为 $8.34 \\times 10^{-10}$ 度（浮点精度极限）。\n  - 对实测数据集在 $\\Delta = -200 \\sim +200$ 帧区间进行平移复拟合，**残差 RMS 恒为 $0.269^\\circ$、$\\chi^2/\\text{dof}$ 恒为 1.272，完全没有波动**；数据对 $C$ 的代数梯度恒为零，拟合算法只能收敛到 $r_0 \\oplus C$ 的混合量。\n\n---\n\n#### 4. 为什么无法通过“设计特殊盘片数据布局”或“读盘命令”测出\n\n1. **信息的一维投影限制**：光驱通过 MMC 协议暴露的所有读数（扇区内容、Q 通道 ATIME/RTIME、Index 边界、同步码）本质上全是一维轨道坐标 $n$ 的函数 $f(n)$。在盘片上刻录任何图案只是改变了 $f$ 的内容，并未提供与螺旋线正交的物理空间参考系。\n2. **缺乏亚微米级物理时基**：\n   - **DVD** 具备 16 扇区 ECC 块硬件对齐，读取完成点即块边界，实测 $C_{\\text{dvd}} \\approx 0$（误差在 $\\pm 0.2^\\circ$ 范围内）。\n   - **CD** 缺少大块 ECC 对齐，无 BCA 结构；预刻槽（ATIP）在 ECMA-394 中规定的起始公差为 $\\pm 0.15\\text{ mm}$（相当于约 $\\pm 90,000$ 帧），比待测常数粗 3 个数量级，无法作为微米级物理基准。\n3. **多转速解耦失效**：在恒定角速度（CAV）模式下，主轴角速度 $\\omega$ 固定，固件内任何时间延迟 $\\tau$ 均表现为固定转角 $\\omega\\tau$，被初始相位常数完全吸收。实测 $1241\\text{ rpm}$ 与 $2482\\text{ rpm}$ 下的 $\\Delta r_0$ 仅为 $9\\text{ nm} \\approx 5.7 \\pm 4.7$ 帧，统计上与零无差异。\n\n---\n\n#### 5. 建议的工程落地方案\n\n1. **解耦算法自由度**：正式在 `discprobe` 中将 `--along-track-frames` 标记为显式标定输入（Calibration Input），剔除求解器 Hessian 矩阵中与 $C$ 相关的退化维度，避免病态发散。\n2. **驱动器预设表（Drive Offset Database）**：参考音频抓轨（AccurateRip）的成熟方案，根据光驱 Inquiry 型号维护常见的读偏移预设，未匹配时回退为默认提示。\n3. **BD 分离处理**：BD 介质因其纯 CLV 特性，现已验证基于时间平方 $T^2 \\sim \\text{LBA}$ 的线性拟合（$R^2 \\ge 0.9999$）可直接稳定反推轨距与内径，无需走角速度梯子模型。\n\n---\n\n#### 6. PR 意向咨询\n\n在本次调研与开发过程中，我们已形成以下可用成果：\n1. **DIS 预设直接导出功能**：`disexport` 支持校准后直接将几何参数增量写入/合并到 DiscImageStudio 配置文件（`%LOCALAPPDATA%\\DiscImageStudio\\disc-presets.json`）。\n2. **研究文档与不可能性证明**：`docs/research/CD_GEOMETRY_INVESTIGATION.md`。\n3. **独立验证工具集**：\n   - `tools/cd_along_track_observability.py`（简并性数值验证）\n   - `tools/cd_refit_along_offset.py`（平移复拟合验证）\n   - `tools/cd_along_track_speeds.py`（多转速时间延迟解耦分析）\n\n想向 maintainer 咨询一下：\n**上述包含“DIS 预设导出功能”、“CD 沿轨常数不可测性分析文档”以及相关验证工具集的内容，项目组是否希望接收对应的 PR？如果需要，我们应拆分为几个独立的 PR 提交，还是保留在此 Issue 内供后续参考即可？**",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZDMWGM="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkMgheg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/13#issuecomment-6724002170",
+     "updatedAt": "2026-11-08T16:26:47Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-08T16:26:47Z",
+     "body": "@domerawind 谢谢这份分析！平移 C 等价于换一个起始半径、轨距不变，这一点证得很干净，和我们说明书里“计时测不到这个常数”对得上，而且讲清楚了为什么测不到。\n\n很欢迎提 PR，分两个就好：\n\n1. **文档**：放在 `docs/research/CD_GEOMETRY_INVESTIGATION.md`，中文就可以。我们会在说明书 CD 那一节加一句链接过去。\n2. **验证工具**：三个脚本放 `tools/`，开头写一段用法说明，依赖只用 numpy 和 scipy（项目里已经有的），结果尽量可重复（随机数固定种子）。\n\n第 1 点的预设直接写入已经在 #11 合并了，不用再提。\n\n关于建议里的两点，补充一下现状：\n\n- `--along-track-frames` 现在就是外部输入：`geo` 不拟合它，只有 `image` 和 `disexport` 接收这个数。所以不用改求解器，文档里可以按这个现状写。\n- 光驱偏移表这个思路很好，不过按你的式子 C = W + R，它同时取决于刻录机、刻录模式和读取光驱，只按读取光驱的型号记可能对不上。如果要做，可能要按“刻录机 + 模式 + 读取光驱”这样的组合来记。这个可以先放在文档里讨论，不急着进代码。\n\n两个 PR 都请基于现在的 main。BD 那部分等你那边成熟了，另开就好 (๑•̀ㅂ•́)و✧\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkMxYYw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/13#issuecomment-6724278371",
+     "updatedAt": "2026-11-08T16:51:54Z",
+     "author": {
+      "login": "domerawind"
+     },
+     "createdAt": "2026-11-08T16:51:54Z",
+     "body": "按你说的分成两个 PR 提了，都基于 a449e22：\n\n- #27 文档：`docs/research/CD_GEOMETRY_INVESTIGATION.md`（中文摘要 + 英文正文），外加 11-08 那张网格盘的实测报告 `CD_ALONG_TRACK_CALIBRATION.md`。按你的补充写了 C = W + R 要按「刻录机 + 刻录模式 + 读取光驱」组合记，没有动代码；`--along-track-frames` 按现状写成外部输入。\n- #26 工具：`cd_along_track_observability.py`、`cd_refit_along_offset.py`、`cd_along_track_speeds.py`，开头都有用法，只直接依赖 numpy，噪声检查默认固定种子。\n\n两条都只加文件；`selftest` 在 main 上通过。谢谢指路 :)\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWRfGw",
+  "updatedAt": "2026-11-07T22:18:43Z",
+  "number": 15,
+  "title": "[P1] geo：候选耗尽后的局部结果仍被判可信，局部 σ=0.19° 掩盖大范围外推",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/15",
+  "state": "OPEN",
+  "createdAt": "2026-11-07T21:41:42Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "## 问题\n\n`geo` 在大量候选测点相位测量不可用、候选耗尽之后，会正常 `return self.result()`。此时结果并没有覆盖原本要测的区域，却没有 `stopped` 或“部分完成”的状态。\n\n后续可信度判断使用的是**已经测到那一小段**的角度不确定度，而不是生成图片/安装预设时实际要用的范围。因此，局部的 0.19° 可以让一个全盘外推不确定度 14.8° 的结果通过 `reliable()` 和安装前检查。\n\n审查版本：[`813c581`](https://github.com/Ashley-QwQ/disc-probe/commit/813c5817c5bb4d2cd7fced0d918182c0161e6578)。这是算法层反例和生产代码调用结果，不是实盘测量。\n\n## 已复现的结果\n\n保留生产 `Ladder.run()` 的选点、拟合和输出，仅用已知真值的合成相位替代硬件；模拟只有 LBA 850000–1200000 可测，其他目标在重试后仍返回 None。该失败路径可能对应读取失败或无法取得稳定相位，这个反例不区分其硬件原因。\n\n| 项目 | 结果 |\n|---|---:|\n| 原本的默认目标区域 | 盘的约 3%–85% |\n| 成功测点 | 17 |\n| 返回失败的候选测点 | 38 |\n| 实际测量跨度 | **40.503–44.599 mm** |\n| 这段跨度的 σ | **0.1871°** |\n| 同一结果报告的 24–58 mm σ | **14.8203°** |\n| χ²/dof | 0.7729 |\n| `geo_complete()` | **True** |\n| `reliable()` | **True** |\n| `quality()` | `narrow span` |\n| `latest_geo()` | **选择此结果** |\n| `install_blocker()` | **None** |\n\n**上表两个 σ 都是条件于固定轨距模型的“两端累积角差 1σ”，不是实测盘面误差，也不是区间内最大误差或严格上界。** 对同一拟合按默认 image 网格的 24.5–56 mm 计算，该 σ≈14.598°；按 disexport 默认的 25.8–54.4 mm 计算，σ≈12.023°。\n\n程序并非完全没提醒：`quality()` 能识别窄范围，`after_geo()` 也会说明范围外是外推。`after_geo()` 推荐的 `disexport` 命令也会带上测得的半径范围，这一局部保护应保留。问题是这个事实没有进入统一的可用范围判定；同一结果仍被视为完整、可信，默认 `image` 会生成远超这个区间的画面，直接使用默认半径的 `disexport --install` 也不检查这份大范围不确定度。\n\n## 代码位置\n\n- [geo.py：失败测点加入 tried 后跳过，候选耗尽就正常退出](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/geo.py#L373-L416)\n- [geo.py：measured_span 只是测点的最小/最大地址；σ 是这两个端点角差的参数方差](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/geo.py#L459-L470)\n- [guide.py：完整性只检查点数、stopped、χ²；可信度只看已测跨度 σ](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/guide.py#L113-L134)\n- [guide.py：latest 选择逻辑](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/guide.py#L180-L183)\n- [guide.py：安装检查不比较实际使用区间](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/guide.py#L234-L258)\n- [image：读取 u/v 后按绘图区生成，没有范围相容性检查](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/__main__.py#L548-L600)\n\n## 最小复现\n\n在该提交的检出中运行以下 Python。测试目录中的 `AUDIT` 是为了测试普通结果的质量判断，不代表真实光驱；不调用安装，也不刻录。\n\n```python\nimport math\nfrom types import SimpleNamespace\nimport numpy as np\nfrom discprobe.geo import Ladder\nfrom discprobe.calib import theta\n\nclass PhaseOracle(Ladder):\n    # Only replace the instrument. Selection, unwrapping and fitting are production code.\n    def __init__(self, seed=3, sigma=1.0, readable=None):\n        super().__init__(None, max_targets=22, log=lambda *_: None)\n        self.tp = SimpleNamespace(\n            setup=lambda: None, cache_test=lambda: None, strategy=\"fua\",\n            last_lba=2295103, summary={}, audio=False)\n        self.rng = np.random.default_rng(seed)\n        self.sigma = sigma\n        self.truth_u, self.truth_v = 23.93 / .0001336, .000735 / .0001336\n        self.readable, self.failed, self.pred_sigmas = readable, [], []\n\n    def check_rotation(self):\n        pass\n\n    def settle(self, *args, **kwargs):\n        self.T = .02\n        return self.T\n\n    def _measure_retry(self, lba):\n        if self.readable and not any(a <= lba <= b for a, b in self.readable):\n            self.failed.append(lba)\n            return None\n        n = self._n_end(lba)\n        phase = math.degrees(theta(n, self.truth_u, self.truth_v)\n                             - theta(self.n_ref, self.truth_u, self.truth_v))\n        self.pred_sigmas.append(self._sigma_pred_deg(n))\n        return dict(lba=lba, n=n,\n                    phase_deg=(phase + self.rng.normal(0, self.sigma)) % 360,\n                    sigma_deg=self.sigma, std_deg=self.sigma * math.sqrt(24),\n                    used=24, period_ms=20.0)\n\nimport os\nimport tempfile\nfrom discprobe.geo import write_outputs\nfrom discprobe.guide import Result, latest_geo, install_blocker\n\nladder = PhaseOracle(seed=0, sigma=.2, readable=[(850000, 1200000)])\nfit = ladder.run()\nladder.tp.events_as_rows = lambda: []\n\nwith tempfile.TemporaryDirectory(prefix=\"audit-coverage-\") as root:\n    folder = os.path.join(root, \"geo-AUDIT-20261107-000000\")\n    write_outputs(ladder, folder)\n    result = Result(folder, \"geo\", \"AUDIT\", \"20261107-000000\")\n    print({\n        \"rungs\": result.rungs(),\n        \"failed_candidates\": len(ladder.failed),\n        \"measured_span_mm\": fit[\"measured_span_mm\"],\n        \"sigma_measured\": fit[\"angle_sigma_measured_span_deg\"],\n        \"sigma_24_58\": fit[\"angle_sigma_deg\"],\n        \"complete\": result.geo_complete(),\n        \"reliable\": result.reliable(),\n        \"quality\": result.quality(),\n        \"latest_selected\": latest_geo(out=root).path == folder,\n        \"install_blocker\": install_blocker(os.path.join(folder, \"summary.json\")),\n    })\n```\n\n## 还要处理的模型边界：最小/最大地址不等于整个区间都检查过\n\n即便两端测到了，内部仍可能有大空洞。另一个合成反例中，22 个测点在 35.127–39.043 mm 之间没有采样。在这个空洞内给真实角度增加一个光滑的 1° 扰动：\n\n`delta(n) = 1 degree * sin(pi * (n-a)/(b-a))**4`，仅在 `a<n<b` 非零。\n\n所有已测地址的观测完全不变，生产算法选择的 22 个地址和最终结果也逐项相同，仍报告 χ²/dof=0.8429、σ=0.1310°。在面积近似下，这个反例保持正轨距，最大相对轨距变化约 **0.0196%**，不是让螺旋倒转的非法构造。\n\n**这不证明真实盘上已经存在该扰动。** 它证明“模型在采样点拟合好”和“整个 min–max 区间都被验证到 0.13°”是不同的主张。固定点数、最小/最大地址和模型内协方差，无法自行排除未采样的局部变化。\n\n## 建议怎么改\n\n1. **把完成状态和可用范围写进结果。** 区分达到目标、候选耗尽、部分可读、用户中断、解圈歧义；保留成功/失败地址及原因。\n2. **让质量判定接收实际使用区间。** 导出或生成图像时，评估该区间的预测不确定度，而非只使用已测小区间的 σ。允许窄范围测量用于窄范围图案，不应一刀切丢掉它。\n3. `latest` 应选择对本次任务范围合适的结果；没有合适结果时明确报告外推，而不是仅凭局部低 σ 给“可信”。\n4. 输出最大未测间隔、边缘余量、分段覆盖和独立检查点。间隔最好按毫米/轨道圈数评估，不只看 LBA。\n5. 分开报告参数估计误差、条件于模型的预测误差、尚未验证的模型偏差。措辞改为“该模型与已测点相容”，不要由低 χ² 直接断言“只剩噪声”。\n6. 针对局部变轨距，加入独立留出测点、局部加密和明确的平滑性假设；有限采样无法无条件给任意几何的全区间误差上界。\n\n## 验收条件\n\n- [ ] 上面的 17 点反例返回部分完成及明确的有效范围。\n- [ ] 在 40.5–44.6 mm 使用时可以保留这份数据；用于全盘时，不会因为 0.187° 而被判成合格。\n- [ ] `latest`、`image`、`disexport --install` 对相同使用范围给出一致判断。\n- [ ] 三个分离可读岛的测试不能仅靠最外两个点声称中间全部覆盖。\n- [ ] 加入未采样平滑扰动/局部台阶的负例，报告何时无法保证，而不是要求测试永远“测得准”。\n\n与 #9 有关，但这里不只是把默认上限从 85% 调到 96%；即使目标范围设得足够宽，失败、空洞和使用范围仍需要进入质量模型。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr6Yg="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvpiA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/15#issuecomment-6713764232",
+     "updatedAt": "2026-11-07T22:18:42Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:42Z",
+     "body": "部分修复，先保持打开。\r\n\r\n[b2ff95e](https://github.com/Ashley-QwQ/disc-probe/commit/b2ff95e) 让候选耗尽的测量记为“部分完成”，并保存失败的地址。这样的结果不会再被 `latest` 选中，`disexport --install` 也会拒绝安装。用 issue 里的复现：原来 `complete`、`reliable` 都是 True、会被 `latest` 选中、可以安装；现在 `latest` 不再选它，安装被拦下。\r\n\r\n还没做的：`image` 和 `disexport` 仍然不按实际要用的半径范围估计不确定度。一个只测了一小段的结果，直接交给 `image` 时仍会被用到整张盘上。测点之间的空洞也还没有检查。这部分要把“测到的范围”和“要用的范围”贯穿几个命令，留着这个 issue 继续做。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWRfiQ",
+  "updatedAt": "2026-11-07T22:18:44Z",
+  "number": 16,
+  "title": "[P2] geo：DVD 会绕过 25° 解圈门槛，4000 扇区间距造成可避免的整圈错误",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/16",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T21:41:43Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "## 问题\n\nDVD 的梯子在没有安全候选点时，仍然选择一个点并给它锁定整圈数。代码定义了 `SAFE_DEG = 25`，但这个限制对 DVD 不是硬条件。\n\n更具体的问题是，早期用于消除整圈歧义的短步长，也被 `MIN_SPACING_SECTORS = 4000` 排除了。此时“相邻点增加的信息不多”并不成立：它们的价值是把下一步变成能安全解圈的一步。\n\n审查版本：[`813c581`](https://github.com/Ashley-QwQ/disc-probe/commit/813c5817c5bb4d2cd7fced0d918182c0161e6578)。\n\n## 代码位置\n\n- [geo.py：4000 扇区间距](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/geo.py#L63-L63)\n- [geo.py：先按间距排除候选，再计算安全集合](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/geo.py#L373-L392)\n- [geo.py：没有安全点时，只有 CD 停止；DVD 继续选最小 sigma 的点](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/geo.py#L393-L404)\n- [geo.py：按单一预测值 round 整圈数](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/geo.py#L306-L310)\n- [geo.py：后验残差拦截](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/geo.py#L409-L415)\n\n## 已复现的结果\n\n使用已知真值的合成相位观测，保留生产代码的选点、解圈、拟合和报告。每个目标的相位标准误为 **1°**；24 次观测对应的标准差约 **4.90°**，低于 `measure()` 的 30° 拒绝阈值。\n\n同一真值、同一随机种子 3、同一噪声序列：\n\n| 设置 | 第三步/后续预测不确定度 | 结果 |\n|---|---:|---|\n| 默认 `spacing=4000` | 第三步 **70.971°**，超过 25° | 第三步选错整圈数，第八步才以 χ²/dof=123.18、最大残差=16.34° 停止 |\n| 仅把早期候选间距改成 `256` | 初始化之后最大 **24.844°** | 22 级完成，没有越过 25° 门槛 |\n\n默认路径第三步的真值与预测相差 **232.857°**，已经越过四舍五入选圈的边界。随后多个点沿着错误分支继续解圈。后验拦截最终起效，这是现有保护有效的地方；本 issue **不声称这个例子最终被标成高精度成功**。\n\n较小间距的结果也仍有噪声：χ²/dof≈1.659，测量跨度内报告 σ≈0.871°。它说明的是“这个解圈失败可以避免”，不是“改间距就能解决噪声”。\n\n这是算法层合成反例，不是实盘发生率估计。\n\n## 最小复现\n\n在该提交的独立检出中运行以下 Python；只需要 NumPy，不访问光驱。\n\n```python\nimport math\nfrom types import SimpleNamespace\nimport numpy as np\nfrom discprobe.geo import Ladder\nfrom discprobe.calib import theta\n\nclass PhaseOracle(Ladder):\n    # Only replace the instrument. Selection, unwrapping and fitting are production code.\n    def __init__(self, seed=3, sigma=1.0, readable=None):\n        super().__init__(None, max_targets=22, log=lambda *_: None)\n        self.tp = SimpleNamespace(\n            setup=lambda: None, cache_test=lambda: None, strategy=\"fua\",\n            last_lba=2295103, summary={}, audio=False)\n        self.rng = np.random.default_rng(seed)\n        self.sigma = sigma\n        self.truth_u, self.truth_v = 23.93 / .0001336, .000735 / .0001336\n        self.readable, self.failed, self.pred_sigmas = readable, [], []\n\n    def check_rotation(self):\n        pass\n\n    def settle(self, *args, **kwargs):\n        self.T = .02\n        return self.T\n\n    def _measure_retry(self, lba):\n        if self.readable and not any(a <= lba <= b for a, b in self.readable):\n            self.failed.append(lba)\n            return None\n        n = self._n_end(lba)\n        phase = math.degrees(theta(n, self.truth_u, self.truth_v)\n                             - theta(self.n_ref, self.truth_u, self.truth_v))\n        self.pred_sigmas.append(self._sigma_pred_deg(n))\n        return dict(lba=lba, n=n,\n                    phase_deg=(phase + self.rng.normal(0, self.sigma)) % 360,\n                    sigma_deg=self.sigma, std_deg=self.sigma * math.sqrt(24),\n                    used=24, period_ms=20.0)\n\nfor spacing in (4000, 256):\n    ladder = PhaseOracle()\n    ladder.spacing = spacing\n    try:\n        result = ladder.run()\n        outcome = \"completed\"\n    except RuntimeError as exc:\n        outcome = str(exc)\n    print({\n        \"spacing\": spacing,\n        \"outcome\": outcome,\n        \"rungs\": len(ladder.targets),\n        \"largest_prediction_sigma_after_seed\": max(ladder.pred_sigmas[2:]),\n        \"unsafe_steps\": sum(s >= 25 for s in ladder.pred_sigmas[2:]),\n        \"chi2_per_dof\": ladder.chi2_dof,\n    })\n```\n\n## 建议怎么改\n\n1. **初始化完成后，对所有介质执行同一个解圈安全条件。** 没有安全候选时，不要绕过门槛。\n2. **把“初始化/扩展可达范围”和“覆盖盘面”分开选点。** 前者允许短距离桥接点；后者再用 4000 扇区间距避免重复采样。不建议只是全局把间距改成 256。\n3. 没有安全点时，优先增加近距离观测、重测前几个点，或增加重复次数；确实无路可走，再返回明确的 `ambiguous` 状态。\n4. 锁定整圈数前保留创新量、预测 σ 和备选圈数。必要时对相邻圈数做多分支检验，而不是把一次 `round` 当成不可更改的事实。\n5. 如后续拟合拒绝新点，保存上一份已验证的拟合和被拒绝点，避免把已经污染的状态当作最后有效结果。\n\n## 验收条件\n\n- [ ] 初始化两级之后，DVD/CD 都不会在预测 σ≥25° 时自动锁定唯一整圈数；初始化本身另按先验支持范围检查。\n- [ ] 上面的种子 3 反例能以安全桥接完成，或在解圈前明确报告歧义。\n- [ ] 测试同时检查真实整圈数，不能只断言最终 χ² 小。\n- [ ] 保留低噪声、正常全盘测量的成功和测量成本基线。\n- [ ] 输出能解释为何停下：没有安全候选、相位观测失败、模型不适配应是不同原因。\n\n与 #1 的“不能 settled”不同，这里假定主轴和相位观测可用；错误由梯子自身的候选筛选和无安全点回退产生。\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr6hU="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvqFQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/16#issuecomment-6713764373",
+     "updatedAt": "2026-11-07T22:18:43Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:43Z",
+     "body": "已修复：[1849b83](https://github.com/Ashley-QwQ/disc-probe/commit/1849b83)、[8e7f238](https://github.com/Ashley-QwQ/disc-probe/commit/8e7f238)。\r\n\r\n25° 的安全门槛现在对 DVD 也生效。找不到安全的候选时，先试更近的“桥接”点；仍然没有，就停下并说明整圈数无法确定，不再硬选一个。\r\n\r\n复现（间距 4000）：原来第 8 级后 χ²/dof 123、整圈数数错；现在 22 级全部完成，测完参考点后最大预测 σ 为 24.84°，χ²/dof 1.66。`selftest` 新增了一条检查，把锁定的整圈数和合成真值比对。\r\n\r\n没做的：多分支解圈，以及保存出问题前的完整拟合。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWSVTw",
+  "updatedAt": "2026-11-07T22:18:46Z",
+  "number": 17,
+  "title": "[P1] 网格扫描验收会删除真实偏差：外圈偏转 5°、局部偏转 2° 或覆盖不足仍可 PASS",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/17",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T21:43:25Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "## 问题\n\n在 `813c5817c5bb4d2cd7fced0d918182c0161e6578` 上，预登记网格验收脚本存在可复现的假通过：生产相关算法已经正确测出、且峰质量合格的连续几何偏差，会因超过扫描中位数 ±1° 被删除；缺失的径向分箱随后被忽略，剩余点仍可得到零误差 PASS。\n\n这是**已确认的验收逻辑问题**，会削弱独立实盘验证对模型错误的检出能力。反例不代表现有 grid3 实盘有同样的形变，也不涉及 `geo` 梯子的采样覆盖判定。\n\n## 原因与代码位置\n\n- [`eval_grid.read_phi():26–32`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/evidence/eval_grid.py#L26-L32)：先保留 `good == 1`，再无条件丢弃离中位数 ≥1° 的环。是否保留证据直接取决于待检验的误差大小，没有区分误峰与连续、可复现的真实形变。\n- [`aggregate():35–43`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/evidence/eval_grid.py#L35-L43)：2 mm 分箱，无数据的箱静默消失；每箱只需一个扫描贡献至少 3 个环。\n- [`evaluate():46–54`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/evidence/eval_grid.py#L46-L54)：仅以幸存箱的 RMS、峰峰值和 U 分量决定 PASS，没有完整性门槛。\n\n这套判定用于 [`PREREG_remeasure.md:83–118`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/docs/PREREG_remeasure.md#L83-L118) 的物理验收，因此不能仅作为绘图时的平滑处理看待。\n\n## 最小复现\n\n在仓库根目录保存并运行以下 Python。使用真实网格设计、`design_rings`、`_band`、`_peak` 和 `strength > 4`，随后调用原版验收脚本；不依赖附加数据文件。\n\n输入从“已重采样的极坐标环”开始，**绕过原始图像读取、找圆心、尺度估计及镜像选择**，不声称模拟完整扫描仪。前三例的相位和 `good` 均由生产算法计算；第四例显式把外侧环标成不可用，以隔离测试缺失覆盖判定。\n\n```python\nimport csv\nimport importlib.util\nimport tempfile\nfrom pathlib import Path\n\nimport numpy as np\nfrom discprobe import gridscan as g, imagedisc as image\n\nspec = importlib.util.spec_from_file_location(\"eval_grid\", \"evidence/eval_grid.py\")\nev = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(ev)\n\nr = np.arange(25.5, 55.5, 0.1)\nr = r[np.abs((r + 2.5) % 5 - 2.5) > 0.35]  # 与 analyse() 同样避开圆线\nn = g.N_THETA\nj = np.arange(n)\ntheta = j * 2 * np.pi / n\ndesign = g.design_rings(image.grid_design(line=0.6), r)\ndesign_fft = g._band(design)\ncases = {\n    \"outer_5deg\": np.where(r >= 50, 5.0, 0.0)[:, None],\n    \"band_2deg\": np.where((r >= 40) & (r < 41), 2.0, 0.0)[:, None],\n    \"azimuth_0.5deg\": 0.5 * ((r - 25.5) / 30)[:, None] * np.sin(2 * theta),\n    \"only_inner_bins\": np.zeros((len(r), 1)),\n}\n\nwith tempfile.TemporaryDirectory() as tmp:\n    for name, warp in cases.items():\n        positions = j[None, :] - warp / 360 * n\n        signal = np.array([\n            np.interp(pos, j, row, period=n)\n            for pos, row in zip(positions, design)\n        ])\n        cross = g._band(signal) * np.conj(design_fft)\n        centre, _ = g._peak(np.fft.irfft(cross.sum(axis=0), n=n), None, None)\n        phase, strength = [], []\n        for curve in np.fft.irfft(cross, n=n, axis=1):\n            peak, height = g._peak(curve, centre, int(g.WINDOW_DEG / 360 * n))\n            phase.append(peak * 360 / n)\n            strength.append(height / (np.std(curve) + 1e-12))\n        phase = np.rad2deg(np.unwrap(np.deg2rad(phase)))\n        good = np.array(strength) > 4\n        if name == \"only_inner_bins\":\n            good &= r < 31\n        phase -= np.median(phase[good])\n        path = Path(tmp) / f\"{name}.csv\"\n        with path.open(\"w\", newline=\"\", encoding=\"utf-8\") as f:\n            writer = csv.writer(f)\n            writer.writerow([\"radius_mm\", \"phi_rel_deg\", \"peak_strength\", \"good\"])\n            writer.writerows(zip(r, phase, strength, good.astype(int)))\n        print(name, \"good:\", int(good.sum()), \"/\", len(r),\n              \"ring_pp:\", float(np.ptp(phase[good])),\n              \"retained:\", len(ev.read_phi(path)[0]), ev.evaluate([path]))\n\nactual = sorted(Path(\"evidence/gridscan\").glob(\"grid3_*.phi.csv\"))\nprint(\"existing grid3:\", ev.evaluate(actual))\nbefore = 0\nfor path in actual:\n    with path.open(encoding=\"utf-8\") as f:\n        before += sum(row[\"good\"] == \"1\" for row in csv.DictReader(f))\nprint(\"extra 1deg removals:\", before - sum(len(ev.read_phi(p)[0]) for p in actual))\n```\n\n复现结果：\n\n| 输入 | 合格环数 | 验收前逐环峰峰值 | 验收保留环数 | 验收结果 |\n|---|---:|---:|---:|---|\n| `r ≥ 50 mm` 偏转 5° | 258/258 | 5.001708° | 214 | 13 箱，RMS=0、pp=0、U=0，**PASS** |\n| `40 ≤ r < 41 mm` 偏转 2° | 258/258 | 2.000166° | 252 | 15 箱，RMS=0、pp=0、U=0，**PASS** |\n| 只保留 `r < 31 mm` | 48/258 | 约 0° | 48 | 3 箱，**PASS** |\n\n前两例的错误已被上游准确识别，失败发生在验收阶段；局部异常被删后，其所在分箱甚至仍可能由周围正常环补足。\n\n这与为绘图剔除孤立误峰不同：模型越偏离，越可能失去进入误差统计的资格。相邻半径一起偏移时，把它们全部删除会系统性地压低误差；增加重复扫描也不能自动修复相同的删除规则。当前输出又没有说明哪些半径已经从判定中消失，调用者只看到“剩余曲线很平”。\n\n期望的判定语义应是：在事先声明的区域内，证据完整到足以检验精度，且通过误差门槛。质量不足意味着该区域尚未验证，不能与零误差等同；质量合格的连续偏转则应保留为反例。完整覆盖检查和异常检出需要同时存在：前者阻止外圈消失后通过，后者阻止局部异常被删、同一分箱仍由正常邻点填满后通过。\n\n## 现有结果与解释边界\n\n现有 grid3 的 8 份 CSV 仍能复算得到 15 箱、pp=0.10615°、RMS=0.032102845°、U=0.003375671°，符合原判据。检查其全部 `good` 环后，1° 过滤**没有额外删点**。因此本 issue 不推翻这些数值；问题是相同流程遇到已知错误输入时仍会通过，PASS 的含义需要补强。\n\n### 另外的模型边界\n\n代码中的 `azimuth_0.5deg` 施加随半径增大的 `sin(2θ)` 角向形变。真实局部偏移最大 0.4983°（外缘约 0.482 mm），257/258 环质量合格，但汇总 RMS 只有 0.001089°，仍 PASS，且不触发 1° 删除。这表明整圈标量 φ(r) 检验的是平均径向扭曲，无法覆盖完整二维定位误差。源码已说明整圈相关会抵消部分圆心/缩放影响；这里建议扩充验证维度，不把该设计选择另报成数值 bug，也不推断实盘已有这种误差。\n\n## 建议修复与验收\n\n- [ ] 将信号质量与几何偏差分开处理：连续且峰质量合格的异常带应保留为失败证据；误峰剔除记录明确原因，不能仅靠偏差超过 1°。\n- [ ] 输出径向覆盖 mask、逐箱环数和独立扫描数，预设必需范围及最小覆盖。覆盖不足输出 `INCOMPLETE`，不能 PASS。\n- [ ] 在平滑汇总指标之外保留逐环尾部、连续异常带及最大误差；上述 5°、2° 案例应 FAIL，仅内圈案例应 INCOMPLETE。\n- [ ] 保留现有 grid3 数值回归，并报告实际覆盖。后续增加局部扇区/交点位移检验，区分 φ(r) 与二维几何精度。\n- [ ] 为参考实验提供原始扫描、采集事件及代码/参数/文件哈希，允许重放峰筛选和拒绝过程；可放在带校验的独立证据包中，不必全部纳入 Git。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr62E="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvrYQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/17#issuecomment-6713764705",
+     "updatedAt": "2026-11-07T22:18:45Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:45Z",
+     "body": "已修复：[3e3e915](https://github.com/Ashley-QwQ/disc-probe/commit/3e3e915)、[8a3dfb2](https://github.com/Ashley-QwQ/disc-probe/commit/8a3dfb2)。\r\n\r\n- 不再删掉离中位数 1° 以上的环。\r\n- 按 2 mm 检查覆盖，所需范围里缺数据就判 INCOMPLETE，不再当作通过。\r\n- 反例：外圈偏 5°、局部偏 2° 现在判 FAIL，只有内圈数据判 INCOMPLETE。\r\n\r\n三张网格盘重新判了一遍，`selftest` 里也加了这三项：\r\n\r\n| 盘 | 结果 |\r\n|---|---|\r\n| grid1（旧计时） | FAIL，和定门槛时的预期一致 |\r\n| grid2（扫描修正） | INCOMPLETE：它的扫描在 27 到 29、35 到 37、45 到 47、49 到 51 mm 没有可用的环 |\r\n| grid3（预先登记） | PASS，峰峰 0.106°、RMS 0.032°、U 0.003°，和登记的结果相同 |\r\n\r\n修复过程中一度加了“单次扫描里各环的极差”作为判据。它会让 grid3 判 FAIL，而这个量主要反映单环的噪声，不是图案的弯曲，所以现在只报告、不参与判定。\r\n\r\n还是老样子：issue 里角向 0.5° 的形变仍然 PASS。这套指标只看径向，验证不了二维定位。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWS7sA",
+  "updatedAt": "2026-11-07T22:18:49Z",
+  "number": 18,
+  "title": "[P2] timing：忽略中间区域的周期冲突或缺测，错误放行非 CAV 相位实验",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/18",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T21:44:35Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "## 问题\n\n三分区周期检查已经发现局部转速不同，`_classify()` 却只比较第一个和最后一个有效区域。中间区即使是高 coherence 的不同周期，仍可被判为 CAV；中间区完全没有周期时也一样。随后 `stop_if_not_cav=True` 不会停止相位实验。\n\n审查版本：[`813c581`](https://github.com/Ashley-QwQ/disc-probe/commit/813c5817c5bb4d2cd7fced0d918182c0161e6578)。这是确定的分类逻辑缺陷，以下流水线结果来自合成驱动，不是实盘发生率。\n\n高 coherence 只能说明该区域的完成时刻符合某个周期，不能说明不同区域共享同一个周期。这个反例也不需要讨论未采样位置：中间区的冲突已经被程序直接测到。缺测则是证据不足，不能被当成支持 CAV 的观测。两种情况都应进入分类结果。\n\n## 代码位置与原因\n\n- [`timing.py:474–491`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/timing.py#L474-L491)：`noisy` 只包含“有周期但低 coherence”的区域；缺测被忽略，随后仅取 `valid[0]`、`valid[-1]`。\n- [`timing.py:551–556`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/timing.py#L551-L556)：依据上述分类执行非 CAV 停测。\n- [`timing.py:523–541`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/timing.py#L523-L541)：当前相位块只要返回 fit，就计算相位，没有独立的参考 coherence 门槛。\n\n## 最小复现\n\n在该提交的检出根目录运行；不访问光驱。驱动在中间半径区稳定以 30 ms 转一圈，内外区均为 20 ms；保留生产计时、分类和相位分析。\n\n```python\nimport math\nfrom discprobe.sim import SimDrive\nfrom discprobe.timing import TimingProbe\n\nclass MiddleZoneDrive(SimDrive):\n    def __init__(self):\n        super().__init__(mode=\"cav\", seed=7, jitter_us=5,\n                         outlier_rate=0, rev_period_ms=20)\n        self._alpha = 0.0\n\n    def _relock(self, t, radius):\n        self._phi = self._phase(t)\n        self._t_s = t\n        self._w = 2 * math.pi / (.03 if 33 < radius < 49 else .02)\n\nsim = MiddleZoneDrive()\nprobe = TimingProbe(sim, log=lambda *_: None,\n                    stop_if_not_cav=True, targets=(.5,))\nresult = probe.run()\nzones = result[\"period\"][\"zones\"]\nprint(\"zones:\", [(z[\"period_ms\"], z[\"coherence\"]) for z in zones])\nprint(\"rotation:\", result[\"period\"][\"rotation\"])\nprint(\"phase_test_ran:\", \"phase\" in result)\nentry = result[\"phase\"][\"targets\"][0]\ntruth = sim.true_phase_deg(entry[\"ref_lba\"], entry[\"target_lba\"])\nprint(\"reference:\", entry[\"ref\"])\nprint(\"phase:\", entry[\"phase\"], \"truth:\", truth)\nprint(\"error_deg:\", (entry[\"phase\"][\"mean_deg\"] - truth + 180) % 360 - 180)\n\n# 缺测同样不能被两个端点“补成”完整的 CAV 证据。\nmissing = [dict(z) for z in zones]\nmissing[1].pop(\"period_ms\")\nprint(\"missing_middle:\", probe._classify(missing))\n```\n\n实际结果：\n\n| 项目 | 结果 |\n|---|---:|\n| 三分区周期 | 19.99999 / 29.99999 / 20.00001 ms |\n| 三分区 coherence | 1.0 / 1.0 / 1.0 |\n| 分类 | **CAV** |\n| 开启非 CAV 停测后仍做相位实验 | **True** |\n| 相位块参考 coherence | **0.4412** |\n| 输出相位 / 几何真值 | **298.251° / 256.881162°** |\n| 圆周误差 | **+41.3698°** |\n| 中间区缺测后的分类 | **CAV** |\n\n输出相位的 SEM 为 10.928°，本例并没有假装得到高精度；问题在于互相矛盾的数据仍得到 CAV 标签，绕过了用户要求的停测条件。各区局部周期都稳定，因此与 #1 的“主轴不能 settled”不同。本 issue 针对 `timing`，不据此断言 `geo` 的其他检查也会接受错误几何。\n\n相位结果仍带 `rotation_mode: CAV`，而相位块自身的参考拟合已经失去清晰周期。使用者必须自行从另一字段识别矛盾，原本提供的停测开关没有完成这个判断。修复分类与补充相位块质量门槛分别对应预检和测量过程中的两层保护。\n\n## 建议与验收\n\n1. 对所有必测区域检验共同周期；任何区域缺测或质量不足都应保留为 unknown，周期冲突应为 mixed/unknown。\n2. 相位块独立验证参考周期质量和漂移，不能仅沿用预检的 CAV 标签；失败时输出明确的无效原因。\n3. 加入 `20/30/20 ms`、缺失中间区、低 coherence 中间区回归测试；前两者不能判 CAV，开启停测时必须跳过相位。\n4. 保留稳定 `20/20/20 ms` 和正常 CLV 用例，确认没有把正常测量一并禁用。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr7Oc="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvs5w",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/18#issuecomment-6713765095",
+     "updatedAt": "2026-11-07T22:18:48Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:48Z",
+     "body": "已修复：[0db637e](https://github.com/Ashley-QwQ/disc-probe/commit/0db637e)。\r\n\r\n现在要所有区域都有清晰的周期、而且彼此一致，才判 CAV。任何一个区域没有周期或相干度不超过 0.5，就判 unknown。参考点没有清晰周期时，不再输出相位，而是说明原因。\r\n\r\n复现：20/30/20 ms 原来判 CAV 并跑了相位实验（误差 41°），现在判 mixed，不跑相位实验。中间区缺测时，原来判 CAV，现在判 unknown。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWS8PQ",
+  "updatedAt": "2026-11-07T22:18:51Z",
+  "number": 19,
+  "title": "[P2] timing：缓存读的 Windows timer tick 警告分支永远不可达",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/19",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T21:44:36Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "## 问题\n\n`_check_period()` 声明要识别缓存完成时刻锁到 Windows 15.625 ms 定时器及其谐波的情况，但对应分支永远不会执行。函数前半段要求 `strategy == \"fua\"` 才能继续，后半段却要求 `strategy in (\"plain\", \"evict\")` 才发出警告。这两个条件互斥。\n\n审查版本：[`813c581`](https://github.com/Ashley-QwQ/disc-probe/commit/813c5817c5bb4d2cd7fced0d918182c0161e6578)。这是已确认的控制流错误；它证明既有检测失效，不等于本次已在真实光驱上重现误判。\n\n## 代码位置\n\n[`timing.py:445–462`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/timing.py#L445-L462)：\n\n```python\nfua = settle[\"read\"][\"p50_us\"] if self.strategy == \"fua\" and \"read\" in settle else None\nif not periods or not fua:\n    return\n# ... FUA 整圈比值检查 ...\nif self.strategy in (\"plain\", \"evict\") and ...:\n    self.log(\"Warning: this period looks like the Windows timer tick ...\")\n```\n\n对于 plain/evict，`fua` 必然是 None，函数提前返回；对于 fua，最后的策略判断必然为假。是否提供 settle 数据、周期是否恰好为 15.625 ms，都无法让该警告执行。\n\n这里应区分两种验证所需的证据。整圈比值检查确实需要一段可靠的 FUA 读取时长；定时器特征检查只需要当前策略和拟合周期。现在把二者共用同一个提前返回条件，就让本来专门针对非 FUA 路径的检查，反而依赖该路径不可能提供的 FUA 标记。\n\n这项检查有实际意义：仓库的 [`KNOWLEDGE.md:220–227`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/docs/KNOWLEDGE.md#L220-L227) 已记录缓存读和主机等待造成约 15.6 ms 假周期及其谐波。这里报告的是该已知风险的检测代码不可达，不是把旧硬件现象重新报一遍。\n\n## 最小复现\n\n在该提交的检出根目录运行；不访问光驱，也不要求 Windows。测试直接提供精确的定时器周期，验证控制流。\n\n```python\nfrom discprobe.sim import SimDrive\nfrom discprobe.timing import TimingProbe\n\nfor strategy in (\"plain\", \"evict\"):\n    for period_ms in (15.625, 7.8125, 15.625 / 3):\n        logs = []\n        probe = TimingProbe(SimDrive(), log=logs.append)\n        probe.strategy = strategy\n        # 提供 read 数据，排除“只是没有 settle 信息”的解释。\n        probe.summary = {\n            \"settle\": {\"read\": {\"p50_us\": 62500.0}},\n            \"period\": {},\n        }\n        zones = [dict(period_ms=period_ms, coherence=1.0)]\n        probe._check_period(zones)\n        print(strategy, round(period_ms, 6), logs)\n```\n\n实际输出的六行日志列表均为 `[]`。预期 plain/evict 下已有的 timer-tick 识别逻辑可以执行，而不依赖 FUA 专有数据。\n\n这个测试可以稳定复现漏报，无须模拟操作系统唤醒行为；它验证的是诊断函数能否处理已经获得的周期。若要进一步验证端到端误判率，仍需记录实际读取耗时和主机调度时间，不能用此单元反例替代。\n\n## 影响边界\n\n这是遗漏诊断，不是已证明每次出现 15.625 ms 都测错。真实主轴周期也可能恰好接近这个数，不能仅凭数值匹配就直接拒绝有效测量。是否造成错误 CAV 分类，还取决于缓存行为和其他观测；本 issue 不声称 `geo` 必然接受错误几何。\n\n## 建议与验收\n\n1. 把 timer-tick 检查和 FUA 整圈比值检查分开；前者放在 FUA 专有数据的提前返回之前。\n2. 可将匹配写成结构化的“疑似宿主机周期”标记，结合缓存验证、改变等待分布后的复测判断，避免只有一条容易错过的日志。\n3. 只有证据支持时才扩大到 flush/far 等策略，不把所有相近周期都认定为缓存。\n4. 回归测试覆盖 plain/evict 的 15.625、7.8125、5.208333 ms，另测不匹配周期；有无 settle.read 都不应影响非 FUA 检查的可达性。\n5. 保留 FUA 整圈比值检查的既有行为，验证两项检测互不依赖。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr7iw="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvuLA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/19#issuecomment-6713765420",
+     "updatedAt": "2026-11-07T22:18:50Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:50Z",
+     "body": "已修复：[1eee598](https://github.com/Ashley-QwQ/disc-probe/commit/1eee598)。\r\n\r\n定时器检查挪到了 FUA 专用的提前返回之前。复现里 plain 和 evict 各三个周期，原来 0/6 次发出警告，现在 6/6。这只是警告，不能证明一定是缓存造成的假周期。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWS8vQ",
+  "updatedAt": "2026-11-08T01:05:58Z",
+  "number": 20,
+  "title": "[P2] analysis：谐波除数只枚举到 12，80 ms 真周期被拟合成 6.15385 ms 且报告零抖动",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/20",
+  "state": "OPEN",
+  "createdAt": "2026-11-07T21:44:37Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "## 问题\n\n`estimate_period()` 的无先验搜索先选最高的周期图峰，再通过 `f_best / k` 寻找基频，但 `k` 被固定限制在 2–12。理想整数圈时间戳在基频和整数谐波都高度相干，粗搜索可能选中高阶谐波；这时真实基频不进入候选，后续最小二乘也无法纠正错误圈数。\n\n审查版本：[`813c581`](https://github.com/Ashley-QwQ/disc-probe/commit/813c5817c5bb4d2cd7fced0d918182c0161e6578)。这是支持的 3–400 ms 范围内的确定数值反例，未测量真实硬件发生率。\n\n## 代码位置与原因\n\n[`analysis.py:93–108`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/analysis.py#L93-L108) 使用 `range(2, 13)`。下面 80 ms 数据的最高峰约为 **325 Hz，第 26 谐波**。可枚举的除数只能得到仍符合阈值的第 13 谐波 162.5 Hz；真实基频 12.5 Hz 需要 `k=26`，被排除。代码注释所说的“取最低的基频”因此没有实现完整。\n\n## 最小复现\n\n在该提交的检出根目录运行；只使用标准库，不访问光驱。50 次观测之间有不同的整数圈间隔，相邻间隔的最大公约数为 1，并非每次都固定漏掉若干圈。\n\n```python\nimport math\nimport random\nfrom discprobe.analysis import (\n    estimate_period, phase_offsets, robust_circular_mean,\n)\n\nrng = random.Random(3)\nrevs, steps = [], []\nn = 0\nfor _ in range(50):\n    step = rng.randint(3, 17)\n    steps.append(step)\n    n += step\n    revs.append(n)\nprint(\"interval_gcd:\", math.gcd(*steps[1:]))\n\nfor period_s in (.080, .125):\n    times = [round(n * period_s * 1e9) for n in revs]\n    fit = estimate_period(times)\n    print(\"true_period_ms:\", period_s * 1000, \"fit:\", fit.summary())\n    if period_s == .080:\n        target_times = [\n            round((n * period_s + period_s * (2 + 17 / 360)) * 1e9)\n            for n in revs\n        ]\n        print(\"true_phase_deg: 17.0; measured:\",\n              robust_circular_mean(phase_offsets(fit, target_times)))\n```\n\n实际结果：\n\n| 真周期 | 拟合周期 | 真转速 / 拟合转速 | coherence / jitter / 使用点数 |\n|---:|---:|---:|---|\n| 80 ms | **6.15385 ms** | 750 / **9750 rpm** | 1.0 / 0 μs / 50 of 50 |\n| 125 ms | **3.04878 ms** | 480 / **19680 rpm** | 1.0 / 0 μs / 50 of 50 |\n\n80 ms 场景的真实目标相位为 **17°**，实际输出 **221°、SEM = −0.0°**，对应 `13 × 17° mod 360°`。125 ms 场景的最高峰为约 328 Hz，即第 41 谐波，需要的 `k=41` 同样未被枚举。\n\n报告中的 jitter 和 SEM 都是在选定周期之后计算，不能包含“选错谐波”这一离散不确定性。因此，它们对所选错误周期可以完全自洽，却不能作为主轴周期已经识别正确的证据。\n\n## 影响边界\n\n本例使用无抖动的理想时间戳，证明“coherence 接近 1、残差为零”不能验证基频选择正确。实际噪声、先验搜索和采样计划会改变发生条件，不能据此估算实盘错误率；也不能从这个分析函数反例直接推断 `geo` 会通过全部检查并接受错误几何。若时间戳本身无法区分多个物理周期，应明确报告歧义，而非用零残差表示已经确定主轴周期。\n\n## 建议与验收\n\n1. 至少枚举到 `f_best / k < f_lo`，不要用与支持频率范围无关的常数 12 截断。\n2. 更完整的做法是保留多个峰并按谐波关系分组，结合整数圈间隔、采样计划和独立先验识别基频；区分条件于选定周期的残差与周期选择不确定性。\n3. 加入上述 80/125 ms 回归例，既检查周期，也检查 17° 相位是否正确；仅断言 coherence 高不能算通过。\n4. 覆盖支持范围边界、不同跳圈序列、小抖动和固定多圈间隔。最后一种有额外歧义时，应输出候选或不确定状态，避免承诺仅靠完成时间就能无条件识别真实圈数。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZBFC0c="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvvcA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/20#issuecomment-6713765744",
+     "updatedAt": "2026-11-07T22:18:52Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:52Z",
+     "body": "还没修好，先保持打开。\r\n\r\n[da6378f](https://github.com/Ashley-QwQ/disc-probe/commit/da6378f) 把谐波除数扩大到完整的频率范围，issue 里 80 ms 和 125 ms 的例子算对了，相位也是正确的 17°。但完整 `selftest` 的模拟盘随之出现了长周期别名和错误的相位，调门限也没能全部解决，所以 [753685d](https://github.com/Ashley-QwQ/disc-probe/commit/753685d) 撤回了这个改动。\r\n\r\n现在复现结果和原来一样：80 ms 仍被拟合成 6.15385 ms，并报告零抖动。要修好，大概需要把谐波分组比较、用转速的先验，或者在无法分辨时明确报告歧义。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkEULRw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/20#issuecomment-6715411271",
+     "updatedAt": "2026-11-08T01:05:58Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-08T01:05:58Z",
+     "body": "真实光驱上也见到了反方向的别名：周期被估长了三倍。\n\nGH70N（NYA2），RITEKF1 DVD-R，`timing` 不加 `--speed`。最内的位置（扇区号 107248）测出转一圈 62.223 ms，另外两个位置都是 20.746 ms，正好差 3 倍（2.9993）。原始记录里，这个位置的 60 次读取全部落在第 3、6、9……圈上。读之前的随机停顿超过一圈，如果光驱正常，至少会落在相邻两圈上，所以这是光驱当时确实每三圈才读完一次，不是统计上的巧合。完成时刻用 62 ms 和 20.7 ms 都能完全对上，搜索取了长的那个，转速判成了分段变速，于是跳过了角度测量。之后在同一位置用 0 到 100 ms 的停顿重测，没再出现三圈的情况（光驱那时已经换到约 5900 转/分）。\n\n40d6979 只在判定这一步处理：某个位置的周期是另一位置的整数倍（倍数至少 2，误差 0.3% 以内）时，以短的周期为先验重新拟合，并记下每几圈读完一次。角度测量的先验也随之用回一圈的周期。这次的完成时刻存在 `evidence/drive/gh70n_three_turn_zone.json`，自测里用它检查，另外加了一个外圈恰好慢一倍的 CLV 例子，要求仍然不判成恒定转速。\n\n`estimate_period()` 本身没改，所以这个 issue 原来说的问题（估短、`k` 只枚举到 12）还在，继续开着。\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWUG9w",
+  "updatedAt": "2026-11-07T22:18:53Z",
+  "number": 21,
+  "title": "[P2] geo_polyfit 默认数值 Jacobian 提前停止，实盘二次轨距拟合的 χ² 被高估约一倍",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/21",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T21:46:57Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "对仓库已经提交的 partial CD 数据，`geo_polyfit.fit()` 返回的二次模型 χ²/dof 为 **1.46350**；保持模型、参数数量、数据、权重、起点和优化器设置不变，只使用尺度稳定的中心差分 Jacobian，即得到 **0.72686**。当前求解器仍然返回 `success=True`，所以仅检查 success 也不足以发现问题。\n\n## 审计基线与结论范围\n\n- 固定提交：[`813c5817c5bb4d2cd7fced0d918182c0161e6578`](https://github.com/Ashley-QwQ/disc-probe/tree/813c5817c5bb4d2cd7fced0d918182c0161e6578)。\n- 复现环境：Python 3.12.14、NumPy 2.3.5、SciPy 1.17.0。\n- 实盘数据：[`evidence/cd-geo-20261104/targets.csv`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/evidence/cd-geo-20261104/targets.csv) 与同目录的 [`summary.json`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/evidence/cd-geo-20261104/summary.json)，29 个采样位置，约 34.081–52.639 mm。\n- **已确认：同一个拟合问题获得了显著更低且跨差分尺度稳定的目标值，当前输出受数值求解误差影响。**\n- 本 issue 对应的是当前 `tools/geo_polyfit.py`，与已经修复的 `disexport` 旧优化器问题是不同的代码路径。\n\n## 代码位置与影响\n\n[`tools/geo_polyfit.py:65–84`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/tools/geo_polyfit.py#L65-L84) 将 `u`、`v` 的相对变化以及轨距多项式系数都缩放为 `1e-5`，随后调用：\n\n```python\nsol = least_squares(res, z0, x_scale=np.r_[1, 1, [1] * order, 1], method=\"lm\")\n```\n\n这里未提供 Jacobian。模型在较大的累积转角上计算很小的参数扰动，同时新增轨距参数与原参数存在强相关，默认数值差分的精度会影响停止条件。函数只返回拟合参数和残差指标，没有暴露求解器状态或最优性诊断。\n\n实测对比：\n\n| 模型 | 当前 χ²/dof | 稳定中心差分 χ²/dof | 当前角度 RMS | 稳定中心差分角度 RMS |\n|---|---:|---:|---:|---:|\n| 常轨距 | 1.53378654 | 1.53378407 | 0.234567° | 0.234567° |\n| 二次轨距 | **1.46349822** | **0.72685676** | **0.220146°** | **0.155223°** |\n| 三次轨距 | **1.62833696** | **0.73707418** | **0.227317°** | **0.153039°** |\n\n二次模型的当前求解结果为 `success=True, status=3, nfev=19, optimality=3.21807`。中心差分步长分别取 **0.01、0.1、1、10**，四种设置均收敛到 χ²/dof≈0.72685676，返回的 `nfev=3`，`optimality < 4e-5`。\n\n这会污染“复杂模型是否值得采用”的比较。二次/常轨距的 χ²/dof 比值从约 **0.954** 变为约 **0.474**，跨过 [`guide.py:32`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/guide.py#L32) 的 `PITCH_CLEARLY_BETTER=0.5` 标准，也会改变写出的修正曲线。\n\n**具体边界：**这份 partial CD 原始实盘数据的常轨距 χ²/dof 小于 2，当前 [`after_geo():549`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/guide.py#L549) 不会进入 pitch comparison 分支。因此这里不声称原始实盘的实际 guide verdict 已经翻转；已复现的是拟合与模型比较数值本身失真。\n\n## 自包含复现\n\n在仓库根目录运行。代码不修改仓库文件；每次求解使用相同的参数化、起点、权重和 `least_squares` 默认容差，仅替换 Jacobian。\n\n```bash\npython - <<'PY'\nimport numpy as np\nfrom scipy.optimize import least_squares\n\nfrom tools.geo_polyfit import fit, load, model\n\nn, y, s, summary = load(\"evidence/cd-geo-20261104\")\nu0, v0, bit = summary[\"u\"], summary[\"v\"], summary[\"bit_nm_assumed\"]\nrc, rs = 40e6 / bit, 15e6 / bit\n\nfor order in (0, 2, 3):\n    original = fit(n, y, s, u0, v0, order, rc, rs)\n\n    # Same residual, parameterization, initialization and solver defaults as fit().\n    def residual(z):\n        u = u0 * (1 + z[0] * 1e-5)\n        v = v0 * (1 + z[1] * 1e-5)\n        theta = model(n, u, v, z[2:2 + order] * 1e-5, rc, rs)[0]\n        return (theta + z[-1] - y) / s\n\n    z0 = np.zeros(3 + order)\n    z0[-1] = np.mean(y - model(n, u0, v0, [], rc, rs)[0])\n    original_sol = least_squares(residual, z0, method=\"lm\", x_scale=np.ones(len(z0)))\n    print(\"order\", order, \"original chi2/dof\", original[\"chi2\"] / original[\"dof\"],\n          \"success\", original_sol.success, \"status\", original_sol.status,\n          \"nfev\", original_sol.nfev, \"optimality\", original_sol.optimality)\n\n    for h in (0.01, 0.1, 1.0, 10.0):\n        def jac(z):\n            return np.column_stack([\n                (residual(z + h * e) - residual(z - h * e)) / (2 * h)\n                for e in np.eye(len(z))\n            ])\n\n        sol = least_squares(residual, z0, method=\"lm\", jac=jac,\n                            x_scale=np.ones(len(z0)))\n        chi = float(sol.fun @ sol.fun / (len(n) - len(z0)))\n        rms = float(np.degrees(np.sqrt(np.mean((sol.fun * s) ** 2))))\n        print(\"  h\", h, \"chi2/dof\", chi, \"RMS deg\", rms,\n              \"nfev\", sol.nfev, \"optimality\", sol.optimality)\nPY\n```\n\n## 建议修改\n\n1. 为轨距模型提供解析 Jacobian，或采用按物理量与参数尺度验证过的中心差分。单纯增加迭代次数不足以修复错误的停止条件。\n2. 优先用相对于参考位置的角度构造残差，减少巨大累积转角之间的小差值计算。\n3. 返回并检查求解器状态、按明确尺度衡量的最优性指标和可辨识性；对高相关参数，不能把 `success=True` 等同于得到了可靠的最小值。\n4. 模型选择与 correction 生成只采用通过这些数值检查的拟合结果。\n\n## 验收条件\n\n- 固定上述数据与目标函数，二次模型 χ²/dof≤**0.727**，三次模型≤**0.738**。\n- 在合理的 Jacobian 尺度、等价角度中心化和微扰初值下，目标值稳定；去掉共同相位后，测量域内预测曲线与稳定参考解的最大差异≤**0.01°**。\n- 以支持的轨距模型生成无噪声数据，求解器能恢复对应的预测曲线；不能继续出现“成功返回，但还存在明显更低的同模型目标值”。\n- 对无法可靠求解的输入给出明确诊断，避免把数值失败解释成“变轨距模型没有改善”。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr8Ao="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvwCg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/21#issuecomment-6713765898",
+     "updatedAt": "2026-11-07T22:18:53Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:53Z",
+     "body": "已修复：[7a691a8](https://github.com/Ashley-QwQ/disc-probe/commit/7a691a8)。\r\n\r\n改用尺度稳定的中心差分 Jacobian，求解失败或参数无法辨识时拒绝，不再当成“模型没有改进”。\r\n\r\n复现（`evidence/cd-geo-20261104`）：二次模型 χ²/dof 从 1.4635 降到 0.7269，三次从 1.6283 降到 0.7371。\r\n\r\n注意：同样的数据生成的修正曲线也变了，这个 CD 例子的峰峰值从 0.30° 变成了 1.19°。以前用 `geo_polyfit` 生成的修正文件，最好重新生成。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWUHYA",
+  "updatedAt": "2026-11-07T22:18:55Z",
+  "number": 22,
+  "title": "[P1] 变轨距修正后的不确定度漏算新增参数，guide 错误给出 good once corrected",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/22",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T21:46:57Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "`after_geo()` 通过常轨距与二次轨距的 χ²/dof 比值缩小原来的角度 σ，但修正模型增加了两个需要估计的参数。一个符合该模型族的合成反例中，guide 算出 **0.2203°** 并判定 `good once corrected`，实际采用的五参数模型的完整协方差给出 **0.3533°**，已经超过代码自身的 **0.25°** 门槛。\n\n## 审计基线与结论范围\n\n- 固定提交：[`813c5817c5bb4d2cd7fced0d918182c0161e6578`](https://github.com/Ashley-QwQ/disc-probe/tree/813c5817c5bb4d2cd7fced0d918182c0161e6578)。\n- 复现环境：Python 3.12.14、NumPy 2.3.5、SciPy 1.17.0。\n- **已确认：不确定度传播公式缺少新增参数，合成数据实际触发错误质量判定。**\n- 本反例只借用仓库实盘数据的 29 个采样位置及参数尺度；角度观测是重新生成的合成数据，误差独立、标准差已知。没有把这次合成结果当成原始 partial CD 的实盘误差或原始 guide 判定。\n\n## 代码位置与原因\n\n[`guide.py:503–516`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/guide.py#L503-L516) 的 `compare_pitch()` 只返回常轨距和二次轨距的 χ²/dof。随后 [`guide.py:561–565`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/guide.py#L561-L565) 使用：\n\n```python\ncorrected = sigma * math.sqrt(max(1.0, compared[1]) / max(1.0, compared[0]))\n```\n\n这相当于假设修正前后预测方差的结构完全相同，只需要重新缩放残差方差。但常轨距模型估计 `u, v, c`，二次轨距模型估计 `u, v, b1, b2, c`；新增参数与原参数的相关性也会进入预测误差。当前 [`geo_polyfit.fit():65–84`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/tools/geo_polyfit.py#L65-L84) 没有返回这份完整协方差。\n\n对同一个“测量区间两端角度差”的指标，应在实际采用的模型上计算：\n\n$$\nC=\\max(1,\\chi^2/\\nu)(J^\\mathsf{T}WJ)^{-1},\\qquad\n\\sigma_{\\Delta\\theta}^{2}=g^\\mathsf{T}Cg,\n$$\n\n其中 `J` 包括全部五个参数，`W` 为测量误差的逆方差权重，`g` 是两端预测角度差对这五个参数的导数。只调整常轨距模型的残差尺度，无法得到这份协方差。\n\n## 自包含复现\n\n在仓库根目录运行以下代码。它会在临时目录生成合成的 `summary.json` / `targets.csv`，调用真实的 `guide.compare_pitch()` 和 `guide.after_geo()`；完整协方差在 **guide 实际使用的二次拟合参数处** 计算，避免混用不同起点得到的解。\n\n合成真值为代码支持的二次轨距模型：`b1=0, b2=4e-4`，每个角度观测的独立 Gaussian σ 为 0.3°，随机种子为 0。\n\n```bash\npython - <<'PY'\nimport csv\nimport json\nimport math\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nfrom types import SimpleNamespace\n\nimport numpy as np\n\nfrom discprobe import guide\nfrom tools.geo_polyfit import fit, load, model\n\n# Real sampling positions; synthetic responses and known independent error bars.\nn, _, _, original = load(\"evidence/cd-geo-20261104\")\nu0, v0, bit = original[\"u\"], original[\"v\"], original[\"bit_nm_assumed\"]\nrc, rs = 40e6 / bit, 15e6 / bit\ns = np.full(len(n), math.radians(0.3))\ny = model(n, u0, v0, [0, 4e-4], rc, rs)[0]\ny += np.random.default_rng(0).normal(0, s)\n\n\ndef span_sigma(f, order, h=1.0):\n    \"\"\"Joint covariance for the difference between endpoint angles, in degrees.\"\"\"\n    p = order + 3\n\n    def prediction(z, nn):\n        u = f[\"u\"] * (1 + z[0] * 1e-5)\n        v = f[\"v\"] * (1 + z[1] * 1e-5)\n        bs = np.asarray(f[\"b\"]) + z[2:2 + order] * 1e-5\n        return model(nn, u, v, bs, rc, rs)[0] + z[-1]\n\n    def jac(nn):\n        return np.column_stack([\n            (prediction(h * e, nn) - prediction(-h * e, nn)) / (2 * h)\n            for e in np.eye(p)\n        ])\n\n    J = jac(n) / s[:, None]\n    scale = np.linalg.norm(J, axis=0)\n    A = J / scale\n    covariance = np.linalg.inv(A.T @ A) / np.outer(scale, scale)\n    covariance *= max(1, f[\"chi2\"] / f[\"dof\"])\n    ends = jac(np.array([n.min(), n.max()]))\n    g = ends[1] - ends[0]\n    return math.degrees(math.sqrt(g @ covariance @ g))\n\n\nf0 = fit(n, y, s, u0, v0, 0, rc, rs)\nsigma0 = span_sigma(f0, 0)\nradius = bit * 1e-6 * np.sqrt(f0[\"u\"] ** 2 + f0[\"v\"] * n / math.pi)\nsummary = dict(original, u=f0[\"u\"], v=f0[\"v\"],\n               chi2_per_dof=f0[\"chi2\"] / f0[\"dof\"],\n               angle_sigma_measured_span_deg=sigma0,\n               residual_rms_deg=f0[\"rms_deg\"],\n               measured_span_mm=[float(radius.min()), float(radius.max())])\n\nwith TemporaryDirectory(prefix=\"discprobe-covariance-\") as tmp:\n    path = Path(tmp)\n    (path / \"summary.json\").write_text(json.dumps({\"fit\": summary}))\n    with (path / \"targets.csv\").open(\"w\", newline=\"\") as stream:\n        writer = csv.writer(stream)\n        writer.writerow([\"n_bits\", \"unwrapped_deg\", \"sigma_deg\"])\n        writer.writerows(zip(n, np.degrees(y), np.full(len(n), 0.3)))\n\n    # Refit exactly the saved data and starting geometry that guide uses.\n    nn, yy, ss, saved = load(path)\n    f2 = fit(nn, yy, ss, saved[\"u\"], saved[\"v\"], 2, rc, rs)\n    ratios = guide.compare_pitch(tmp)\n    claimed = sigma0 * math.sqrt(max(1, ratios[1]) / max(1, ratios[0]))\n    correct = span_sigma(f2, 2)\n    args = SimpleNamespace(media=\"cd\", out=tmp, drive=\"E:\")\n    verdict = guide.after_geo(args, summary, tmp)[0]\n    print(\"constant / quadratic chi2/dof:\", ratios)\n    print(\"constant sigma:\", sigma0)\n    print(\"guide corrected sigma:\", claimed)\n    print(\"joint five-parameter sigma:\", correct)\n    print(\"joint sigma for difference steps 0.1, 1, 10:\",\n          [span_sigma(f2, 2, h) for h in (0.1, 1, 10)])\n    print(\"GOOD_SIGMA_DEG:\", guide.GOOD_SIGMA_DEG)\n    print(verdict)\nPY\n```\n\n关键输出：\n\n```text\nconstant / quadratic chi2/dof: (4.852309536403675, 0.5344885894434646)\nconstant sigma: 0.4853378578418321\nguide corrected sigma: 0.2203281156811394\njoint five-parameter sigma: 0.353321829304776\njoint sigma for difference steps 0.1, 1, 10:\n[0.3533218245319148, 0.353321829304776, 0.35332182817479335]\nGOOD_SIGMA_DEG: 0.25\nVerdict: good once corrected.\n```\n\n完整模型的 σ 约为 guide 估计的 **1.60 倍**，而且直接跨过了质量门槛。这个例子已经假定模型族正确、误差独立；即使暂时不计入模型选择或模型失配的不确定度，当前判定也不成立。\n\n另作最小稳健检查：使用中心差分 Jacobian 重新优化同一二次模型，得到 χ²/dof≈0.51374808、完整 σ≈0.35332112°。因此这一方差遗漏不依赖于另一个数值求解精度问题；上面的主复现仍以当前 guide 的实际拟合结果为准。\n\n## 建议修改\n\n1. 让变轨距拟合返回完整参数协方差，或直接提供测量区间的角度预测不确定度。\n2. `after_geo()` 使用实际推荐模型的预测 σ 进行质量判定，删除缩放旧模型 σ 的捷径。\n3. 分开报告“训练残差改善了多少”和“修正后的预测有多确定”；更小的 χ² 本身不代表更窄的预测区间。\n4. 对接近奇异的拟合明确报告不可辨识或不确定度过大，避免输出一个看似精确的 corrected σ。\n\n## 验收条件\n\n- 上述反例报告的修正后 σ 应接近 **0.3533°**，不能继续以 0.2203° 为依据输出 `good once corrected`。\n- 端点角度差的方差使用完整的五参数协方差；参数缩放和合理的 Jacobian 差分尺度变化不会显著改变结果。\n- 使用模型族内的已知真值和固定采样位置做重复模拟，核对预测区间的覆盖率，并按模拟抽样误差判断其是否接近名义置信水平。\n- 常轨距路径原有的 σ 计算保持一致，避免用改变指标定义来绕开此反例。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr8W8="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvxbw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/22#issuecomment-6713766255",
+     "updatedAt": "2026-11-07T22:18:55Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:55Z",
+     "body": "已修复：[eeef631](https://github.com/Ashley-QwQ/disc-probe/commit/eeef631)。\r\n\r\n二次轨距模型的全部拟合参数都进入协方差，再传播到测量区间两端的角度差。算不出来时，判定改成“不确定度未知”，不再说 good。\r\n\r\n复现：σ 从 0.2203° 变成 0.3533°，判定从 “good once corrected” 改为 “a correction helps, but it stays noisy”。\r\n\r\n这个 σ 仍然是在模型正确、误差独立的前提下算的，不包括选模型的不确定性和没测到的区域。我们也还没用重复模拟检验它的覆盖率。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdWUHzA",
+  "updatedAt": "2026-11-07T22:18:57Z",
+  "number": 23,
+  "title": "[P2] disexport 只验证局部转换，却输出全盘 preset；与 image 的域外映射可相差数度",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/23",
+  "state": "CLOSED",
+  "createdAt": "2026-11-07T21:46:58Z",
+  "author": {
+   "login": "Ashley-QwQ"
+  },
+  "body": "同一份 `geo + correction` 输入，`image` 将修正角在有效域外保持常量，`disexport` 却将局部拟合的三次轨距模型延伸到整个容量。实盘数据复现中，导出器报告局部最大转换差异仅 **0.000399°**，写出的全盘 preset 与直接修正路线在内缘相差 **3.89367°**、外缘相差 **2.22185°**；当前输出没有报告这种额外的格式转换差异。\n\n## 审计基线与结论范围\n\n- 固定提交：[`813c5817c5bb4d2cd7fced0d918182c0161e6578`](https://github.com/Ashley-QwQ/disc-probe/tree/813c5817c5bb4d2cd7fced0d918182c0161e6578)。\n- 复现环境：Python 3.12.14、NumPy 2.3.5、SciPy 1.17.0。\n- 输入来自已提交的 [`evidence/cd-geo-20261104/`](https://github.com/Ashley-QwQ/disc-probe/tree/813c5817c5bb4d2cd7fced0d918182c0161e6578/evidence/cd-geo-20261104)，使用现有二次轨距 correction 生成路径，容量为 359849 sectors。\n- **已确认：两条输出路线对同一输入映射的域外处理不同，局部转换报告不能描述全容量内的差异。**\n- **结论边界：这些数值是两条软件输出映射之间的差值，不是真实光盘上的实测误差；本复现没有判定哪一种域外预测更接近真盘。** 当图案使用到拟合范围外时，这种不一致才会影响两条输出路线的等价性。\n\n相关的 [#15](https://github.com/Ashley-QwQ/disc-probe/issues/15) 讨论测量支持范围与使用范围。本 issue 专门讨论：**相同 mapping 输入在格式转换后产生的额外差异**。即使先把现有 correction 当作给定目标，仍可单独验证这个问题。\n\n## 代码路径\n\n1. [`imagedisc.load_correction():89–95`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/imagedisc.py#L89-L95) 使用 `np.clip(r, lo, hi)`，使修正角在 `radius_valid_mm` 外保持边界值。\n2. [`disexport.fit_preset():59–95`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/disexport.py#L59-L95) 只在 `r_lo..r_hi` 的 600 个点拟合，也只用这些点计算转换误差。\n3. [`preset_json():98–107`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/disexport.py#L98-L107) 输出整个容量及内外半径的全局三次轨距参数。这个全局模型没有复现 `image` 的分段常量外推约束。\n4. [`export():133–143`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/disexport.py#L133-L143) 只按局部误差检查是否可导出；阈值为 [`MAX_EXPORT_DIFF_DEG=5.0`](https://github.com/Ashley-QwQ/disc-probe/blob/813c5817c5bb4d2cd7fced0d918182c0161e6578/discprobe/disexport.py#L27-L28)。\n\n当前 preset 描述确实写出了拟合范围，仓库文档也讨论过外推风险。这里缺少的是**全输出域的转换一致性检查**：局部误差很小，并不能限制全局三次模型在两端与原输入 mapping 的偏离。\n\n## 自包含复现\n\n在仓库根目录运行。代码调用公开的 `export()`，实际经过验收门槛并在临时目录写出 preset；没有连接光驱或安装 preset。\n\n比较时，两条映射采用相同的逻辑轨道位置 `n`，并只在测量区间内消去一个共同相位常数。独立的 20001 点检查覆盖了整个导出容量，没有把额外的可调偏移拟合到两端。\n\n```bash\npython - <<'PY'\nimport math\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\n\nimport numpy as np\n\nfrom discprobe import cd\nfrom discprobe.disexport import dis_angle_map, export, target_angle\nfrom discprobe.imagedisc import load_correction\nfrom tools.geo_polyfit import fit, load, write_correction\n\nrun = Path(\"evidence/cd-geo-20261104\")\nn, y, s, summary = load(run)\nu, v, bit = summary[\"u\"], summary[\"v\"], summary[\"bit_nm_assumed\"]\nb = bit * 1e-6\nrc, rs = 40e6 / bit, 15e6 / bit\nr = b * np.sqrt(u * u + v * n / math.pi)\nlo, hi = float(r.min()), float(r.max())\nsectors = 359849\n\nwith TemporaryDirectory(prefix=\"discprobe-export-domain-\") as tmp:\n    correction_path = str(Path(tmp) / \"correction.json\")\n    output_path = str(Path(tmp) / \"preset.json\")\n    quadratic = fit(n, y, s, u, v, 2, rc, rs)\n    write_correction(correction_path, quadratic, summary, str(run),\n                     \"quadratic\", rc, rs, n)\n\n    # Use the public export function, including its acceptance gate and file write.\n    result = export(str(run / \"summary.json\"), sectors, correction_path,\n                    output_path, lo, hi, \"audit\", \"audit\")\n    f = result[\"fit\"]\n    nn, tt, _ = dis_angle_map(\n        f[\"innerRadiusMm\"], f[\"outerRadiusMm\"],\n        f[\"pitchLinear\"], f[\"pitchQuadratic\"], f[\"pitchCubic\"],\n        sectors, bit, cd.SECTOR_BITS)\n\n    # Compare both output mappings at the same logical track coordinates.\n    # Remove only one global phase offset, fitted within the measured interval.\n    ne = np.linspace(0, sectors * cd.SECTOR_BITS, 20001)\n    re = b * np.sqrt(u * u + v * ne / math.pi)\n    direct = target_angle(ne, u, v, bit, load_correction(correction_path))\n    difference = np.degrees(np.interp(ne, nn, tt) - direct)\n    inside = (re >= lo) & (re <= hi)\n    difference -= difference[inside].mean()\n\n    print(\"preset was written:\", Path(output_path).exists())\n    print(\"fit range mm:\", f[\"fit_range_mm\"])\n    print(\"reported local maximum deg:\", f[\"max_angle_diff_deg\"])\n    print(\"independent dense local maximum deg:\", max(abs(difference[inside])))\n    print(\"whole capacity radius range mm:\", [float(re[0]), float(re[-1])])\n    print(\"outside-fit maximum difference deg:\", max(abs(difference[~inside])))\n    print(\"inner / outer difference deg:\", difference[0], difference[-1])\nPY\n```\n\n关键输出：\n\n```text\npreset was written: True\nfit range mm: [34.08086323681054, 52.6393670786918]\nreported local maximum deg: 0.00039903741186055015\nindependent dense local maximum deg: 0.00045368100757947616\nwhole capacity radius range mm: [25.279471132622728, 58.284519637262704]\noutside-fit maximum difference deg: 3.893666778111644\ninner / outer difference deg: -3.893666778111644 -2.221845807792909\n```\n\n主反例只使用二次轨距 correction，已经足以复现“局部几乎精确、整个输出域不一致”。它也不依赖于哪个测量模型是物理真值：这里检查的是导出器是否在最终使用域保持传入的目标映射。\n\n## 建议修改\n\n1. 把测量支持范围、转换拟合范围和最终使用范围分别记录，并使最后一项参与转换验收。\n2. 在整个实际使用域上比较导出模型与给定输入 mapping，分别报告拟合域内、域外和全域误差；使用独立且足够密集的验证网格。\n3. 明确 `image` 与 preset 的共同外推策略。若全局三次轨距无法在整个使用域表达当前分段 mapping，应报告格式能力限制，限制使用域，或明确提示所采用的不同外推策略。\n4. 为正常转换提供可配置的误差预算，与所需角度精度或线宽相关。现有 5° 门槛可以识别严重失败，但无法替代精度预算。\n\n## 验收条件\n\n- 上述样例在请求全容量输出时，必须报告约 **3.8937°** 的域外转换差异，或通过统一策略使全使用域差异满足明确的容差；不能只提供 0.000399° 的局部数字来评估全盘一致性。\n- 若选择限制使用范围，限制应进入后续实际绘图或导出契约，而不只是说明文字；若外部 preset 格式无法表达限制，应明确提示这一限制。\n- 域内与域外误差都用独立于拟合点的验证集合计算，并在移除同一个全局相位偏移后比较。\n- 保留“软件输出之间的转换误差”和“相对真实光盘的物理校准误差”的区别；后者仍需实盘证据验证。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 1,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZAr8sE="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkCvywQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/23#issuecomment-6713766593",
+     "updatedAt": "2026-11-07T22:18:56Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-07T22:18:56Z",
+     "body": "已修复：[77e626b](https://github.com/Ashley-QwQ/disc-probe/commit/77e626b)、[f145fff](https://github.com/Ashley-QwQ/disc-probe/commit/f145fff)、[4ed3963](https://github.com/Ashley-QwQ/disc-probe/commit/4ed3963)、[8a3dfb2](https://github.com/Ashley-QwQ/disc-probe/commit/8a3dfb2)。\r\n\r\n导出时在整张盘容量上取 20001 个点，比较预设和输入映射，分别报告全容量和拟合范围外的最大差。超过 0.25° 会警告，超过 5° 拒绝写出预设，并说明可以不带 `--correction` 导出，或者测更大的范围。\r\n\r\n用仓库里的实盘数据跑常规流程：\r\n\r\n| 数据 | 修正 | 全容量最大差 | 结果 |\r\n|---|---|---|---|\r\n| DVD，GH70N 复测，25.8 到 54.4 mm | 无 / 二次 / 三次 | 0.001° / 0.39° / 0.60° | 都能导出，带修正的会警告 |\r\n| CD，34.1 到 52.6 mm | 无 | 0.005° | 能导出 |\r\n| CD | 二次 / 三次 | 60.3° / 21.0° | 拒绝 |\r\n\r\nissue 里的 3.89° 和这里的 60.3° 不是同一个输入：#21 修好后，同样数据生成的修正曲线变了。这些都是两条软件映射之间的差，不是盘面上的实测误差，也没有判断哪一种外推更接近真盘。\r\n\r\n以上数字来自 issue 里的复现脚本，在合并后的代码上重新跑过，`selftest` 全部通过。都是合成数据或仓库已有的数据，没有新的实盘测量。"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdbv-Dg",
+  "updatedAt": "2026-11-10T13:23:29Z",
+  "number": 24,
+  "title": "discprobe CD 跑完后做细标失败",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24",
+  "state": "CLOSED",
+  "createdAt": "2026-11-08T10:59:30Z",
+  "author": {
+   "login": "taniyareece7329-create"
+  },
+  "body": "discprobe跑完没报错 光盘数据到discimagestudio做细标 依旧不显示十字",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 9,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZNuu98="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkJWXWg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6720690010",
+     "updatedAt": "2026-11-08T11:04:34Z",
+     "author": {
+      "login": "taniyareece7329-create"
+     },
+     "createdAt": "2026-11-08T11:04:34Z",
+     "body": "<img width=\"1113\" height=\"626\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/1758e4f7-2963-4187-b153-0a82e085ec4b\" />"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkMUeJg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6723804710",
+     "updatedAt": "2026-11-08T16:08:53Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-08T16:08:53Z",
+     "body": "谢谢截图！这次 `geo` 测得很好：36 个点全部测完，残差 0.53°，拟合误差比 1.26，测量本身没有问题。\r\n\r\n只看到同心圆、看不到十字，说明角度错了很多：同心圆不管角度对不对都画得出来，而十字线要是在内外圈之间差了好几圈，就会被拉成很细的螺旋线，看起来像消失了（#107 里 Doctor-shengru 看到的“绕着盘转的细线”就是这个）。CD 那个计时测不到的常数只会让线歪几度，不会差到几圈，所以我怀疑问题在预设填进 DiscImageStudio 的那一步。方便的话请发一下这几样：\r\n\r\n1. `disexport` 那一步的完整输出，和生成的 `dis_preset.json`（直接贴文字就行）。\r\n2. DiscImageStudio 里这个预设实际填的数：内半径、外半径、扇区数、三个轨距项（截图也可以）。是手动填的，还是用了 `--install`？\r\n3. 刻细标盘之前，对一张同批空盘运行 `python -m discprobe info` 显示的扇区数。程序提示的 `--sectors 359600` 只是测量盘刻进去的量，空盘往往更大，`disexport` 和 DiscImageStudio 里要填同一个、按空盘的数。\r\n4. 细标盘的照片。\r\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkTUGCA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6731138568",
+     "updatedAt": "2026-11-09T02:56:52Z",
+     "author": {
+      "login": "taniyareece7329-create"
+     },
+     "createdAt": "2026-11-09T02:56:52Z",
+     "body": "E:\\edge\\disc-probe-0.1.1-full-win64\\disc-probe-0.1.1-full-win64>python -m discprobe geo --drive F: --media cd\n正在用 F: 测量。按 Ctrl+C 可停止，已测的数据会保留。\n基准扇区号 158223；可读范围 [(10787, 305659)]\n转速已稳定：转一圈 29.5359 ms（2031.4 转/分），抖动 84.0 µs\n  测量点  1：扇区号   158231（+0.5 圈）角度  171.476 ± 0.279°\n  测量点  2：扇区号   158248（+1.5 圈）角度  176.025 ± 0.309°\n  测量点  3：扇区号   157686  预测误差 ±  13.55°，整圈数     -32，残差  -0.007°，拟合误差比 0.91\n  测量点  4：扇区号   154442  预测误差 ±  20.58°，整圈数    -226，残差  +0.001°，拟合误差比 0.92\n  测量点  5：扇区号   146881  预测误差 ±  18.54°，整圈数    -685，残差  +0.002°，拟合误差比 0.47\n  测量点  6：扇区号   116638  预测误差 ±  22.27°，整圈数   -2598，残差  +0.013°，拟合误差比 1.00\n  测量点  7：扇区号   305658  预测误差 ±  22.81°，整圈数    7744，残差  +0.010°，拟合误差比 1.60\n  测量点  8：扇区号    10787  预测误差 ±   6.94°，整圈数  -10850，残差  -0.008°，拟合误差比 1.34\n  测量点  9：扇区号   298097  预测误差 ±   0.37°，整圈数    7388，残差  +0.354°，拟合误差比 1.43\n  测量点 10：扇区号   230050  预测误差 ±   0.17°，整圈数    4003，残差  +0.772°，拟合误差比 2.00\n  测量点 11：扇区号    18347  预测误差 ±   0.36°，整圈数  -10138，残差  -0.105°，拟合误差比 1.77\n  测量点 12：扇区号    25908  预测误差 ±   0.24°，整圈数   -9452，残差  -0.257°，拟合误差比 1.67\n  测量点 13：扇区号    71273  预测误差 ±   0.21°，整圈数   -5766，残差  -0.481°，拟合误差比 1.62\n  测量点 14：扇区号   290536  预测误差 ±   0.27°，整圈数    7027，残差  -0.125°，拟合误差比 1.50\n  测量点 15：扇区号    33469  预测误差 ±   0.17°，整圈数   -8790，残差  +0.399°，拟合误差比 1.54\n  测量点 16：扇区号   193794  预测误差 ±   0.14°，整圈数    2048，残差  -0.179°，拟合误差比 1.44\n  测量点 17：扇区号   282975  预测误差 ±   0.19°，整圈数    6664，残差  -0.376°，拟合误差比 1.41\n  测量点 18：扇区号   275414  预测误差 ±   0.17°，整圈数    6296，残差  +0.423°，拟合误差比 1.38\n  测量点 19：扇区号    93955  预测误差 ±   0.17°，整圈数   -4131，残差  +1.594°，拟合误差比 1.98\n  测量点 20：扇区号    40522  预测误差 ±   0.17°，整圈数   -8192，残差  -0.161°，拟合误差比 1.87\n  测量点 21：扇区号    41030  预测误差 ±   0.16°，整圈数   -8150，残差  -0.292°，拟合误差比 1.80\n  测量点 22：扇区号   252732  预测误差 ±   0.15°，整圈数    5169，残差  -0.008°，拟合误差比 1.71\n  测量点 23：扇区号   267854  预测误差 ±   0.16°，整圈数    5924，残差  +0.714°，拟合误差比 1.85\n  测量点 24：扇区号    48590  预测误差 ±   0.16°，整圈数   -7529，残差  +0.568°，拟合误差比 1.83\n  测量点 25：扇区号   175701  预测误差 ±   0.14°，整圈数    1024，残差  -0.213°，拟合误差比 1.76\n  测量点 26：扇区号   260293  预测误差 ±   0.14°，整圈数    5549，残差  +0.537°，拟合误差比 1.77\n  测量点 27：扇区号   245171  预测误差 ±   0.13°，整圈数    4785，残差  +0.002°，拟合误差比 1.70\n  测量点 28：扇区号   214928  预测误差 ±   0.12°，整圈数    3202，残差  +0.646°，拟合误差比 1.85\n  测量点 29：扇区号    56151  预测误差 ±   0.15°，整圈数   -6925，残差  +0.006°，拟合误差比 1.78\n  测量点 30：扇区号   237610  预测误差 ±   0.12°，整圈数    4396，残差  +0.428°，拟合误差比 1.74\n  测量点 31：扇区号   131759  预测误差 ±   0.15°，整圈数   -1624，残差  -0.150°，拟合误差比 1.69\n  测量点 32：扇区号   231824  预测误差 ±   0.11°，整圈数    4096，残差  +0.356°，拟合误差比 1.67\n  测量点 33：扇区号    63712  预测误差 ±   0.14°，整圈数   -6338，残差  -0.035°，拟合误差比 1.61\n  测量点 34：扇区号   184685  预测误差 ±   0.11°，整圈数    1537，残差  -0.309°，拟合误差比 1.65\n  测量点 35：扇区号   222489  预测误差 ±   0.10°，整圈数    3605，残差  -0.032°，拟合误差比 1.60\n  测量点 36：扇区号    78834  预测误差 ±   0.13°，整圈数   -5209，残差  +0.041°，拟合误差比 1.55\n\n测量完成：36 个测量点，覆盖 26.507-54.26 mm。角度不确定度约 0.24°，测量点平均偏离拟合曲线 0.46°。\nu = r0/b = 89718.793，v = p/b = 5.3755913（拟合误差比 1.55，残差 rms 0.460°）\n按位长 277.66208524226016 nm 算：起始半径 24.91151 mm，轨距 1.492598 µm\n角度不确定度：实测范围 26.507-54.26 mm 内 0.237°（1 sigma）；25-58 mm 内 0.28°\ntargets.csv、summary.json、events.csv 保存在：E:\\edge\\disc-probe-0.1.1-full-win64\\disc-probe-0.1.1-full-win64\\results\\geo-F-20261109-103552\n用时 6:33\n\n结论：可以用。拟合后只剩噪声，0.24° 在 50 mm 半径处约 0.21 mm。\n\n<img width=\"992\" height=\"640\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/bd221451-0155-4553-b4bb-0f8994ba84af\" />"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkTWMTQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6731172941",
+     "updatedAt": "2026-11-09T02:59:50Z",
+     "author": {
+      "login": "taniyareece7329-create"
+     },
+     "createdAt": "2026-11-09T02:59:50Z",
+     "body": "请问三个轨距项是在哪里生成的呢 小白代码不是很懂"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkULJFQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6732040469",
+     "updatedAt": "2026-11-09T04:11:46Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T04:11:46Z",
+     "body": "没关系，不需要自己计算这三个数字。它们是 **`disexport` 自动生成的 DiscImageStudio 预设参数**，不是 `geo` 结束时直接显示的那两个拟合值。\n\n这次贴的 `geo` 日志已经收到了：36 个点全部完成，报告的角度不确定度为 0.237°，可以继续下一步。麻烦先按下面的顺序操作，暂时不用重新跑 `geo`，也先别急着刻另一张盘：\n\n1. 放入**同批次的空白 CD-R**，在现在这个目录里运行：\n   ```powershell\n   python -m discprobe info --drive F:\n   ```\n   记下输出中建议的盘片总扇区数。这个数用于导出预设，**不要直接用测量盘镜像的 359600，也不要照搬 DiscImageStudio“从光盘读取”的值**。\n2. 把下面命令中的 `<扇区数>` 换成上一步得到的数字，运行：\n   ```powershell\n   python -m discprobe disexport --geo results\\geo-F-20261109-103552\\summary.json --sectors <扇区数> --output dis_preset_cd.json --install\n   ```\n   这会导出 `dis_preset_cd.json`，其中包括内/外半径、三个轨距系数等参数；`--install` 会把预设安装到 DiscImageStudio 的用户预设文件。然后**重启 DiscImageStudio，并在预设列表中选中刚导入的预设**。如果另外跑过 `geo_polyfit.py` 并生成了 `correction.json`，也请告知，导出时应加 `--correction correction.json`；没生成就不用加。\n\n为了查清之前“只有同心圆、看不到十字”到底卡在哪一步，麻烦再补充几项信息：\n\n- **`info` 的完整输出**（尤其是空白盘的扇区数）。\n- **`disexport` 实际执行的完整命令、终端输出，以及生成的 `dis_preset_cd.json`**（可直接上传文件或粘贴文本）。\n- **DiscImageStudio 实际选中的预设/参数页面截图**，要能看到扇区数、内外半径、三个轨距项；如果此前是手动填写的，也请说明。\n- **细标盘实物照片**，以及从 DiscImageStudio 生成标靶到刻录所用的步骤、软件和刻录速度。若有错误提示，请附原文。\n\n前面那份 `geo` 日志不用重复发。主要是现在还缺少导出和刻录这两步的信息，暂时没法判断是参数没有正确传给 DiscImageStudio，还是后面的刻录环节出了问题。谢谢配合！\n\n操作说明也在 [README 的 CD 路线](https://github.com/Ashley-QwQ/disc-probe#cd-路线) 和 [MANUAL.md 的 CD-R 章节](https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/MANUAL.md#cd-r纹理计时与刻图)。"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkVPMPQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6733155389",
+     "updatedAt": "2026-11-09T05:40:29Z",
+     "author": {
+      "login": "taniyareece7329-create"
+     },
+     "createdAt": "2026-11-09T05:40:29Z",
+     "body": "空白盘的扇区数\nE:\\edge\\disc-probe-0.1.1-full-win64\\disc-probe-0.1.1-full-win64>python -m discprobe info --drive F\n光驱：aigo ，固件 6X21\n当前盘型：CD-R (0x0009)\n光盘状态：empty，会话数 1，可擦写 False\n下一个可写地址：LBA 0（还有 359847 个空扇区）\n可读容量：最后扇区号 0，每扇区 2048 字节\nATIP：CD-R，导入区起点 97:27:18（厂商代码），最后导出区起点 79:59:74 = 扇区号 359849\n读取速度：扇区 0..359848  1764 -> 4234 kB/s（比值 2.4002）\n写入速度：扇区 0..319350  1832 -> 4234 kB/s（比值 2.3111）\n写入速度：扇区 319351..359848  4234 -> 4234 kB/s（比值 1.0）\n写入速度档：读 4234 / 写 4234 kB/s，到扇区 359848\n写入速度档：读 4234 / 写 3529 kB/s，到扇区 359848\n写入速度档：读 4234 / 写 2823 kB/s，到扇区 359848\n写入速度档：读 4234 / 写 1765 kB/s，到扇区 359848\nPage 2A：缓存 512 kB，写入时转速方式 恒定线速度 (CLV)，写入速度 [(4234, 'CLV'), (3529, 'CLV'), (2823, 'CLV'), (1765, 'CLV')]\n这台光驱或这张盘不支持：toc (5/24/00), dvd_physical (5/30/02), dvd_physical_leadin_10 (5/30/02), dvd_prerecorded_0e (5/30/02), dvd_plus_adip_11 (5/30/02), bd_disc_information (5/30/02)\n\n完整信息保存在：E:\\edge\\disc-probe-0.1.1-full-win64\\disc-probe-0.1.1-full-win64\\results\\info-F-20261109-130448\n\ndisexport --sectors 要填的扇区数：359847（这张空白盘的剩余空间）。\nDiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。\n\n[dis_preset_cd.json](https://github.com/user-attachments/files/34564516/dis_preset_cd.json)\n这是命令导入到discmagestudio的数据\n<img width=\"1618\" height=\"899\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/09fd7104-51e5-42b0-84b1-14d93167439d\" />\n刻录速率10x·1.8MB/S\n这次细标出现十字线 但不正\n\n<img width=\"4960\" height=\"7014\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/0dc09c14-4d40-4bdd-9b9b-9f96a68187c1\" />"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABknYSeQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6752178809",
+     "updatedAt": "2026-11-09T21:40:22Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T21:40:22Z",
+     "body": "@taniyareece7329-create 谢谢你把扫描图、预设和截图都发上来，回得晚了，抱歉 (｡•́︿•̀｡)\n\n扫描图我做了一下增强，能看到十字臂和同心圆都刻出来了，只是十字臂歪着、带点弯。这正好是我们前两天刚弄清楚的一个问题，FanJZSS 在 #107 里已经实刻验证过：\n\n用 DiscImageStudio 刻 CD 时，“CD 延迟交织”要开着，这时从 disc-probe 导出的预设还要补一个约 −105 帧的沿轨道常数。你这次导出时这个常数是 0（预设说明里写着 `along-track constant 0 frames`），所以整张图会顺着轨道整体错开一段，越往里圈错的角度越大，十字臂就斜了、弯了。\n\n重新导出一次就好，不用重跑 `geo`：\n\n```\npython -m discprobe disexport --geo results/geo-F-20261109-103552/summary.json --sectors 359847 --along-track-frames -105 --output dis_preset_cd.json --install --replace\n```\n\n（`--replace` 是因为同名预设已经装过一次，让它覆盖。）然后重启 DiscImageStudio，选中这个预设，确认“CD 延迟交织”是开着的，再刻一张精细标定盘。\n\n−105 是在另一台刻录机上测出来的，你的 aigo 可能会差几帧，所以新刻的十字线应该已经接近直了，剩下一点偏差交给 DIS 的精细标定去修就行。刻好以后再扫一张发上来，我帮你看看 (๑•̀ㅂ•́)و✧\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkzlW1Q",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6764975829",
+     "updatedAt": "2026-11-10T10:27:38Z",
+     "author": {
+      "login": "taniyareece7329-create"
+     },
+     "createdAt": "2026-11-10T10:27:38Z",
+     "body": "谢谢大佬 已经可以成功刻出图案了！都是在CD上的效果并不是很理想 没有DVD刻出来的效果好"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk2673w",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/24#issuecomment-6768475103",
+     "updatedAt": "2026-11-10T13:23:28Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T13:23:28Z",
+     "body": "@taniyareece7329-create 恭喜刻出来了 (๑•̀ㅂ•́)و✧ 谢谢你一路把扫描图和预设都发上来。这次 −105 帧在 aigo 上也对上了，对后面用 CD 的人很有用。\n\nCD 不如 DVD 好看，主要是盘本身的差别。CD 的轨道间距是 1.6 µm，DVD 是 0.74 µm。轨道越密，衍射出来的颜色分得越开，所以同一张图在 DVD 上通常更鲜艳。拍照时换个角度，让灯光斜着照过来，CD 会好看不少。\n\n方便的话发一张成品照片吧，我想把 aigo 这台光驱加进 README 的光驱表，写上你的名字。没有别的问题的话，这个 issue 我先关掉，之后需要随时再开。\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABdki9Yw",
+  "updatedAt": "2026-11-11T21:13:52Z",
+  "number": 28,
+  "title": "HoloStudio3D: an experimental 3D hologram add-on built on Disc Image Studio (using disc-probe)",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28",
+  "state": "OPEN",
+  "createdAt": "2026-11-09T03:37:12Z",
+  "author": {
+   "login": "drewmedina55-ux"
+  },
+  "body": "Hello! I built HoloStudio3D (using disc-probe), an experimental add-on for Disc Image Studio that burns 3D “hologram” pictures into DVDs from pictures, depth maps or 3D models. It uses DVD data patterns as diffraction gratings, so each eye sees a different view. It also includes an English edition of Disc Image Studio and uses disc-probe to measure discs.\n\nhttps://github.com/drewmedina55-ux/HoloStudio3D\n\nHuge thanks! This wouldn’t exist without your work. It’s GPL-3.0 and fully credited. Feedback and test burns are very welcome! \n\n我基于 Disc Image Studio 做了一个实验性的 3D 全息光盘插件 HoloStudio3D，非常感谢作者和所有贡献者！欢迎试用和反馈。",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 22,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZW9NpM="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkVYV5w",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6733305319",
+     "updatedAt": "2026-11-09T05:52:14Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T05:52:14Z",
+     "body": " @drewmedina55-ux  Thank you for sharing this, and for integrating disc-probe and crediting the project!\n\nI’m really glad to see this direction being explored. Turning the diffraction-grating idea into a usable pipeline for images, depth maps, and 3D models is a useful contribution. I especially like that you included L/R test tiles: they give people something concrete to test, beyond simply looking at an attractive image.\n\nI’ve also been researching DVD diffraction colours and angle-dependent images. Some of that work is in DiscImageStudio Discussion #108⁠￼ and disc-probe’s knowledge notes⁠￼, particularly section 10d. Much of it is in Chinese, so I’ll summarize the relevant points here.\n\nI went through your implementation at commit 1b8e0880a97f1aba0f78ac2754b516ffdfcd0760 and put together an independent Python reconstruction and optical-model study. The channel reconstruction supports the existence of distinct spectral peaks for these carriers. I think the direction is worth pursuing; the main question now is under what conditions both eyes can receive the intended complete views simultaneously.\n\nA few findings and suggestions:\n\n1. Model the source, both eyes, and the whole image together.\n\nThe current pair selector compares normal-incidence diffraction angles at 550 nm with an estimated angular separation between the eyes. That is a useful starting point, but it does not yet describe a complete lamp–disc–viewer arrangement.\n\nIn my earlier colour experiments, the source position, camera position, disc orientation, and local track direction all mattered. Even the offset between a phone’s flash and camera was enough to invalidate an initially convenient geometric assumption.\n\nFor stereo, I would evaluate the response separately at the two eye positions, at every point across the image. The DVD track tangent changes across the picture, so a pair that works at the centre may not work over the whole image. It would be useful to map how much of the picture remains correctly separated as the viewer moves sideways, changes distance or height, or has a different interpupillary distance.\n\nI wouldn’t assume all of these tolerances are equally tight. The simulations suggest different sensitivities, and the real vertical acceptance still needs measurement.\n\n2. Include the actual OFF texture when calculating crosstalk.\n\nIn Diffraction.cs⁠￼, RND is a hashed mixture of A5, 66, B9, and 92. It is not optical black.\n\nThe relevant image signal is therefore the signed ON-minus-OFF contrast, not just the intensity of one bright carrier relative to another. If the wrong-view carrier is darker than the OFF background at an eye position, it can still produce a visible inverted ghost image.\n\nThe attached models explore this distinction, including a hypothetical fixed-92 OFF alternative. That alternative is a candidate to measure, not a proven fix. My earlier real-disc results also did not fully explain the colour response of B9, so I would be cautious about treating the ideal carrier spectrum as a fully validated optical response.\n\n3. Dithering before interleaving can create a large brightness imbalance.\n\nThis is the most concrete software-level finding. In StereoPair.cs⁠￼, each full view is dithered first, and the final checkerboard then selects only the cells belonging to that view.\n\nThe supplied Python reproduction of this sampling order uses two identical flat-gray images, a 20 × 15 mm layout, and 50 µm cells. For exact 50% gray, the selected cells become 100% ON for one view and 0% for the other. At 128/255 gray, they become 71.72% versus 28.62%.\n\nThese are specific aligned test cases, not a claim that every image or placement has that imbalance. However, they seem worth adding as regression tests. Dithering directly on each view’s actual assigned cells—or using a decorrelated method checked after interleaving—should avoid this particular sampling problem. The current undithered view previews would not reveal it.\n\n4. Two inherited encoding details are worth updating in the local replay.\n\nThe EDC calculation and the secondary SY6 entry for states 3/4 have already been corrected in upstream DiscImageStudio⁠￼.\n\nThese affect the local reconstruction/testing model. I am not suggesting that the fast ISO writer directly writes invalid physical EDC or SYNC fields onto the disc; the burner generates those fields.\n\nFor a first optical validation, I would start with small, matched all-OFF, left-only, right-only, and both-ON test patches. Keep the lamp and disc fixed, and photograph them from the intended left and right eye positions using the same exposure. Starting with narrowband illumination would make interpretation easier before expanding to white light and a full-size picture.\n\nReproducibility package\n\nI’ve attached HoloStudio3D_Reproducibility_EN.zip. Please start with README_EN.md; it contains English instructions, assumptions, and the full command sequence.\n\nThe quickest test is:\n\npython -m pip install numpy==2.3.5 matplotlib==3.10.8\npython research/reproduce_interleave.py\n\nFor the channel reconstruction and validation:\n\npython research/channel/reconstruct.py\npython research/channel/diagnostics.py\npython research/channel/validate_reconstruction.py\n\nThe core checks were rerun successfully. To be clear about the evidence: this is an independent Python study, not execution of your original C# application, an end-to-end audit of a complete application-generated ISO, or a real-disc stereo validation. The optical results depend on simplified assumptions and should be treated as reproducible hypotheses for experiments, not measured performance.\n\nThanks again for building and sharing this. I’d be very interested to compare these predictions with your test burns, especially images from the two eye positions with the illumination kept fixed."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkVZx3Q",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6733328861",
+     "updatedAt": "2026-11-09T05:54:05Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T05:54:05Z",
+     "body": "[HoloStudio3D_Reproducibility_EN.zip](https://github.com/user-attachments/files/34565471/HoloStudio3D_Reproducibility_EN.zip)"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkVltVA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6733524308",
+     "updatedAt": "2026-11-09T06:09:23Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T06:09:23Z",
+     "body": "@drewmedina55-ux Also, I made this research that might help :)\n\n[HoloStudio3D_Independent_Research_EN.pdf](https://github.com/user-attachments/files/34565808/HoloStudio3D_Independent_Research_EN.pdf)"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkiDJ6w",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6746589675",
+     "updatedAt": "2026-11-09T17:19:52Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-09T17:19:52Z",
+     "body": "Hello!  Thank you so much, wow.  I have to admit, I am a Game Developer (Lighting Artist)  and cannot fully comprehend your feedback.  I bow to your expertise :)   I used Claude Opus to create this addon, so I am not familiar with the details on the level that you are, I hope that's okay.  I will look at this tonight after work, Thank you!  "
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkiGDZQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6746637157",
+     "updatedAt": "2026-11-09T17:22:02Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T17:22:02Z",
+     "body": "@drewmedina55-ux No worries! If u need any help just reply it here I'll do the best I can"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABknm1Yg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6752417122",
+     "updatedAt": "2026-11-09T21:51:31Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-09T21:51:31Z",
+     "body": "Thanks @Ashley-QwQ \nLooks better! The image is clearer with improved stereo depth.  Now I need to test distances and view amounts, but I'm running out of discs  ;)  I've released v1.02 with changes based on your notes (integrated & notes by Claude):\n\n v1.02\n- **Dithering imbalance: fixed.** reproduced what you found: at 50% gray, one view got 100% of the dots and the other 0%; at 128/255 it was roughly 77% / 24% on my test grid. Each view is now dithered only on its own interleave cells, so every view keeps the same gray level (50% / 50%, and the same with 3 and 5 views).\n- **OFF texture: new option.** \"Off areas\" can now be the original random mix or a fixed pattern aimed away from the eyes: 92, or the clean pattern farthest from the views if a view already uses 92 (`--off-fixed`). It's labelled experimental until it's measured, as you suggested.\n- **First optical test: added a test-patch disc.** It follows your protocol: matched all-OFF, left-only, right-only and both-ON patches, one row with the random-mix OFF and one with the fixed OFF, plus the L/R tiles (`--test-patches`). The key file explains the photo setup: fixed lamp and disc, the same locked exposure from both eye positions, and narrowband light if possible.\n- **EDC / SY6:** noted - I understand it only affects the replay model, not what gets burned; I'll bring in the upstream Disc Image Studio fixes in a later update.\n\nRelease: https://github.com/drewmedina55-ux/HoloStudio3D/releases/tag/v1.02"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABknq2Dg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6752482830",
+     "updatedAt": "2026-11-09T21:54:46Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-09T21:54:46Z",
+     "body": "@drewmedina55-ux Congratulations on v1.02, and great to hear the depth came through better (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ The 50 / 50 split for every view count is exactly what we hoped the dithering fix would give.\n\nSince discs are running low, I'd burn the test-patch disc before the next picture. That one disc answers the main open questions at once: whether the fixed OFF texture is darker than the random mix from where the eyes are, and how much each view shows up at the other eye. The most telling pair is the left-only patch photographed from the right eye position next to the all-OFF patch from the same position. If those two look the same, the left view isn't leaking into the right eye. Then the same the other way round.\n\nKeeping the lamp and the disc fixed and only moving the camera, as your key file says, matters most here. A small shift of the lamp moves the bright angles more than any texture change.\n\nIf you post the patch photos (straight from the camera, no edits), I'm happy to read brightness numbers off them so you can compare the two OFF rows without guessing (๑•̀ㅂ•́)و✧\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkuS0wg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6759429314",
+     "updatedAt": "2026-11-10T05:00:15Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-10T04:59:56Z",
+     "body": "It's almost impossible to get pictures of them, but from the left and right views I see:\n3 top right boxes/patches only reflect colors, the other patches do not reflect."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkuVAEg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6759464978",
+     "updatedAt": "2026-11-10T05:02:38Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T05:02:28Z",
+     "body": "@drewmedina55-ux Thanks for looking (◍•ᴗ•◍) Discs are notoriously camera-shy, we struggle with photos too!\r\n\r\nTo read it right, could you tell me which three patches those are by their labels in your key file? And for each patch, is it the same from the left and the right position, or does it change? A tiny table would be perfect, something like:\r\n\r\n| patch | from left | from right |\r\n|---|---|---|\r\n| all-OFF (random mix) | dark | dark |\r\n| left-only (random mix) | colour | dark |\r\n| ... | | |\r\n\r\nIf only the same three light up from both sides, the views aren't separating yet. If some light up from one side only, that's the stereo working.\r\n\r\nTwo things that made it much easier for us to see and photograph patterns:\r\n\r\n- A bigger, softer light. A small lamp or phone torch only lights a few thin rainbow strips on the disc; a lamp shining on a white wall or a sheet of paper next to the disc lights up far more of it.\r\n- Rest the phone on something (a stack of books works) at each eye position, with the lamp and disc fixed as in your key file. Same framing every time makes it much easier to compare patches side by side.\r\n\r\nNo need for perfect photos, the table alone tells us a lot (๑•̀ㅂ•́)و✧"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkug6bA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6759660140",
+     "updatedAt": "2026-11-10T05:18:01Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-10T05:16:28Z",
+     "body": "This is like a riddle. ;)  The disc is flat on the desk, the phone is near my eyes. \nX=colour  O=dark\nRight eye:  \nOXXX\nOOOO\nLeft Eye: \nOXXX\nOOOO"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABkujIAQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6759696385",
+     "updatedAt": "2026-11-10T05:18:58Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T05:18:58Z",
+     "body": "@drewmedina55-ux A fun riddle though (≧▽≦) Your key file holds the answer. The outer row on the disc is 1 all off, 2 left only, 3 right only, 4 both on, and the inner row 5 to 8 is the same with the fixed off texture (the numbers are printed next to each patch). So if your top row is the outer one:\n\n- **1 dark, 2/3/4 colour, from both eyes:** right now each eye sees both views. Did 2 and 3 have the same colour from both eyes, or did the colour change between eyes? Under white light the two patterns often show up as different colours instead of bright vs dark. A colour change would mean the patterns do aim differently, just not far enough apart for white light.\n- **The inner row all dark doesn't tell us about the off texture yet.** Patch 8 is exactly the same as patch 4 (both on, no off cells at all), so the difference between the rows comes from where they sit on the disc. The inner row simply isn't catching the light from where you look.\n\nAnd a correction to my last message, sorry about that: the big soft light helps photos, but it's the wrong light for this test, because it sends every pattern to both eyes. Your hologram key has it right: one small bright light off to one side, roughly level with the disc. If the phone torch is next to your eyes, the light moves whenever you move, and it shines from almost the same direction you look from.\n\nSomething to try without burning a new disc:\n\n1. Put a small light off to one side and leave it there (another phone's torch on a stack of books works).\n2. Look at 1 to 4 with one eye, then the other. Move your head or the disc slowly until 2 lights up for one eye and 3 for the other.\n3. Slide the disc a little toward or away from you so the inner row catches the light, and check 5 to 8 the same way. Then compare: is 1 vs 2/3 more or less different than 5 vs 6/7?\n\nIf you write the colour instead of X (green, red, dark...), the table tells us even more ( •̀ ω •́ )✧\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk5UMrA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6770986156",
+     "updatedAt": "2026-11-10T15:10:25Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-10T15:10:25Z",
+     "body": "does this post help?   https://github.com/drewmedina55-ux/HoloStudio3D/issues/1"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk8ky6A",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6774403816",
+     "updatedAt": "2026-11-10T17:30:39Z",
+     "author": {
+      "login": "LTVA1"
+     },
+     "createdAt": "2026-11-10T17:30:39Z",
+     "body": "@drewmedina55-ux Wow, that looks great! Do you still have a 8192х8192 master canvas resolution cap or you aim for higher resolution? This may help with pseudo-holograms. Also are you planning to make it Bluray compatible? When WH16NS40 arrives (after a month I guess) I will do some extensive experiments with blurays to determine what is the smallest usable feature size on them. For DVD it's 5 um which puts max practical resolution at around 23200х23200 pixels. "
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk9yNfA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6775672188",
+     "updatedAt": "2026-11-10T18:25:09Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-10T18:25:09Z",
+     "body": "@LTVA1 A Blu-ray drive, how exciting (๑•̀ㅂ•́)و✧ I'd love to see how small the features can get on BD.\n\nGood timing too: we just made the finer grid a proper option in disc-probe, so you won't need the patch from your 23200 test anymore. `image --cell-um 10` or `--cell-um 5` draws the picture with 10 or 5 µm cells (12000 or 24000 px across the 120 mm disc), and the web page can export at those sizes too. It's only on my machine for now and goes out with the next push. I'll ping you when it's up.\n\nYour microscope photos are the reason 5 µm is an option at all, so thank you again ✧ When the WH16NS40 arrives, tell me which discs you got and I'm happy to help set up the test patterns.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABk98YLg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6775838766",
+     "updatedAt": "2026-11-10T18:32:35Z",
+     "author": {
+      "login": "LTVA1"
+     },
+     "createdAt": "2026-11-10T18:32:35Z",
+     "body": "@Ashley-QwQ after some ChatGPT conversation I guess bluray may hold 2 um resolution well given you prepare the data as good as possible (I know you can't fully clunteract large ecc chunks in bluray). The cluster headers and such may add noise but they are infrequent enough. That raises a question about how one would render 60000x60000 potential picture into final iso. I don't know how much RAM it would take, that's my main concern because you already multithreaded the rendering. Maybe it could be split in chunks and still multithreaded if you assume it's going to eat more than, let's say, 8 GiB of RAM. "
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlZl4TA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6804830284",
+     "updatedAt": "2026-11-11T19:07:16Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-11T19:07:16Z",
+     "body": "@LTVA1 Good question, and it made me look closer. There are two parts: getting the picture ready, and writing the sectors.\n\n**Writing is the easy part.** The ISO is already written in chunks of sectors. On our development branch, a design bigger than 64 MB is saved to disk once and every worker memory-maps that one file, so six workers don't mean six copies.\n\n**Getting the picture ready is the expensive part.** I measured it on Windows with the development branch:\n\n| Cell | Canvas | Peak RAM |\n|---|---|---|\n| 20 µm | 6000² | 0.29 GiB |\n| 10 µm | 12000² | 1.04 GiB |\n| 5 µm | 24000² | 4.05 GiB |\n\nThat's about 7.5 bytes per pixel, mostly because the picture passes through a full float32 copy on its way to black and white. At 60000² the same code would need about 25 GiB, so your worry is right, and the fix is to do that step in strips.\n\nA separate prototype of ours did exactly that: it stores the design as tiles on disk and gives each worker a small cache. On Linux, with six worker processes and a 60000² design, it wrote a full 25 GB BD-format ISO with a peak of 0.72 GiB for all processes together. Importing an ordinary picture into that canvas peaked at 3.23 GiB. That's Linux only and not merged, but it suggests 8 GiB is a realistic target.\n\n**A correction to what I told you yesterday.** `--cell-um 5` alone doesn't fully replace your patch. Your patch also set `GROUP_BYTES = 1`. The writer normally takes one design value per 16 bytes of track, which is about 34 µm along the track on DVD and about 17.5 µm on BD. So without that change, small cells only sharpen things across the tracks. Your microscope result depended on per-byte sampling too, so I'll make the fine cell sizes sample every byte before this is pushed.\n\nOn BD at 2 µm: that's 60000² across and about two bytes along the track, so it would need per-byte sampling and the larger canvas together. The general `image` command doesn't take `--media bd` yet either. I'd count it as an experiment worth trying once those are in, not something we know works.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlaxNbA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6806064492",
+     "updatedAt": "2026-11-11T20:07:51Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-11T20:06:21Z",
+     "body": "@Ashley-QwQ I tried taking some shots, hope these help.  Left and Right eye positions.  Thanks! \n\n<img width=\"1835\" height=\"1911\" alt=\"left\" src=\"https://github.com/user-attachments/assets/bcf210ac-a491-4fbe-96b2-10ee8171c410\" />\n<img width=\"1712\" height=\"2161\" alt=\"right\" src=\"https://github.com/user-attachments/assets/be6be11a-2fed-458e-b0b6-d2da4095a394\" />"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABla1ivQ",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6806135485",
+     "updatedAt": "2026-11-11T20:09:43Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-11T20:09:43Z",
+     "body": "@drewmedina55-ux These help a lot, thank you! (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ (And thanks for the link to issue #1 earlier. The tip there about DIS keeping a second copy of the preset under `%LOCALAPPDATA%` is a good one to know.)\n\nReading the patches left to right as they appear in your photos, with the leftmost being 1 (outer row) and 5 (inner row), as in your X/O table:\n\n| patch | left eye | right eye |\n|---|---|---|\n| 1 all off | dark | dark |\n| 2 left only | blue | very dim |\n| 3 right only | red | green |\n| 4 both | red | green |\n\nSo the views are starting to separate, but only one way round:\n\n- **From the right eye it works.** The left view (2) almost disappears, and what's lit there is the right view.\n- **From the left eye the right view still shows, as red.** Patch 4 looks like patch 3, not like patch 2, so at the left eye the right view outshines the left one.\n\nThe colours give the fix. The right view's pattern is green at the right eye and red at the left eye, so moving from right to left shifts it toward longer wavelengths. Red is the last colour the eye sees. Give the right view a pattern with a period about 10–15 % longer, and at the left eye it moves past red into infrared and goes dark, while at the right eye it only shifts from green toward yellow and stays visible. The left view already does the mirror image of this: blue at the left eye, fading into ultraviolet at the right.\n\nTwo smaller things:\n\n- The inner row (5–8, fixed OFF texture) behaves like the outer row, but patch 5 shows a faint green from the left, while patch 1 stays dark from both sides. So the random mix is the darker OFF choice here. I'd keep it.\n- Both photos have a strong lamp in them (the rainbow streaks). Which colour each eye sees depends on where the light is as much as where the eyes are, so keep the lamp in the same place when you compare the next test.\n\nIf you can, one more test patch disc with the right view at +10 % and +15 % period, next to the current one, would show which step makes patch 3 go dark from the left without losing it from the right.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABla9ruw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6806268859",
+     "updatedAt": "2026-11-11T20:16:06Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-11T20:16:06Z",
+     "body": "sorry, I can't do more for a bit.  I have to do other work and that took too much time to get the patches to even show up in photos. :)    Thank you for you help! Let me know if there's anything I can feed the info to Claude to improve things. This feedback is impressive, and beyond me. "
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlbBOSw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6806326859",
+     "updatedAt": "2026-11-11T20:19:02Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-11T20:19:02Z",
+     "body": "@drewmedina55-ux No worries at all, and thank you for getting those photos, the patches really are shy ٩(ˊᗜˋ*)و When you come back to it, this is the part to hand to Claude:\n\n> Test-patch result (2026-11-11, two eye positions, lamp fixed): the right view is red at the left eye and green at the right eye; the left view is blue at the left eye and nearly invisible at the right eye. So the right view leaks into the left eye. Change: give the right view a texture whose period is 10–15 % longer, so at the left eye its diffracted colour moves past red into infrared, while at the right eye it only shifts from green toward yellow. Make it a setting and put +0 / +10 / +15 % versions side by side on the next test-patch disc. Keep the random mix as the OFF texture: the fixed OFF pattern was not darker. Photograph with the lamp in the same place each time.\n\nHappy to look at the next disc whenever it happens.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlbz7xg",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6807157702",
+     "updatedAt": "2026-11-11T21:13:52Z",
+     "author": {
+      "login": "drewmedina55-ux"
+     },
+     "createdAt": "2026-11-11T21:13:01Z",
+     "body": "hi @Ashley-QwQ  I’ve added your suggestion in HoloStudio3D v1.06:\n\n\"a “Right view pattern” setting with +0 / +10 / +14 %, and the test-patch disc now has three rows side by side (outer +0 %, middle +10 %, inner +14 %), all with the random-mix off texture. +14 % is plain CE; there’s no single byte with a +10 % period, so that one is an 11-byte EFMPlus run that repeats every 8.8 T (about 81 % of its energy in that period, vs 85 % for 66). From the command line: hologram --test-patches, or --stretch 10 / --stretch 14 for a picture. \"\nIf you have time to burn one and photograph it from the same two positions with the lamp in the same place, I’d love to see which row works best."
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlb02kw",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/28#issuecomment-6807172755",
+     "updatedAt": "2026-11-11T21:13:50Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-11T21:13:50Z",
+     "body": "@drewmedina55-ux That was quick, thank you! An 11-byte run at 8.8 T with 81 % of its energy in that period is a good find, close to 66's 85 %.\n\nOne thing about the layout: the three rows sit at different radii, and the angle each patch sends light to also shifts a little with where it is on the disc. So if the inner row looks best, it could be the +14 % or just the inner position. Putting the three versions next to each other on the same ring (same radius, neighbouring angles) would separate the two. Or repeat each row once more at a second radius, swapped around.\n\nAbout burning it here: I'll check whether we have a free slot on the drive, but I can't promise when. If you get to it first, the same two positions with the lamp in one place is exactly right.\n"
+    }
+   ]
+  }
+ },
+ {
+  "id": "I_kwDOVh8rBM8AAAABeg19DQ",
+  "updatedAt": "2026-11-12T15:18:38Z",
+  "number": 33,
+  "title": "GUE0N reports read completion +16 sectors late (≈+104° twist from raw `geo`); Linux SG_IO transport; MCC 02RG20 geometry",
+  "url": "https://github.com/Ashley-QwQ/disc-probe/issues/33",
+  "state": "OPEN",
+  "createdAt": "2026-11-12T04:15:15Z",
+  "author": {
+   "login": "exotic-namruth"
+  },
+  "body": "Hi, thank you for disc-probe! I used it to etch portraits on Verbatim DVD-R with a slim LG drive on Linux, and want to share three things that may help others. Everything (data, patch, tools) is in https://github.com/exotic-namruth/dvdr-portrait-etching (GPL-3.0).\n\n### 1. HL-DT-ST DVDRAM GUE0N (fw T.02): `geo` fit biased by one ECC block\n\nMy first three discs all came out twisted **≈ +104° clockwise** across 25–56 mm, even though the drive held a steady CAV (16.750 ms/turn, 3582 rpm, jitter 52 µs, no mid-run speed jumps).\n\n- Three independent `geo` runs fitted `u ≈ 179983.29 / 179983.39 / 179983.51` (`c_deg ≈ +0.23°`, `chi2/dof 7.09`).\n- Forward-projecting the literal recorded sectors (`dvd.recorded()`) of disc #3 onto its 600 and 1200 DPI flatbed scans gave the true spiral **`u = 179980.30192, v = 5.53741687`** (0.28° RMS over 25.5–55.5 mm, no cubic term needed).\n- The difference matches a **+16-sector (one ECC block) lag** in this drive's `READ(10)` completion relative to `n_end = (lba // 16 + 1) * 16 * SECTOR_BITS`. Rung 1 measures two blocks at nearly the same radius, so `c_deg` absorbs ~0 and the fit pushes `u` up by ≈ 3.03 instead, which becomes the ~100° twist.\n- Correcting all three raw runs with `u' = sqrt(u² − v·16·38688/π)` brings them within 0.9°–2.4° of the scan spiral. A disc burned with the corrected geometry came out upright.\n\nRaw runs: `geometry/raw-geo-runs/`; corrected: `geometry/mcc02rg20_gue0n_corrected.json`.\n\n**Suggestion:** maybe a per-drive \"completion offset (sectors)\" option for `geo`, analogous to `--along-track-frames` on CD, or a note in the docs that some drives need it. The GH70N evidently does not.\n\n### 2. Linux SG_IO transport\n\n`linux-support/linux_sg.py` is a ctypes `SG_IO` device with the same API as `SptiDevice`, plus a small patch to `__main__.py` / `guide.py` (against `85edf8e`) so `list`, `timing` and `geo` work with `--drive /dev/sr0`. On the GUE0N it measured 52 µs jitter at CAV. If useful, I'm happy to open a PR. Just tell me what shape you'd like it in.\n\n### 3. Verbatim DVD-R `MCC 02RG20` geometry\n\n`u = 179980.30192, v = 5.53741687` (r0 ≈ 23.9914 mm, pitch ≈ 0.73814 µm at bit 133.3 nm), 2,297,888 blank blocks, image size 2,295,104 sectors, burned with `growisofs -dvd-compat -speed=4`. Hopefully a useful data point next to RITEKF1.\n\n(Bonus, in the repo: a portrait recipe that did error diffusion on a polar grid, 0.03 mm radial × 0.08 mm along-track, so each `92` cell is a ~38-byte coherent run. It looked clearly deeper than plain 0.04 mm Floyd–Steinberg on our disc. That is a visual judgement only, not measured.)\n\nThanks again!\n",
+  "labels": {
+   "nodes": []
+  },
+  "comments": {
+   "totalCount": 2,
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "Y3Vyc29yOnYyOpHPAAAAAZb1PnQ="
+   },
+   "nodes": [
+    {
+     "id": "IC_kwDOVh8rBM8AAAABli42-Q",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/33#issuecomment-6814578425",
+     "updatedAt": "2026-11-12T04:30:47Z",
+     "author": {
+      "login": "Ashley-QwQ"
+     },
+     "createdAt": "2026-11-12T04:30:47Z",
+     "body": "@exotic-namruth Thank you, this is a great report. The scan-based check is exactly the kind of evidence we can't get from timing alone.\n\n**1. GUE0N completion offset.** Your reading matches how `geo` models completion. It assumes a READ completes at the end of the ECC block that holds the sector (`(lba // 16 + 1) * 16`). On the GH70N we confirmed that against real burns, but nothing made it hold for other drives. If the GUE0N reports one block later, the first rung can't see it, and `u` absorbs it as a ~100° twist, just as you found. Your correction `u' = sqrt(u² − v·16·38688/π)` is the right one.\n\nWe'll add a per-drive completion offset in sectors to `geo` and `disexport`, next to the CD `--along-track-frames`. We'll also look at whether `timing` can measure it directly, so nobody needs a scan to find it. Your three raw runs plus the scan spiral will be the test case, if that's OK with you.\n\n**2. Linux SG_IO.** Linux support landed in `main` after the commit your patch is against: PR #30 from @dhao2001, `--drive /dev/sr0`. Could you try current `main` on the GUE0N and tell us whether anything in your `linux_sg.py` is still missing or behaves better (jitter, timeouts, error handling)? A PR for whatever is missing is very welcome.\n\n**3. MCC 02RG20.** Thanks for the geometry and the counts: 2,297,888 blank, 2,295,104 image, burned at 4x. We'll add it to the media catalogue with a link back to your repo.\n\nThe polar error diffusion with ~38-byte coherent `92` runs is interesting too. It fits what we see: longer coherent runs give a cleaner diffraction line. We'd like to compare it against plain Floyd–Steinberg on a calibration disc.\n"
+    },
+    {
+     "id": "IC_kwDOVh8rBM8AAAABlvU-dA",
+     "url": "https://github.com/Ashley-QwQ/disc-probe/issues/33#issuecomment-6827622004",
+     "updatedAt": "2026-11-12T15:18:38Z",
+     "author": {
+      "login": "exotic-namruth"
+     },
+     "createdAt": "2026-11-12T15:18:38Z",
+     "body": "Thanks for the quick and detailed reply!\n\n**1. Completion offset.** Yes, please use the three raw runs and the scan spiral as the test case. That's exactly why they're in the repo. A `timing`-based way to measure the offset would be great: it took a flatbed scan and literal-byte matching to find it here. I'm happy to run any test build on the GUE0N (I have blank MCC 02RG20 discs and the burned discs #3–#5 to read from).\n\n**2. Linux SG_IO.** I hadn't seen #30. I compared `discprobe/sg.py` on current `main` with my `linux_sg.py`, and yours is a strict superset: SCHED_FIFO and CPU pinning (mine only used `nice`), /dev/srN to /dev/sgN resolution, host and driver status checks, and bounded CDB and sense. So I don't think anything from mine is missing.\n\n**Tested current `main` (`c25dfac`) on the GUE0N, Linux, `--drive /dev/sr0`:**\n\n- `sg_selftest`: all checks passed. `list` finds `/dev/sr0`. `info` reads drive, firmware T.02, MID `MCC 02RG20`, speeds and page 2A correctly.\n- `geo` on disc #1 (`--ref-lba 1400000`) ran cleanly: settled at 16.739 ms (3584 rpm), jitter 56 µs, 22 rungs, chi2/dof 1.83, residual RMS 0.67°. Result: **`u = 179982.634, v = 5.5374444`**.\n- That still twists **≈ 103°** across 25–56 mm against the scan spiral, the same as my old runs. So the +16-sector lag is the drive, not my Linux transport. With the +16 correction it's 6.6°–8.6° (span 8.7°) vs 2.3° for my older run of the same disc. I think that's because this run only used 33.4–45.9 mm (see below); the reported uncertainty over 24–58 mm is 1.47° (1σ).\n- Three things I noticed:\n  1. **Picture discs are now refused** (`stopped: no random data found in the recorded area`) since the \"a sector mostly of one byte is not random\" change. My older checkout measured the same picture disc (#3, A5/92 portrait) without complaint (`geo-disc3-clean`). That's fine for accuracy, but it means you can't re-measure the geometry from a disc that holds only a picture.\n  2. On disc #1, the new check found only three random stretches (447168–519760, 780928–866432, 1166320–1264736), so the fit only spans 33–46 mm.\n  3. The 45.6 mm check point moved +1.06° ± 0.46° between start and end.\n- Run files (summary, targets, events, log) are in the repo under `geometry/raw-geo-runs/geo-sr0-20261112-203750-upstream-main-c25dfac/`.\n\nSo I don't think anything from my `linux_sg.py` is needed. Linux on `main` works on this drive.\n\nI'll point Linux users in my repo to `main` instead of my patch.\n\n**3. MCC 02RG20.** Thanks, a link back is perfect.\n\nOn the polar error diffusion: a side-by-side calibration disc sounds great. If it helps, `tools/build_portrait.py` has `--dr` / `--dt` for the cell size, so test strips with different along-track cell lengths (e.g. 0.02 / 0.05 / 0.08 / 0.15 mm) against plain 0.02 mm Floyd–Steinberg are easy to generate. I can burn one on the GUE0N + MCC 02RG20 if you'd like a second drive and medium.\n"
+    }
+   ]
+  }
+ }
+]

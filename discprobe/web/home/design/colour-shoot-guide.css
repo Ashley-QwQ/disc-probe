@@ -1,0 +1,12 @@
+.colour-shoot-guide {
+  margin-block: 0 8px;
+  padding: 8px 0;
+  border-block: 1px solid var(--rule);
+  color: var(--ink);
+}
+.colour-shoot-guide summary { cursor: pointer; font-weight: 600; }
+.colour-shoot-guide svg { display: block; width: min(100%, 300px); height: auto; margin-block: 8px; }
+.colour-shoot-guide svg text { font: 12px var(--font); }
+.colour-shoot-guide ol { display: grid; gap: 5px; margin: 8px 0; padding-inline-start: 21px; }
+.colour-shoot-guide p { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0 0; }
+.colour-shoot-guide a { color: var(--ink); text-underline-offset: 3px; }

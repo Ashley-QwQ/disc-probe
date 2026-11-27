@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [],
+  "bluRayPresets": [
+    {
+      "id": "bd-r-ritek-12x",
+      "displayName": "铼德 BD-R 12x（实测）",
+      "description": "实测参数：内半径 23.987950 mm、外半径 58.022360 mm、12,219,392 扇区。",
+      "totalSectors": 12219392,
+      "usableSectors": 12219392,
+      "innerRadiusMm": 23.98795,
+      "outerRadiusMm": 58.02236,
+      "invertMapping": false,
+      "contributor": "DeepAQ"
+    }
+  ]
+}

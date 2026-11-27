@@ -1,0 +1,100 @@
+﻿/* The preview page (preview.js): the design page's layout without its left column. Reuses design.css
+   (.ws, .ws-title, .col-r, .cv, .seg, .sbtn, .rng, .zoomr, .empty-c, .cv-note). */
+
+:root[data-mode="preview"] .stage { opacity: 0; pointer-events: none; transition: opacity 420ms var(--ease); }
+:root[data-mode="preview"] .wordmark, :root[data-mode="preview"] .detail, :root[data-mode="preview"] .counter,
+:root[data-mode="preview"] .gallery { display: none; }
+
+.ws.pv { --colL: 0px; }
+/* design.css gives the editor's right column a row flex with hidden overflow (its panel fills it). The preview's
+   column is a document: its sections stack and scroll, so the cancel button and the check-disc block stay whole. */
+.ws.pv .col-r { display: grid; align-content: start; overflow-y: auto; overflow-x: hidden; }
+.ws.pv .col-r > * { min-width: 0; }
+.ws.pv .cv { left: calc(var(--edge) + 20px); }
+/* what the view shows, in one line, at the same place under the disc for every view */
+.ws.pv .cv-note { top: auto; bottom: 8px; left: 50%; transform: translateX(-50%); max-width: min(90%, 40em); white-space: normal; text-align: center; }
+/* the checklist before burning: done is a tick in ink, what needs the person a copper dot, not known a ring */
+.pv-list ul { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
+.pv-list li { position: relative; padding-left: 18px; line-height: 1.35; }
+.pv-list li::before { content: ""; position: absolute; left: 0; top: .5em; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--unknown); }
+.pv-list li[data-s="good"]::before { width: 8px; height: 4px; top: .4em; border-radius: 0; border: solid var(--ink); border-width: 0 0 1.5px 1.5px; transform: rotate(-45deg); }
+.pv-list li[data-s="warn"]::before { background: var(--copper); border-color: var(--copper); }
+
+.pv-file { display: grid; gap: 4px; }
+.pv-file b { font-weight: 650; overflow-wrap: anywhere; }
+.pv-file .mono, .pv-more .mono, .pv-ctl output { font-family: var(--mono); font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pv-more summary { cursor: pointer; color: var(--ink-2); font-size: 15px; }
+.pv-more p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.pv-err { color: var(--warn); }
+.col p.note.pv-warn { color: var(--warn); }
+.pv-ctl { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; font-size: 15px; }
+.pv-ctl input { grid-column: 1 / -1; width: 100%; }
+.pv-ctl output { grid-column: 2; grid-row: 1; }
+
+/* progress: a thin bar, moving while the page is idle (.live) */
+.pv-bar { height: 6px; border-radius: 4px; background: var(--paper-2); overflow: hidden; }
+.pv-bar i { display: block; height: 100%; width: 100%; background: var(--ink); transform-origin: left; transform: scaleX(var(--f)); transition: transform 250ms var(--ease); }
+.pv-bar i.indet { transform: scaleX(.3); animation: pv-indet 1.4s ease-in-out infinite; }
+@keyframes pv-indet { from { transform: translateX(-100%) scaleX(.3); } to { transform: translateX(100%) scaleX(.3); } }
+
+/* the light in the simulated view */
+.pv-sun { position: absolute; z-index: 3; width: 44px; height: 44px; margin: -22px 0 0 -22px; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid #f3d27a; background: rgb(243 210 122 / .18); color: #f3d27a; cursor: grab; padding: 0; touch-action: none; }
+.pv-sun:active { cursor: grabbing; }
+.pv-sun svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.pv-sun[hidden] { display: none; }
+
+/* Optical controls share the page's native controls; the prediction owns the dark stage. */
+.pv-looking .cv-note { max-width: 100%; white-space: normal; pointer-events: none; }
+.pv-looking .col-r { scrollbar-color: var(--rule-strong) var(--paper); }
+.pv-looking .pv-ctl { font-size: 16px; }
+.pv-looking .pv-ctl input { min-height: 28px; }
+.pv-phone { position: absolute; z-index: 3; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  display: grid; place-items: center; border-radius: 50%; border: 1px solid #e5eceb;
+  background: #263331; color: #e5eceb; cursor: grab; padding: 0; touch-action: none; }
+.pv-phone svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.pv-phone:active { cursor: grabbing; }
+.pv-phone[hidden] { display: none; }
+.pv-sun:hover { background: #544a2c; }
+.pv-phone:hover { background: #3b4e4b; }
+.pv-sun:focus-visible, .pv-phone:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+@media (max-width: 760px) {
+  .ws.pv { --preview-top: calc(var(--top) + 42px); --preview-height: clamp(160px, 38dvh, 320px); }
+  .ws.pv .cv { top: var(--preview-top); left: var(--edge); right: var(--edge); bottom: auto; height: var(--preview-height); }
+  .ws.pv .col-r { top: calc(var(--preview-top) + var(--preview-height) + 12px); left: var(--edge); right: var(--edge); width: auto; }
+  .ws.pv .viewsw { max-width: 100%; flex-wrap: wrap; }
+  .ws.pv .viewsw button { padding-inline: 8px; font-size: 13px; }
+  .ws.pv .cv-note { margin-bottom: 0; padding: 4px 8px; font-size: 13px; }
+  :root[data-mode="preview"] .next { padding-inline: 12px; font-size: 16px; white-space: normal; text-align: left; }
+  :root[data-mode="preview"] .next-why { position: absolute; bottom: 100%; right: 0; max-width: 100%; padding: 2px 8px; background: var(--paper); }
+}
+
+:root[data-motion="off"] .pv-bar i.indet { animation: none; width: 100%; opacity: .4; }
+
+/* Camera controls inherit the preview's native tool vocabulary. */
+.pv-photo-controls { display: grid; gap: 12px; padding-block: 4px 12px; border-bottom: 1px solid var(--rule); }
+.pv-check, .pv-backing { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; font-size: 16px; }
+.pv-check input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--copper); }
+.pv-backing select { min-height: 44px; max-width: 52%; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 4px 8px; }
+.pv-photo-controls :disabled { opacity: .45; cursor: default; }
+.pv-photo-controls :focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
+.pv-looking .col p.pv-rough-note { color: var(--ink-2); }
+/* the disc filling while the burn file is made (preview.js paintThumb) */
+.pv-gen { display: grid; place-items: center; margin: 4px 0 14px; }
+.pv-gen canvas { width: min(240px, 100%); aspect-ratio: 1; }
+.pv-gen[aria-valuenow="0"] canvas { animation: pv-wait 1.6s ease-in-out infinite; }
+@keyframes pv-wait { 50% { opacity: .55; } }
+:root[data-motion="off"] .pv-gen canvas { animation: none !important; }
+
+/* W9: while the file is made the column says one thing: the file, with a bar, its stage and time left. The
+   checklist folds to a line under it (a details summary; open when nothing is being made). */
+.pv-fold > summary { list-style: none; cursor: pointer; }
+.pv-fold > summary::-webkit-details-marker { display: none; }
+.pv-fold > summary h3 { pointer-events: none; }
+.pv-fold:not([open]) > summary h3 { font-size: 15px; font-weight: 500; color: var(--ink-2); min-height: 28px; }
+.pv-fold:not([open]) > summary h3::after { content: "▸"; margin-left: 6px; color: var(--ink-3); }
+.pv-now h3 { font-size: 19px; }
+.pv-now .pv-gen canvas { width: min(180px, 70%); }
+.pv-now .pv-bar { height: 8px; margin-top: 2px; }
+.pv-prog b { font-weight: 650; color: var(--ink); }

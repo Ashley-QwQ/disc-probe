@@ -162,6 +162,30 @@ def _harmonics(c: Checker):
     c.check(fit is not None and 30 < fit.residual_std_s * 1e6 < 80, f"jitter {fit.residual_std_s * 1e6:.1f} us")
 
 
+def _phase_tail(c: Checker):
+    print("rung phase with late reads")
+    # Blocks like the BU20N's on CD audio: 32 reference/target pairs, 100 and 140 us of scatter,
+    # and 12 % of the targets returned 4-20 deg late (about the tail it shows).
+    import random
+    rng, period = random.Random(0), 0.04835
+    new, old = [], []
+    for _ in range(20):
+        phase, t, refs, targets = rng.uniform(0, 360), 1.0, [], []
+        for _ in range(32):
+            t += period * rng.randint(2, 4)
+            refs.append(int((t + rng.gauss(0, 100e-6)) * 1e9))
+            t += period * rng.randint(2, 4)
+            late = rng.uniform(4, 20) / 360 * period if rng.random() < 0.12 else 0.0
+            targets.append(int((t + phase / 360 * period + late + rng.gauss(0, 140e-6)) * 1e9))
+        offsets = analysis.phase_offsets(analysis.estimate_period(refs, prior_s=period, prior_window=0.02), targets)
+        for out, ph in ((new, analysis.robust_median_mean(offsets)), (old, analysis.robust_circular_mean(offsets))):
+            out.append(math.degrees(analysis.wrap_pi(math.radians(ph["mean_deg"] - phase))))
+    rms = lambda v: math.sqrt(sum(x * x for x in v) / len(v))
+    c.check(abs(sum(new) / len(new)) < 0.4 and rms(new) < 0.7,
+            f"clipped about the median, 20 rungs: mean error {sum(new) / len(new):+.2f} deg, rms {rms(new):.2f} "
+            f"(about the circular mean: {sum(old) / len(old):+.2f}, {rms(old):.2f})")
+
+
 
 
 def _grid_acceptance(c: Checker):
@@ -290,9 +314,13 @@ def _timer_tick(c: Checker):
                     probe = timing.TimingProbe(SimDrive(), log=logs.append)
                     probe.strategy = strategy
                     probe.summary = {"period": {}}
-                    probe._check_period([{"period_ms": period}])
-                    c.check(bool(logs) == (platform == "win32" and period != 10.0),
-                            f"{platform} {strategy} period {period:.4f} ms")
+                    stopped = False
+                    try:
+                        probe._check_period([{"period_ms": period}])
+                    except timing.NoReadableDisc as exc:
+                        stopped = 'not proof of CLV' in str(exc) and 'Reuse this disc' in str(exc)
+                    c.check(stopped == (platform == "win32" and period != 10.0),
+                            f"{platform} {strategy} period {period:.4f} ms stops before an unreliable fit")
     finally:
         sys.platform = real_platform
 
@@ -355,28 +383,69 @@ def _ladder_safe_unwrap(c: Checker):
             "exhausted candidates are recorded as partial")
 
 
-def _ladder(c: Checker):
-    print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")
+def _ladder_geometry(c: Checker, seed: int):
     import numpy as np
     from .calib import SECTOR_BITS, theta
-    from .geo import Ladder
-    # The ladder's own accuracy, with the reads of the end-of-run state check left out (they only change
-    # which random draws the rungs get; checked separately below).
-    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
-    lad = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, state_check=False)
-    res = lad.run()
+    from .geo import Ladder, _dtheta
+    from .rings import RingLayout
+
+    def run(*, sectors=1, patterns=(), state_check=False):
+        # Use repeatable, low-noise reads to test the geometry. _phase_tail
+        # exercises late completions separately.
+        sim = SimDrive(mode="cav", seed=seed, reread_delay_ms=35.0, jitter_us=8.0,
+                       outlier_rate=0.0, patterns=patterns)
+        lad = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None,
+                     sectors=sectors, state_check=state_check)
+        return sim, lad, lad.run()
+
+    sim, lad, res = run()
     b = 133.6e-6  # the simulator's off-nominal geometry
-    n = np.linspace(0, 0.85 * sim.capacity * SECTOR_BITS, 400)
+    n = np.linspace(0, 0.98 * sim.capacity * SECTOR_BITS, 400)
     e = np.degrees(theta(n, lad.u, lad.v) - theta(n, 23.93 / b, 0.735e-3 / b))
     span = float(e.max() - e.min())
-    from .geo import _dtheta
     g_end = np.subtract(_dtheta((sim.capacity // 16) * 16 * SECTOR_BITS, lad.u, lad.v), _dtheta(0.0, lad.u, lad.v))
     full = float(np.degrees(np.sqrt(g_end @ lad.cov[:2, :2] @ g_end)))
     c.check(abs(res["angle_sigma_full_disc_deg"] - full) < 1e-9 * max(1.0, full),
             f"the full-disc sigma counts DVD sectors in DVD channel bits ({res['angle_sigma_full_disc_deg']:.4f} deg)")
-    c.check(span < 1.5, f"{len(lad.targets)} rungs, angle error over 0-85 % of the disc {span:.3f} deg "
+    c.check(span < 0.75, f"{len(lad.targets)} rungs, angle error over 0-98 % of the disc {span:.3f} deg "
                         f"(reported 1 sigma {res['angle_sigma_measured_span_deg']:.3f}, "
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
+    whole_sim, whole, _ = run(sectors=16)
+    e = np.degrees(theta(n, whole.u, whole.v) - theta(n, lad.u, lad.v))
+    span = float(e.max() - e.min())
+    c.check(span < 0.1, f"reading whole ECC blocks gives the same geometry: {span:.3f} deg apart over 0-98 % of the disc")
+    # A one-disc trial disc: texture rings between random ones, then a picture appended outside them.
+    layout = RingLayout(textures=("A5", "RND", "B9", "RND", "66", "RND", "64", "RND", "E4", "RND", "92", "RND"),
+                        groups=2, ring_width_mm=1.04, start_mm=25.0, filler="RND").build()
+    patterns = [(r["lba_start"], r["lba_end"], int(r["texture"], 16)) for r in layout.rings if r["texture"] != "RND"]
+    patterns.append((layout.total_sectors, sim.capacity, 0xB9))
+    ring_sim, rings, _ = run(patterns=patterns, state_check=True)
+    on_pattern = [t["lba"] for t in rings.targets if any(a <= t["lba"] < b for a, b, _ in patterns)]
+    outside = [(a, b) for a, b in rings.auto_ranges or [] if any(a < e and s < b for s, e, _ in patterns)]
+    c.check(len(rings.auto_ranges or []) == 12 and not on_pattern and not outside,
+            f"texture-ring disc: {len(rings.auto_ranges or [])} random stretches found, "
+            f"{len(on_pattern)} rungs and {len(outside)} stretches on a pattern")
+    # Measured only out to 50 mm, so judge it there, as the plain run is judged over its range.
+    measured = np.linspace(min(t["n"] for t in rings.targets), max(t["n"] for t in rings.targets), 300)
+    e = np.degrees(theta(measured, rings.u, rings.v) - theta(measured, 23.93 / b, 0.735e-3 / b))
+    span = float(e.max() - e.min())
+    c.check(span < 0.75, f"angle error over the measured span {span:.3f} deg")
+
+    # The fitted constant absorbs a common phase shift, so check the signed
+    # bias of the raw rung estimates against the simulator's true phase.
+    for name, drive, ladder in (("plain", sim, lad), ("whole ECC", whole_sim, whole),
+                               ("texture rings", ring_sim, rings)):
+        errors = [math.degrees(analysis.wrap_pi(math.radians(
+            t["phase_deg"] - drive.true_phase_deg(ladder.ref, t["lba"])))) for t in ladder.targets]
+        bias = math.fsum(errors) / len(errors)
+        c.check(abs(bias) < 0.25, f"{name} rung phase bias {bias:+.3f} deg")
+
+
+def _ladder(c: Checker):
+    print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")
+    from .geo import Ladder
+
+    _ladder_geometry(c, seed=7)
     # Check points read at the start and again at the end: a drive that changes state partway through
     # (a latency that grows with radius) bends the geometry while chi2 stays where it was.
     verdicts = []
@@ -387,30 +456,6 @@ def _ladder(c: Checker):
     c.check([v for v, _ in verdicts] == ["steady", "changed"],
             f"check points: a steady drive reads as {verdicts[0][0]}, one that changes partway as {verdicts[1][0]} "
             f"(chi2/dof {verdicts[0][1]:.2f} and {verdicts[1][1]:.2f}, so the fit alone can't tell)")
-    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
-    whole = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, sectors=16, state_check=False)
-    whole.run()
-    e = np.degrees(theta(n, whole.u, whole.v) - theta(n, lad.u, lad.v))
-    span = float(e.max() - e.min())
-    c.check(span < 1.5, f"reading whole ECC blocks gives the same geometry: {span:.3f} deg apart over 0-85 % of the disc")
-    # A one-disc trial disc: texture rings between random ones, then a picture appended outside them.
-    from .rings import RingLayout
-    layout = RingLayout(textures=("A5", "RND", "B9", "RND", "66", "RND", "64", "RND", "E4", "RND", "92", "RND"),
-                        groups=2, ring_width_mm=1.04, start_mm=25.0, filler="RND").build()
-    patterns = [(r["lba_start"], r["lba_end"], int(r["texture"], 16)) for r in layout.rings if r["texture"] != "RND"]
-    patterns.append((layout.total_sectors, sim.capacity, 0xB9))
-    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0, patterns=patterns)
-    rings = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None)
-    rings.run()
-    on_pattern = [t["lba"] for t in rings.targets if any(a <= t["lba"] < b for a, b, _ in patterns)]
-    outside = [(a, b) for a, b in rings.auto_ranges or [] if any(a < e and s < b for s, e, _ in patterns)]
-    c.check(len(rings.auto_ranges or []) == 12 and not on_pattern and not outside,
-            f"texture-ring disc: {len(rings.auto_ranges or [])} random stretches found, "
-            f"{len(on_pattern)} rungs and {len(outside)} stretches on a pattern")
-    # Measured only out to 50 mm, so judge it there, as the plain run is judged over its range.
-    measured = np.linspace(min(t["n"] for t in rings.targets), max(t["n"] for t in rings.targets), 300)
-    e = np.degrees(theta(measured, rings.u, rings.v) - theta(measured, 23.93 / b, 0.735e-3 / b))
-    c.check(float(e.max() - e.min()) < 1.5, f"angle error over the measured span {float(e.max() - e.min()):.3f} deg")
     plain = Ladder(SimDrive(mode="cav", seed=7, patterns=[(500000, 520000, 0xA5)]), speed_kbs=None, log=lambda *_: None)
     plain.tp.setup()
     found = plain._random_parts([(68000, 1950000)])
@@ -495,13 +540,14 @@ def _audio_fit_uses(c: Checker, res: dict, x: float):
         d_ri = (e["preset"]["innerRadiusMm"] - dis["inner_radius_mm"]) * 1e6
         d_ro = (e["preset"]["outerRadiusMm"] - dis["outer_radius_mm"]) * 1e6
         c.check(abs(d_ri) < 50 and abs(d_ro) < 50, f"the preset from an audio fit is dis_equivalent: ri {d_ri:+.0f} nm, ro {d_ro:+.0f} nm")
-        c.check("along-track" not in e["preset"]["description"] and e["source"]["read_offset_bytes"] == x, "and names the read offset, no along-track constant")
-        try:
-            export(geo, res["sectors"], None, out, span[0], span[1], "t", "t", along_track_frames=206)
-            refused = False
-        except ValueError as err:
-            refused = "--read-offset-bytes" in str(err)
-        c.check(refused, "disexport --along-track-frames is refused on an audio fit")
+        # The read offset does not prove L = 0 on an audio path (DIS with delayed interleave reads about -105 frames),
+        # so without a photo or a stated L the preset says the constant is unknown rather than writing a 0.
+        c.check("along-track constant unknown" in e["preset"]["description"] and e["source"]["read_offset_bytes"] == x
+                and "along_track_frames" not in e["source"],
+                "and names the read offset, with the along-track constant left unknown")
+        e = export(geo, res["sectors"], None, out, span[0], span[1], "t", "t", along_track_frames=-105)
+        c.check(e["source"].get("along_track_frames") == -105 and "along-track constant -105 frames" in e["preset"]["description"],
+                "disexport --along-track-frames on an audio fit writes the stated constant")
         try:
             export(geo, res["sectors"] // 2, None, out, span[0], span[1], "t", "t")
             refused = False
@@ -773,6 +819,14 @@ def _incomplete_folder(c: Checker):
         os.mkdir(folder)
         for name in ("__main__.py", "guide.py", "mmc.py"):     # as in a real half-deleted copy: no __init__.py, no i18n.py
             shutil.copy(os.path.join(here, name), folder)
+        # An installed copy (pip/pipx) is a regular package, and Python prefers it to a folder without __init__.py,
+        # so the child would run the complete installed copy, not the half-deleted one: nothing to test there.
+        found = subprocess.run([sys.executable, "-c", "import importlib.util as u; s = u.find_spec('discprobe'); "
+                                "print((s.submodule_search_locations or [''])[0])"], cwd=d, capture_output=True,
+                               encoding="utf-8", env=env).stdout.strip()
+        if os.path.normcase(os.path.realpath(found or d)) != os.path.normcase(os.path.realpath(folder)):
+            print("  (skipped: an installed discprobe takes precedence over a loose folder)")
+            return
         # The check runs on import, before any command, and --help can't start anything if it isn't reached.
         got = subprocess.run([sys.executable, "-m", "discprobe", "--help"], cwd=d, capture_output=True, encoding="utf-8",
                              env=env)
@@ -1312,25 +1366,85 @@ def _tests_folder(c: Checker):
     if not files:
         c.check(True, "no tests/ folder beside the package, so there is nothing to run")
         return
-    for path in files:
-        name = os.path.splitext(os.path.basename(path))[0]
-        spec = importlib.util.spec_from_file_location(f"discprobe_tests_{name}", path)
-        module = importlib.util.module_from_spec(spec)
+    import inspect
+    import io
+    import sys
+    import unittest
+
+    def needs_pytest(fn):
+        """A check that takes arguments wants pytest's fixtures or parametrize; pytest runs it, not us."""
         try:
-            spec.loader.exec_module(module)
-        except Exception as e:                                       # noqa: BLE001 - a test runner
-            c.check(False, f"{name} imports ({type(e).__name__}: {e})")
-            continue
-        checks = [(n, f) for n, f in sorted(vars(module).items()) if n.startswith("test_") and callable(f)]
-        failed = []
-        for n, fn in checks:
+            params = inspect.signature(fn).parameters.values()
+        except (TypeError, ValueError):
+            return False
+        return any(p.default is p.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                   for p in params)
+
+    # Test files import each other by bare name (from test_presets import ...), as they do under pytest.
+    added = folder not in sys.path
+    if added:
+        sys.path.insert(0, folder)
+    import tempfile
+    # Test burns file work records under DISCPROBE_HOME or ./works, and drive locks and the web
+    # instance record live under LOCALAPPDATA: keep both away from the person's real library and
+    # from a measurement running in their own window (it would make these tests see a busy drive).
+    home = tempfile.mkdtemp(prefix="selftest-home-")
+    previous = {name: os.environ.get(name) for name in ("DISCPROBE_HOME", "LOCALAPPDATA")}
+    os.environ["DISCPROBE_HOME"] = home
+    os.environ["LOCALAPPDATA"] = os.path.join(home, "user-state")
+    try:
+        for path in files:
+            name = os.path.splitext(os.path.basename(path))[0]
+            spec = importlib.util.spec_from_file_location(f"discprobe_tests_{name}", path)
+            module = importlib.util.module_from_spec(spec)
             try:
-                fn()
+                spec.loader.exec_module(module)
+            except ModuleNotFoundError as e:
+                if e.name == "pytest":
+                    c.check(True, f"{name} needs pytest, which is not installed here, so pytest alone runs it")
+                    continue
+                c.check(False, f"{name} imports ({type(e).__name__}: {e})")
+                continue
             except Exception as e:                                   # noqa: BLE001 - a test runner
-                failed.append(f"{n}: {type(e).__name__}: {e}")
-        c.check(bool(checks), f"{name} has checks to run")
-        c.check(not failed, f"{name} passes ({len(checks)} checks)" +
-                (" -- " + "; ".join(failed[:3]) if failed else ""))
+                c.check(False, f"{name} imports ({type(e).__name__}: {e})")
+                continue
+            found = [(n, f) for n, f in sorted(vars(module).items())
+                     if n.startswith("test_") and inspect.isfunction(f)]
+            cases = [v for v in vars(module).values()
+                     if inspect.isclass(v) and issubclass(v, unittest.TestCase) and v.__module__ == module.__name__]
+            if cases and not found:
+                # A unittest-style file: run its TestCase classes the way `python -m unittest` would.
+                suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(k) for k in cases)
+                result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
+                bad = [f"{t.id().rsplit('.', 1)[-1]}: {e.strip().splitlines()[-1]}"
+                       for t, e in result.failures + result.errors]
+                c.check(result.testsRun > 0, f"{name} has checks to run")
+                c.check(not bad, f"{name} passes ({result.testsRun} unittest checks" +
+                        (f", {len(result.skipped)} skipped)" if result.skipped else ")") +
+                        (" -- " + "; ".join(bad[:3]) if bad else ""))
+                continue
+            checks = [(n, f) for n, f in found if not needs_pytest(f)]
+            left = len(found) - len(checks)
+            failed = []
+            for n, fn in checks:
+                try:
+                    fn()
+                except Exception as e:                               # noqa: BLE001 - a test runner
+                    failed.append(f"{n}: {type(e).__name__}: {e}")
+            c.check(bool(found), f"{name} has checks to run")
+            c.check(not failed, f"{name} passes ({len(checks)} checks" +
+                    (f", {left} with fixtures left to pytest)" if left else ")") +
+                    (" -- " + "; ".join(failed[:3]) if failed else ""))
+    finally:
+        if added:
+            sys.path.remove(folder)
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        import shutil
+        shutil.rmtree(home, ignore_errors=True)
 
 
 def _bd_export(c: Checker):
@@ -1583,6 +1697,7 @@ def _run() -> bool:
     _report(c)
     _incomplete_folder(c)
     _harmonics(c)
+    _phase_tail(c)
     _timer_tick(c)
     _zone_conflict(c)
     _sim_run(c, "cav", True, "fua", "CAV")

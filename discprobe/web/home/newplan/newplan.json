@@ -1,0 +1,138 @@
+{
+ "top": {
+  "mode": "top",
+  "image_size": [
+   2560,
+   1440
+  ],
+  "px_per_mm": 3.455,
+  "pixel_origin": "top-left, y down",
+  "disc": {
+   "centre_px": [
+    512.0,
+    720.0
+   ],
+   "radius_px": 207.3,
+   "label_radius_px": 202.12,
+   "label_inner_radius_px": 79.47,
+   "hole_radius_px": 25.91,
+   "note": "printable disc, label side up; a low-key DP mark is printed along the upper half of the label ring (mark_letters, mark_rect_px)"
+  },
+  "drive_body_rect_px": [
+   231.11,
+   931.45,
+   792.89,
+   1657.34
+  ],
+  "tray_rect_px": [
+   283.28,
+   241.48,
+   740.72,
+   953.3
+  ],
+  "rect_note": "[left, top, right, bottom] in px",
+  "pool_centre_px": [
+   615.65,
+   650.9
+  ],
+  "pool_sigma_px": 587.4,
+  "free_area_note": "turned round (2026-11-12): the body runs off the bottom edge, the tray reaches up; the disc at 20 % across, 50 % down; right of x = 833 px is plain lit desk",
+  "mark_rect_px": [
+   446.14,
+   530.26,
+   582.47,
+   599.16
+  ],
+  "mark_letters": {
+   "D": {
+    "centre_px": [
+     484.94,
+     563.39
+    ],
+    "rotation_deg_clockwise": 170.2,
+    "width_px": 69.2,
+    "height_px": 55.3
+   },
+   "P": {
+    "centre_px": [
+     553.71,
+     566.64
+    ],
+    "rotation_deg_clockwise": 195.2,
+    "width_px": 44.6,
+    "height_px": 55.3
+   }
+  },
+  "pool_sigma_px_by_theme": {
+   "paper": 587.35,
+   "dark": 327.154
+  }
+ },
+ "paper": {
+  "mode": "paper",
+  "image_size": [
+   1400,
+   1700
+  ],
+  "px_per_mm": 4.9231,
+  "pixel_origin": "top-left, y down",
+  "sheet_rect_px": [
+   60.0,
+   60.09,
+   1340.0,
+   1639.91
+  ],
+  "content_rect_px": [
+   162.0,
+   163.09,
+   1238.0,
+   1536.91
+  ],
+  "inner_margins_px": {
+   "left": 102,
+   "right": 102,
+   "top": 103,
+   "bottom": 103
+  },
+  "shadow_note": "paper_shadow_<theme>.png has the same canvas; lift the sheet by moving it up-right of the shadow (light from the upper right)",
+  "pool_sigma_px_by_theme": {
+   "paper": 1181.538,
+   "dark": 1181.538
+  },
+  "sheet_pool_sigma_px_by_theme": {
+   "paper": 1181.538,
+   "dark": 1181.538
+  }
+ },
+ "envelope": {
+  "mode": "envelope",
+  "image_size": [
+   1600,
+   2494
+  ],
+  "px_per_mm": 4.5373,
+  "pixel_origin": "top-left, y down",
+  "pocket_top_y_px": 421.21,
+  "back_top_y_px": 366.76,
+  "flap_top_y_px": 85.45,
+  "opening_x_px": [
+   40.0,
+   1560.0
+  ],
+  "envelope_rect_px": [
+   40.0,
+   85.45,
+   1560.0,
+   2408.55
+  ],
+  "button_centre_px": [
+   800.0,
+   648.07
+  ],
+  "layer_note": "draw envelope_back, then the sliding sheet, then envelope_front; a sheet clipped at pocket_top_y_px looks inside the pocket",
+  "pool_sigma_px_by_theme": {
+   "paper": 1451.94,
+   "dark": 808.731
+  }
+ }
+}
