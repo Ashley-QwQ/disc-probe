@@ -5,7 +5,19 @@ const path = require('node:path');
 const childProcess = require('node:child_process');
 const {syncBuiltinESMExports} = require('node:module');
 const rmSync = fs.rmSync;
+const createReadStream = fs.createReadStream;
 const spawnSync = childProcess.spawnSync;
+
+// The reshoot fixture hashes several full-disc images. Read in larger chunks on
+// Windows so the hashing does not spend most of its time queueing small reads.
+fs.createReadStream = function (file, options) {
+  const base = process.env.RESHOOT_TEST_ROOT || process.env.TEMP;
+  if (path.basename(process.argv[1] || '') === 'test_reshoot_browser.mjs' && typeof file === 'string' &&
+      file.endsWith('.iso') && base && path.resolve(file).startsWith(path.resolve(base) + path.sep)) {
+    options = {highWaterMark: 8 * 1024 * 1024, ...options};
+  }
+  return createReadStream(file, options);
+};
 
 // A headless snapshot can end before the iframe posts its result on a busy host.
 // Wait for the actual fixture in the same browser when that happens.

@@ -54,7 +54,7 @@ python -B -X utf8 evidence/readahead/verify.py js
 
 ## 无预读故障的逐字节对照
 
-`parity` 比较 16 组现有模拟，涵盖两种介质、四种模拟光驱和两个命令。另有 4 组 `plain` 零窗口对照，确保实际走了邻址检查却未命中时，原读盘事件和输出也逐字节相同。共 20 组匹配。脚本比较退出码、终端日志及每个生成文件的 SHA-256，包括适用的 `events.csv`、`summary.json`、`targets.csv`、`partial.json`、`failure.json` 和 `diagnostics.zip`。CD `cav-audio` 的 `timing` 沿用数据盘限制，CD `cav-nofua` 的 `geo` 沿用基点在第二级前停止的行为。
+`parity` 比较 16 组现有模拟，涵盖两种介质、四种模拟光驱和两个命令。另有 4 组 `plain` 零窗口对照，确保实际走了邻址检查却未命中时，原读盘事件和输出也逐字节相同。共 20 组匹配。脚本比较退出码、20 份终端日志及 53 个生成文件的 SHA-256，包括适用的 `events.csv`、`summary.json`、`targets.csv`、`partial.json`、`failure.json` 和 `diagnostics.zip`。CD `cav-audio` 的 `timing` 沿用数据盘限制，CD `cav-nofua` 的 `geo` 沿用基点在第二级前停止的行为。
 
 对照固定运行日期、结果路径、测量墙钟和进度检查点时间。首次对照有 19 组通过，CD `cav-nofua` 的 `partial.json` 和包含它的 ZIP 因检查点时间不同而失配。补齐固定时钟后，用 `python -B -X utf8 evidence/readahead/verify.py parity --parity-case cd cav-nofua geo` 复核该组，全部字节匹配。其 `events.csv`、`targets.csv` 和终端日志在两次对照中均匹配。
 
@@ -74,3 +74,21 @@ python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp="$env:TEMP/pytes
   tests/test_cd_clv.py tests/test_bd_clv_solver.py tests/test_troubleshoot.py
 python -B -X utf8 tools/refresh_troubleshoot_citations.py --check
 ```
+
+## 完整自检
+
+`selftest` 串行运行两次 `python -m discprobe selftest`，两次均退出 0 并打印 `all checks passed`。基点为 1,168.237 秒，修后为 843.477 秒，墙钟时间变化为 −27.80%，满足最多增加 10% 的门限。两次运行期间机器上的并行负载不同，该差值只记录本轮验收耗时。自检的结果和日志在 `D:/dp-dev/tmp/readahead/selftest-_7imd8q1/`。
+
+## JavaScript 测试
+
+全部 63 个 `tests/test_*.mjs` 最终退出 0。初次全量运行 58 个通过，复跑补齐以下五个。配套启动器使用指定的 `chrome-headless-shell` 和测试临时目录。测试开始至结束，Windows 安全日志新增的 4625 和 4740 事件均为 0。
+
+| 文件 | 首次结果与复跑条件 | 最终耗时 s |
+| --- | --- | ---: |
+| `test_afterburn_browser.mjs` | 24 项断言通过后，Windows 删除临时目录报 EPERM。重跑时由 Python 清理该测试目录。 | 94.013 |
+| `test_faxnews_browser.mjs` | 文件页的虚拟时间快照仍为 `PENDING`。复跑让同一无界面浏览器等到页面报告真实结果。三个视口通过。 | 80.392 |
+| `test_presetio_browser.mjs` | 同类快照提前结束。复跑保留原断言，十个视口通过。 | 214.679 |
+| `test_rw_discs_browser.mjs` | 首轮外层启动器超时。增大外层等待后，原场景通过。 | 218.304 |
+| `test_reshoot_browser.mjs` | 首轮外层超时。最终复跑复用已验证的模拟检查盘，ISO 哈希流缓冲增至 8 MiB。两个场景通过，生成 8 张界面截图和 1 张对准箭头预览。 | 494.872 |
+
+各文件可用 `python -B -X utf8 evidence/readahead/verify.py js --js-test <文件名>` 单独复跑。补拍复跑先用 `python -B -X utf8 tests/reshoot_lab_fixture.py prepare <临时实验目录> <已生成的检查盘缓存目录>` 初始化，设置 `RESHOOT_TEST_ROOT` 和 `RESHOOT_PREPARED_LAB` 后运行同一条 `--js-test` 命令。默认全量命令会自行生成这个检查盘。实验目录和 ISO 已清理，计数、哈希和截图保存在 `D:/dp-dev/tmp/readahead/reshoot-staged/`。原始全量结果在 `js-6yff1_fe/js.json`，最终复跑结果分别在 `js-rmjf8dn8/`、`js-zy437bx6/`、`js-23oa57n8/` 和 `js-sqe_13j8/` 的 `js.json`。
