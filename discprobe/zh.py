@@ -525,6 +525,8 @@ TEXT = {
         "正在用 {d} 测量。按 Ctrl+C 可停止，已测的数据会保留。超过 {m} 分钟会自动放弃。",
     "Disc: {p}, last LBA {l}, reading with {m}": "光盘：{p}，最后扇区号 {l}，读取命令 {m}",
     "Cache: {c} -> strategy {s}": "缓存测试耗时：{c}，采用的读取方式 {s}",
+    "The read-ahead cache holds at least {n} following sectors. Read strategy is {s}.": "检测到光驱预读，至少缓存 {n} 个后续扇区。读取方式为 {s}。",
+    "The drive keeps answering LBA {lba} from its read-ahead cache. These reads cannot measure a disc angle. Try the same disc in another drive.": "光驱反复从预读缓存返回扇区 {lba}，这样的读数测不出盘面角度。请用另一台光驱测量同一张盘。",
     "Spindle steady: T = {t} ms ({r} rpm)": "转速已稳定：转一圈 {t} ms（{r} 转/分）",
     "Spindle did not reach a steady speed; expect noisy results": "转速一直没稳定，结果可能噪声较大",
     "Zone {f} (LBA {l}): T = {t} ms ({r} rpm), jitter {u} us = {d} deg, coherence {c}":
@@ -1339,6 +1341,8 @@ TEXT = {
     "results directory (default: results)": "结果目录（默认 results）",
     "drive: E: on Windows, /dev/sr0 on Linux; `list` shows them. At a terminal it can be left out when there is one drive": "光驱：Windows 上用 E:，Linux 上用 /dev/sr0；用 `list` 查看。在终端里只有一台光驱时可以不写",
     "use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track as DiscImageStudio burns pictures)": "使用模拟光驱，不需要真光驱（nofua：模拟忽略 FUA；flush：忽略 FUA，但零长度 FUA 读能清缓存；audio：配合 --media cd，模拟 DiscImageStudio 刻图用的音轨盘）",
+    "use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track as DiscImageStudio burns pictures; readahead: only following sectors are cached)": "使用模拟光驱（nofua：忽略 FUA。flush：忽略 FUA，但零长度 FUA 读能清缓存。audio：配合 --media cd 模拟音轨盘。readahead：只缓存后续扇区）",
+    "forward cache size for cav-readahead (default 24, 0 for no cache)": "cav-readahead 缓存的后续扇区数（默认 24，0 表示关闭缓存）",
     "Windows-only command path: spti may need an elevated terminal; imapi (IMAPI2 IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi": "仅 Windows 的命令通道：spti 可能要管理员权限；imapi 普通用户可用；auto 先试 spti，再试 imapi",
     "simulation seed": "模拟用的随机种子",
     "output directory (default: results)": "输出目录（默认 results）",

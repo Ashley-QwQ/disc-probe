@@ -27,7 +27,7 @@
     "steps": {"zh": ["空盘用 info 查容量；计时用已有的可读数据盘。没有可用数据盘时才生成并刻一张随机数据盘。"], "en": ["Use info on the blank to get capacity. Use a readable data disc for timing. Make and burn a random-data disc if no usable one is available."]},
     "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe random --output iso/random.iso"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 360, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 738, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1360, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 643, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 653, "keyword": "nothing is recorded on this blank"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 383, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 738, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1360, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 645, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 653, "keyword": "nothing is recorded on this blank"}]
   },
   {
     "id": "burn-browser-closed",
@@ -127,7 +127,7 @@
     "steps": {"zh": ["把设计移出内侧文件系统区域，半径 26 mm 以内留背景。"], "en": ["Move the design away from the file system area and leave the inner 26 mm radius as background."]},
     "commands": ["python -m discprobe edit my_picture.png"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/zh.py", "line": 648, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 922, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 770, "keyword": "inside a radius of 26 mm"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 650, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 922, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 770, "keyword": "inside a radius of 26 mm"}]
   },
   {
     "id": "cd-speed-after-clv",
@@ -447,7 +447,7 @@
     "steps": {"zh": ["用 list 找出盘符或设备路径，再把对应值交给 --drive。"], "en": ["Use list to find the drive letter or device path, then pass it with --drive."]},
     "commands": ["python -m discprobe list", "python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "discprobe/__main__.py", "line": 171, "keyword": "give --drive"}, {"path": "discprobe/guide.py", "line": 674, "keyword": "With several drives"}, {"path": "discprobe/guide.py", "line": 675, "keyword": "use the device path"}]
+    "sources": [{"path": "discprobe/__main__.py", "line": 172, "keyword": "give --drive"}, {"path": "discprobe/guide.py", "line": 674, "keyword": "With several drives"}, {"path": "discprobe/guide.py", "line": 675, "keyword": "use the device path"}]
   },
   {
     "id": "editor-colour-fill",
@@ -528,6 +528,16 @@
     "commands": ["python tools/geo_polyfit.py <run>", "python tools/geo_polyfit.py <run> --write-correction correction.json --order quadratic"],
     "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
     "sources": [{"path": "discprobe/guide.py", "line": 865, "keyword": "More than noise is left"}, {"path": "discprobe/guide.py", "line": 886, "keyword": "Compare pitch models first"}, {"path": "discprobe/guide.py", "line": 889, "keyword": "--write-correction"}, {"path": "discprobe/guide.py", "line": 892, "keyword": "A varying track pitch fits clearly better"}]
+  },
+  {
+    "id": "geo-read-ahead",
+    "symptoms": {"zh": ["基准附近测不出盘面角度", "光驱反复返回预读缓存", "第一级测点读得异常快"], "en": ["geo read-ahead cache", "could not measure a sector near the reference", "first geometry target returns too quickly"]},
+    "error_patterns": [{"regex": "could not measure lba <n> near the reference"}, {"text": "from its read-ahead cache"}, {"regex": "基准附近的扇区 <n> 测不出来"}, {"text": "光驱反复从预读缓存返回扇区"}],
+    "cause": {"zh": "光驱预读了参考扇区后面的数据。测点若反复在远短于一圈的时间内返回，读完的时刻就可能只反映缓存耗时。", "en": "The drive can prefetch sectors after the reference. A target that repeatedly returns much faster than a turn may have come from the drive buffer."},
+    "steps": {"zh": ["用 timing 查看是否检测到预读。如果 FUA 能读盘，程序会自动采用 FUA。若仍提示预读缓存，请用另一台光驱测量同一张盘。"], "en": ["Run timing to check for read-ahead. The probe switches to FUA when it verifies that FUA gets uncached reads. If it still reports read-ahead, try the same disc in another drive."]},
+    "commands": ["python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/geo.py", "line": 740, "keyword": "could not measure LBA"}, {"path": "discprobe/timing.py", "line": 35, "keyword": "from its read-ahead cache"}]
   },
   {
     "id": "geo-never-settled",
@@ -647,7 +657,7 @@
     "steps": {"zh": ["Linux 使用 --transport auto 和相应设备路径。"], "en": ["Use --transport auto with the Linux device path."]},
     "commands": ["python -m discprobe info --drive /dev/sr0 --transport auto"],
     "manual": {"zh": "INSTALL-linux.md#linux-启动与安装", "en": "INSTALL-linux.md#linux-启动与安装"},
-    "sources": [{"path": "discprobe/__main__.py", "line": 167, "keyword": "on Linux use --transport auto"}, {"path": "README.en.md", "line": 109, "keyword": "through `SG_IO`"}]
+    "sources": [{"path": "discprobe/__main__.py", "line": 168, "keyword": "on Linux use --transport auto"}, {"path": "README.en.md", "line": 109, "keyword": "through `SG_IO`"}]
   },
   {
     "id": "measuring-disc-count",
@@ -957,7 +967,7 @@
     "steps": {"zh": ["检查出图输出是否提示已省略外圈。把图案缩小或向内移，检查预览里的可刻环带，再生成镜像。"], "en": ["Check the image output for an omitted outer ring. Shrink or move the artwork inward, check the writable annulus in the preview, then regenerate the image."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/__main__.py", "line": 1334, "keyword": "a drawing out to the rim stops where the disc does"}, {"path": "discprobe/__main__.py", "line": 1339, "keyword": "outermost ring is left out"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "灰色部分不能绘制"}]
+    "sources": [{"path": "discprobe/__main__.py", "line": 1335, "keyword": "a drawing out to the rim stops where the disc does"}, {"path": "discprobe/__main__.py", "line": 1340, "keyword": "outermost ring is left out"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "灰色部分不能绘制"}]
   },
   {
     "id": "picture-path",
@@ -1027,7 +1037,7 @@
     "steps": {"zh": ["先用同一张盘比较 FUA 或挤缓存，再试不同读速。区分真实旋转后再拟合几何。"], "en": ["Reuse the disc and compare FUA or cache eviction, or try another read speed. Wait until you can distinguish real rotation before fitting geometry."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 646, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 655, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 244, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 550, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 551, "keyword": "Windows timer tick"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 722, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 731, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 244, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 552, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 553, "keyword": "Windows timer tick"}]
   },
   {
     "id": "timing-clv",
@@ -1057,7 +1067,7 @@
     "steps": {"zh": ["先用固定低读速重测同一张盘。DVD 可试 4x，并看 timing 报告的实际转速。", "先别加 --force，它只继续诊断采样。换读速或光驱后仍读不稳，且需要重刻测量盘时，试另一个受支持的刻录速度。"], "en": ["Retest the same disc at a fixed low read speed. For DVD try 4x and check the actual rotation reported by timing.", "Skip --force, which only continues diagnostic sampling. If reads stay unreliable after trying another read speed or drive and the measuring disc needs replacing, try another supported write speed."]},
     "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 595, "keyword": "no period found"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "have no clear period"}, {"path": "discprobe/timing.py", "line": 755, "keyword": "phase test would not give disc angles"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "Lower speed usually means less noise"}, {"path": "docs/MANUAL.en.md", "line": 157, "keyword": "the speed jumps near the outer edge"}, {"path": "discprobe/guide.py", "line": 595, "keyword": "only continues diagnostic sampling"}, {"path": "discprobe/guide.py", "line": 1063, "keyword": "Try another burn speed"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 671, "keyword": "no period found"}, {"path": "discprobe/timing.py", "line": 751, "keyword": "have no clear period"}, {"path": "discprobe/timing.py", "line": 835, "keyword": "phase test would not give disc angles"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "Lower speed usually means less noise"}, {"path": "docs/MANUAL.en.md", "line": 157, "keyword": "the speed jumps near the outer edge"}, {"path": "discprobe/guide.py", "line": 595, "keyword": "only continues diagnostic sampling"}, {"path": "discprobe/guide.py", "line": 1063, "keyword": "Try another burn speed"}]
   },
   {
     "id": "timing-reference-period",
@@ -1067,7 +1077,7 @@
     "steps": {"zh": ["固定读速，再测一次。"], "en": ["Set a fixed read speed and repeat timing."]},
     "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 723, "keyword": "reference has no clear period"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "a multiple such as"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 803, "keyword": "reference has no clear period"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "a multiple such as"}]
   },
   {
     "id": "timing-spindle-settling",
@@ -1077,7 +1087,7 @@
     "steps": {"zh": ["查看 timing 的读速和周期，试固定的读速后重测。"], "en": ["Check the speed and periods reported by timing. Repeat with a fixed read speed."]},
     "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/zh.py", "line": 529, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "check the rotation speed"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 531, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 751, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "check the rotation speed"}]
   },
   {
     "id": "timing-timeout",
@@ -1117,7 +1127,7 @@
     "steps": {"zh": ["用 info 确认盘种，网页引导选择相同类型，命令行对 CD 指定 --media cd，对 BD 指定 --media bd。当前网页检查盘图案只支持 DVD。"], "en": ["Use info to identify the disc and select the same family in the guide. Use --media cd or --media bd as appropriate in the CLI. The web check-disc target supports DVD."]},
     "commands": ["python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 415, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 452, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 193, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 220, "keyword": "but the command has DVD settings"}]
+    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 415, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 452, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 193, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 221, "keyword": "but the command has DVD settings"}]
   },
   {
     "id": "web-double-click",
@@ -1157,7 +1167,7 @@
     "steps": {"zh": ["用 webui status 查看当前地址、运行模式和任务。要换设置，等任务结束后运行 webui stop，再用新参数启动。", "只有明确指定 --new-instance 才会绕过默认实例复用。"], "en": ["Use webui status to see the current address, mode and tasks. To change the settings, wait for the tasks to finish, run webui stop, then start with the new options.", "An explicit --new-instance bypasses the normal instance reuse."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 196, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 266, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2835, "keyword": "without replacing the existing instance"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 196, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 266, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2838, "keyword": "without replacing the existing instance"}]
   },
   {
     "id": "web-offline",
@@ -1187,7 +1197,7 @@
     "steps": {"zh": ["打开当前启动输出里的完整地址，或运行 webui status 查看已登记的 URL。需要更换首选端口时，先等任务结束并停止服务，再用 --port 启动。"], "en": ["Open the full address from the launch output, or use webui status to see the registered URL. To change the preferred port, wait for active tasks and stop the service, then relaunch with --port."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 173, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 176, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 198, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2831, "keyword": "uses a free port if occupied"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 173, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 176, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 198, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2834, "keyword": "uses a free port if occupied"}]
   },
   {
     "id": "web-port-invalid",
@@ -1197,7 +1207,7 @@
     "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
     "commands": ["python -m discprobe webui --port 8765"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1637, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1638, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2831, "keyword": "preferred HTTP port"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1637, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1638, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2834, "keyword": "preferred HTTP port"}]
   },
   {
     "id": "web-startup-error",
@@ -1227,6 +1237,6 @@
     "steps": {"zh": ["用默认 auto 让工具在 SPTI 被拒时切换，或显式用 --transport imapi。"], "en": ["Use the default auto to fall back when SPTI is refused, or explicitly choose --transport imapi."]},
     "commands": ["python -m discprobe info --drive <drive> --transport imapi"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "discprobe/__main__.py", "line": 188, "keyword": "SPTI was refused"}, {"path": "README.en.md", "line": 107, "keyword": "add `--transport imapi`"}]
+    "sources": [{"path": "discprobe/__main__.py", "line": 189, "keyword": "SPTI was refused"}, {"path": "README.en.md", "line": 107, "keyword": "add `--transport imapi`"}]
   }
 ]

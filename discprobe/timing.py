@@ -31,6 +31,9 @@ from .scsi import DATA_IN, DATA_NONE
 # too tight.
 CACHE_HIT_US = 3000.0
 CACHE_RATIO = 3.0
+READ_AHEAD_OFFSETS = {"cd": (2, 8, 16, 24, 32, 64), "dvd": (16, 32, 64, 96, 128, 256)}
+READ_AHEAD_STOP = ("The drive keeps answering LBA {lba} from its read-ahead cache. "
+                   "These reads cannot measure a disc angle. Try the same disc in another drive.")
 EVICT_REGION_SECTORS = 32768
 FAR_STEP_SECTORS = 5000
 FAR_COUNTS = (1, 2, 4)      # far reads tried before each timed read on a CD-DA track
@@ -78,6 +81,24 @@ def duration_stats(results) -> dict:
     return {"n": len(d), "p50_us": pct(0.5), "p95_us": pct(0.95), "p99_us": pct(0.99),
             "min_us": round(d[0], 1), "max_us": round(d[-1], 1),
             "failed": sum(1 for r in results if not r.ok)}
+
+
+def read_ahead_hits(pairs, turn_us):
+    """A cache reply is fast, and its completion follows the host instead of the disc."""
+    limit = min(turn_us / 2, max(CACHE_HIT_US, turn_us / CACHE_RATIO))
+    fast = [(ref, target) for ref, target in pairs if ref.status == target.status == 0
+            and target.duration_us < limit]
+    if len(pairs) < 4 or len(fast) * 4 < len(pairs) * 3:
+        return False
+    # A nearby uncached sector may also read quickly. Its completion relative to the
+    # preceding reference stays at the same angle, even when the host pause changes.
+    return _paired_phase_spread(fast, turn_us) > turn_us / 6
+
+
+def _paired_phase_spread(pairs, turn_us):
+    offsets = [(target.t_end_ns - ref.t_end_ns) / 1000 for ref, target in pairs]
+    half = turn_us / 2
+    return max(abs((offset - offsets[0] + half) % turn_us - half) for offset in offsets)
 
 
 class TimingProbe:
@@ -137,16 +158,18 @@ class TimingProbe:
             if not any(a <= lba and lba + count <= b for a,b in safe):
                 # Never move a timed target secretly: its LBA determines phase.
                 raise NoReadableDisc('read intersects reserved LBA ranges or guard')
-        if self.method == "readcd":
-            cdb, size = mmc.read_cd(lba, count), 2352 * count
-        elif self.method == "read10":
-            cdb, size = mmc.read10(lba, count, fua), 2048 * count
-        else:
-            cdb, size = mmc.read12(lba, count, fua), 2048 * count
+        cdb, size = self._read_cdb(lba, count, fua)
         res = self._cmd(cdb, size)
         self._record(label, lba, self.method, fua, res)
         self._watch(res)
         return res
+
+    def _read_cdb(self, lba, count, fua):
+        if self.method == "readcd":
+            return mmc.read_cd(lba, count), 2352 * count
+        if self.method == "read10":
+            return mmc.read10(lba, count, fua), 2048 * count
+        return mmc.read12(lba, count, fua), 2048 * count
 
     def _watch(self, res):
         """Stop early when the disc has gone, reads keep failing or the run overstays its time limit.
@@ -490,8 +513,61 @@ class TimingProbe:
         out.update(plain_served_from_cache=plain_cached, fua_reads_media=fua_media,
                    flush_then_read_media=flush_media, strategy=self.strategy)
         self.summary["cache"] = out
+        ahead = self._check_read_ahead(lba, out["plain"]["p50_us"], fua_media)
+        if ahead:
+            out.update(read_ahead_sectors=ahead, strategy=self.strategy)
         self.log("Cache: " + ", ".join(f"{k} p50 {v['p50_us']} us" for k, v in out.items()
                                        if isinstance(v, dict)) + f" -> strategy {self.strategy}")
+        if ahead:
+            self.log(f"The read-ahead cache holds at least {ahead} following sectors. Read strategy is {self.strategy}.")
+
+    def _check_read_ahead(self, lba, turn_us, fua_media):
+        offsets = READ_AHEAD_OFFSETS.get(self.family)
+        if self.strategy != "plain" or self.method == "readcd" or not offsets:
+            return 0
+        from .scsi import execute_probe
+        # The check must not advance the seeded clock, random sequence or fault rules
+        # of a simulated measurement. On hardware these are additional diagnostic reads.
+        snapshot = getattr(self.dev, "diagnostic_snapshot", None)
+        dev = snapshot() if snapshot else self.dev
+        idle = dev.idle if snapshot else time.sleep
+        safe = self.safe_ranges([(0, self.last_lba + 1)])
+        span = -(-self.sectors // self.block) * self.block
+
+        def read(addr, fua=False):
+            cdb, size = self._read_cdb(addr, self.sectors, fua)
+            return execute_probe(dev, cdb, size)
+
+        def pairs(addr, fua=False):
+            readings = []
+            for quarter in range(4):
+                if self._deadline is not None and time.monotonic() >= self._deadline:
+                    break
+                ref = read(lba)
+                if quarter:
+                    idle(quarter * turn_us / 4e6)
+                readings.append((ref, read(addr, fua)))
+            return readings
+
+        window = 0
+        control = None
+        try:
+            for gap in offsets:
+                addr = lba + span - self.block + gap
+                if not any(a <= lba and addr + span <= b for a, b in safe):
+                    break
+                if not read_ahead_hits(pairs(addr), turn_us):
+                    continue
+                window = addr - lba
+                control = addr
+            if control is not None and fua_media:
+                checked = pairs(control, fua=True)
+                if (len(checked) == 4 and all(ref.ok and target.ok for ref, target in checked)
+                        and _paired_phase_spread(checked, turn_us) < turn_us / 8):
+                    self.strategy = "fua"
+        except OSError:
+            pass  # An optional diagnostic read must not replace the normal drive error path.
+        return window
 
     def _cache_test_audio(self, lba: int, n: int, reads: int, out: dict):
         """Cache test on a CD-DA track (geo on a DiscImageStudio picture burn).
@@ -700,15 +776,19 @@ class TimingProbe:
         span = -(-max(self.sectors, 1) // self.block) * self.block  # whole blocks the drive reads
         for frac in self.targets:
             x = self._align(frac)
-            ref_times, x_times, x_reads = [], [], []
+            ref_times, x_times, x_reads, pairs = [], [], [], []
             for _ in range(self.reps):
                 r = self._measure(ref, "ref")
                 if self._usable(r):
                     ref_times.append(r.t_end_ns)
                 xr = self._measure(x, "target")
                 x_reads.append(xr)
+                if self.strategy == "plain" and self.media in READ_AHEAD_OFFSETS:
+                    pairs.append((r, xr))
                 if self._usable(xr):
                     x_times.append(xr.t_end_ns)
+            if prior and read_ahead_hits(pairs, prior * 1e6):
+                raise NoReadableDisc(READ_AHEAD_STOP.format(lba=x))
             entry = {"target_fraction": frac, "ref_lba": ref, "target_lba": x, "read_end_lba": x + span,
                      "nominal_turns_between": round(spiral.turns(ref + span, x + span), 2),
                      "target_durations": duration_stats(x_reads)}

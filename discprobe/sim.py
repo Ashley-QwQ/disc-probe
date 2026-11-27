@@ -56,7 +56,7 @@ class SimDrive:
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
                  patterns=(), block: int | None = None, state_change_after_reads: int | None = None,
                  state_us_per_mm: float = 0.0, cav_above_kbs: int | None = None, layout_sectors=None, identity_sectors=None,
-                 phi_profile=None):
+                 phi_profile=None, read_ahead_sectors: int | None = None):
         self.media = media
         self.cav_above_kbs = cav_above_kbs
         self.layout_sectors = dict(layout_sectors or {})
@@ -111,6 +111,13 @@ class SimDrive:
         # One read plus two blocks of read-ahead (a single segment, like the HP BU20N, which a far
         # read clears) on a CD-DA track; six blocks otherwise.
         self.cache_blocks = cache_blocks if cache_blocks is not None else (3 if self.cd_audio else 6)
+        # This firmware retains only sectors following a plain read, never the read itself.
+        # None keeps the original simulator cache. Zero gives an uncached control drive.
+        if read_ahead_sectors is not None and read_ahead_sectors < 0:
+            raise ValueError("read-ahead window must be nonnegative")
+        self.read_ahead_sectors = read_ahead_sectors
+        self._read_ahead = range(0)
+        self._read_ahead_until = 0.0
         # Fixed firmware overhead before a media read can start; several revolutions on
         # the GH70N, so back-to-back re-reads all span the same whole number of turns.
         self.reread_delay_s = reread_delay_ms / 1e3
@@ -224,6 +231,7 @@ class SimDrive:
                 # Zero-length READ(12): optionally drops the cache, never touches media.
                 if fua and self.flush_honoured:
                     self._cache.clear()
+                    self._read_ahead = range(0)
                 self._clock = t_issue + 60e-6
                 return ScsiResult(0, b"", None, int(t_issue * 1e9), int(self._clock * 1e9))
             if status == 0 and (lba + count > self.capacity or count == 0):
@@ -287,8 +295,13 @@ class SimDrive:
         last_block = (lba + count - 1) // self.block
         blocks = list(range(first_block, last_block + 1))
         bypass = fua and self.fua_honoured
-        if not bypass and all(b in self._cache for b in blocks):
-            return t + 80e-6 + 1e-6 * count * 2 + abs(self.rng.gauss(0, 10e-6))
+        if not bypass:
+            if self.read_ahead_sectors is not None:
+                if t < self._read_ahead_until and lba in self._read_ahead and lba + count - 1 in self._read_ahead:
+                    self._read_ahead = range(lba + count, self._read_ahead.stop)
+                    return t + 2.5e-3 + abs(self.rng.gauss(0, 50e-6))
+            elif all(b in self._cache for b in blocks):
+                return t + 80e-6 + 1e-6 * count * 2 + abs(self.rng.gauss(0, 10e-6))
 
         start = first_block * self.block
         end = (last_block + 1) * self.block
@@ -320,4 +333,9 @@ class SimDrive:
             done += self.state_us_per_mm * 1e-6 * (r_target - 40.0)
         if self.rng.random() < self.outlier_rate:
             done += self.rng.uniform(0.3e-3, 3e-3)
+        if self.read_ahead_sectors is not None:
+            next_lba = lba + count
+            stop = next_lba if bypass else min(self.capacity, next_lba + self.read_ahead_sectors)
+            self._read_ahead = range(next_lba, stop)
+            self._read_ahead_until = done + 0.1
         return max(done, t_end_pass)
