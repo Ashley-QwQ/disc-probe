@@ -157,10 +157,11 @@ def _open(args):
         mode, _, variant = args.sim.partition("-")
         media = getattr(args, "media", "dvd")
         sectors = getattr(args, "sectors", 1)
-        return SimDrive(mode=mode, fua_honoured=variant in ("", "audio"), flush_honoured=variant == "flush",
+        window = getattr(args, "sim_read_ahead_sectors", 24) if variant == "readahead" else None
+        return SimDrive(mode=mode, fua_honoured=variant in ("", "audio", "readahead"), flush_honoured=variant == "flush",
                         seed=args.seed, media=media, cd_audio=variant == "audio",
                         cd_read_offset_bytes=getattr(args, "read_offset_bytes", 0.0),
-                        block=32 if media == "bd" and sectors == 32 else None)
+                        block=32 if media == "bd" and sectors == 32 else None, read_ahead_sectors=window)
     _need_hardware_platform()
     transport = getattr(args, "transport", "auto")
     if sys.platform == "linux" and transport != "auto":
@@ -2382,10 +2383,12 @@ def _build_parser():
     def common(sp):
         sp.add_argument("--drive", help="drive: E: on Windows, /dev/sr0 on Linux; `list` shows them. At a terminal it can be left out "
                                         "when there is one drive")
-        sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio"],
+        sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio", "cav-readahead"],
                         help="use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a "
                              "zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track "
-                             "as DiscImageStudio burns pictures)")
+                             "as DiscImageStudio burns pictures; readahead: only following sectors are cached)")
+        sp.add_argument("--sim-read-ahead-sectors", type=int, default=argparse.SUPPRESS, metavar="N",
+                        help="forward cache size for cav-readahead (default 24, 0 for no cache)")
         sp.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto",
                         help="Windows-only command path: spti may need an elevated terminal; imapi (IMAPI2 "
                              "IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi")

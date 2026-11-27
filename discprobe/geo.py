@@ -48,7 +48,7 @@ from .coverage import RADIUS_TOL_MM, assess_range, default_range
 BD_SECTOR_PER_UNIT = 32           # a Blu-ray recording unit is 32 sectors, the way a DVD block is 16
 BD_SECTOR_BITS = 962136 / 32.0    # channel bits per Blu-ray sector
 from .calscan import _dtheta, _report
-from .timing import TimingProbe
+from .timing import READ_AHEAD_OFFSETS, READ_AHEAD_STOP, TimingProbe, read_ahead_hits
 
 SAFE_DEG = 25.0
 TURN_ABORT_DEG = 90.0       # any rung this far from the refit means a likely whole-turn error
@@ -311,15 +311,19 @@ class Ladder:
     def measure(self, lba: int, reps: int | None = None) -> dict | None:
         tp = self.tp
         read = tp._measure if self._dense_deadline is None else self._dense_read
-        ref_t, x_t = [], []
+        ref_t, x_t, pairs = [], [], []
         for _ in range(reps or self.reps):
             r = read(self.ref, "ref")
             if tp._usable(r):
                 ref_t.append(r.t_end_ns)
             x = read(lba, "target")
+            if tp.strategy == "plain" and self.media in READ_AHEAD_OFFSETS:
+                pairs.append((r, x))
             if tp._usable(x):
                 x_t.append(x.t_end_ns)
             self.progress_current += 1
+        if self.T and read_ahead_hits(pairs, self.T * 1e6):
+            raise RuntimeError(READ_AHEAD_STOP.format(lba=lba))
         fit = self._ref_period(ref_t) if len(ref_t) >= 8 else None
         if not fit or fit.coherence < MEASURE_COHERENCE or abs(fit.period_s / self.T - 1) > PERIOD_TOL or len(x_t) < 8:
             return None
