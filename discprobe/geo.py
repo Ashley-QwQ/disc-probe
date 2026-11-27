@@ -443,9 +443,12 @@ class Ladder:
         from .content import is_random
         tp = self.tp
         radius = lambda lba: float(self._fit_radius(self._n_end(lba)))
+        # A measurement disc made without an identity record leaves its slots as random data. On a CD
+        # the guard around each slot is about 0.3 mm wide, so without this the slots at a third and two
+        # thirds of the disc could never be covered (a user's DH16AFSH, 2026-11-24). Blu-ray is untried.
         empty = {c['lba'] // self.block * self.block for c in
                  (tp.summary.get('disc_identity') or {}).get('copies', [])
-                 if self.media == 'dvd' and c['status'] == 'missing'}
+                 if self.media in ('dvd', 'cd') and c['status'] == 'missing'}
         for a, z in tp.reserved_lba[:]:
             if a not in empty or not any(lo <= radius(a) <= hi for lo, hi in gaps):
                 continue

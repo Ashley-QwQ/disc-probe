@@ -133,3 +133,45 @@ def test_lab_disc_at_coverage_budget_keeps_unmeasured_bands(tmp_path, monkeypatc
         assert len(ladder.targets) == rungs
         assert fit['completion_status'] == 'coverage_incomplete'
         assert assess_range(fit, default_range('dvd'))['extrapolated_mm']
+
+
+@contextlib.contextmanager
+def lab_cd(tmp_path):
+    """A random-data CD-R burned without an identity record (a user's DH16AFSH, 2026-11-24)."""
+    with tempfile.TemporaryDirectory(dir=tmp_path, prefix='geo-lab-cd-') as folder:
+        lab = Lab(folder)
+        make_box(lab, 'cd-r', 1, seed=178)
+        disc = lab.box()['discs'][0]
+        answers = lab.answers()
+        truth = answers['discs'][disc]
+        truth.update(ecc_um=0.0, **({'varpitch_deg': [0.0] * len(truth['varpitch_r_mm'])} if 'varpitch_r_mm' in truth else {}))
+        answers['readers']['gh70n'].update(jitter_us=2, outlier_rate=0)
+        atomic_json(lab.answers_path, answers)
+        with lab.locked_state() as state:
+            state['drives']['X:']['tray'] = disc
+            state['burns'][disc] = dict(closed=True, sessions=[
+                dict(start_lba=0, sectors=352646, mode='imapi', iso='unused.iso')])
+
+        class Reader(LabDrive):
+            def __init__(self):
+                super().__init__(lab, 'X:')
+                self.identity_sectors[-1] = b''   # the identity slots hold random data, not records
+
+            def _content(self, lba, count):
+                return b''.join(np.random.default_rng(lba + i).bytes(2048) for i in range(count))
+
+        yield Reader
+
+
+def test_repairs_absent_identity_slots_on_lab_cd(tmp_path):
+    with lab_cd(tmp_path) as reader:
+        with reader() as drive:
+            ladder = Ladder(drive, speed_kbs=None, media='cd', log=lambda _: None)
+            fit = ladder.run()
+    copies = ladder.tp.summary['disc_identity']['copies']
+    assert all(c['status'] == 'missing' for c in copies)
+    assert fit['completion_status'] == 'target_reached'
+    assert assess_range(fit, default_range('cd'))['covered']
+    # the slots at a third and two thirds were measured through, not left as holes
+    thirds = [c['lba'] for c in copies[1:3]]
+    assert all(not any(a <= lba < z for a, z in ladder.tp.reserved_lba) for lba in thirds)

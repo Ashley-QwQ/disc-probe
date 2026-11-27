@@ -537,7 +537,7 @@
     "steps": {"zh": ["用 timing 查看是否检测到预读。如果 FUA 能读盘，程序会自动采用 FUA。若仍提示预读缓存，请用另一台光驱测量同一张盘。"], "en": ["Run timing to check for read-ahead. The probe switches to FUA when it verifies that FUA gets uncached reads. If it still reports read-ahead, try the same disc in another drive."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
-    "sources": [{"path": "discprobe/geo.py", "line": 740, "keyword": "could not measure LBA"}, {"path": "discprobe/timing.py", "line": 35, "keyword": "from its read-ahead cache"}]
+    "sources": [{"path": "discprobe/geo.py", "line": 743, "keyword": "could not measure LBA"}, {"path": "discprobe/timing.py", "line": 35, "keyword": "from its read-ahead cache"}]
   },
   {
     "id": "geo-never-settled",
