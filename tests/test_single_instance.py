@@ -448,7 +448,7 @@ def test_actual_winpack_batch_and_cli_share_one_server(lab, batch_first):
     winpack = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(winpack)
     winpack.write_start(virtual.root)
-    batch = virtual.root / "开始 Start (Windows).bat"
+    batch = virtual.root / "Start (Windows).bat"
     guard, launch = batch.read_bytes().splitlines()
     assert guard.startswith(b":; ") and b"-m discprobe webui --open" in launch
     python = virtual.root / "python"

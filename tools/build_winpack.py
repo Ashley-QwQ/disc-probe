@@ -45,7 +45,9 @@ SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_bac
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINUX_START = "start-linux.sh"
-START_NAME = "开始 Start (Windows).bat"
+# ASCII only: on a Spanish Windows (11-26, LOLIKA99) double-clicking "开始 Start.bat" failed with
+# "Windows cannot find the file"; renaming it to Start.bat fixed it.
+START_NAME = "Start (Windows).bat"
 READ_FIRST = "先看我 Read me first.txt"
 PORTABLE = {
     "full": ("windows", "linux"),
@@ -95,8 +97,8 @@ To remove it, delete this folder. Results are in the results folder here.{window
 
 SINGLE_READ_FIRST = {
     "win64": (
-        "解压后双击“开始 Start (Windows).bat”。\n"
-        "After extracting, double-click “开始 Start (Windows).bat”.\n\n"
+        "解压后双击“Start (Windows).bat”。\n"
+        "After extracting, double-click “Start (Windows).bat”.\n\n"
         "另有两个平台都能用的 full 包，以及单独的 linux-x86_64 包。\n"
         "Also available: full for both platforms, and linux-x86_64 for Linux.\n"
     ),

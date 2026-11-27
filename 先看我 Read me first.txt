@@ -1,2 +1,2 @@
-Windows 完整包双击“开始 Start (Windows).bat”。 / In the Windows full package, double-click “开始 Start (Windows).bat”.
+Windows 完整包双击“Start (Windows).bat”。 / In the Windows full package, double-click “Start (Windows).bat”.
 Linux 完整包运行 ./start-linux.sh，也可以运行 bash start-linux.sh。 / In the Linux full package, run ./start-linux.sh or bash start-linux.sh.

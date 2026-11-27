@@ -1,7 +1,7 @@
 #!/bin/sh
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        printf '%s\n' '请双击“开始 Start (Windows).bat”。 / On Windows, double-click “开始 Start (Windows).bat”.' >&2
+        printf '%s\n' '请双击“Start (Windows).bat”。 / On Windows, double-click “Start (Windows).bat”.' >&2
         exit 1
         ;;
 esac

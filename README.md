@@ -79,7 +79,7 @@ disc-probe 让光驱来量。盘匀速转动时，一个扇区读完的时刻，
 
 从 1.0.0.0-alpha 起，大多数步骤可以在本地网页里做，不用记命令。
 
-- **打开**：解压所选免安装包。Windows 双击 `开始 Start (Windows).bat`，Linux 运行 `bash start-linux.sh`。两个平台都使用包内的 Python 和依赖。使用源码时，在仓库目录运行 `python -m discprobe webui --open`。服务会打印带令牌的地址，Linux 无图形桌面时可使用该地址。首选端口为 8765，被占用时自动换到空闲端口。
+- **打开**：解压所选免安装包。Windows 双击 `Start (Windows).bat`，Linux 运行 `bash start-linux.sh`。两个平台都使用包内的 Python 和依赖。使用源码时，在仓库目录运行 `python -m discprobe webui --open`。服务会打印带令牌的地址，Linux 无图形桌面时可使用该地址。首选端口为 8765，被占用时自动换到空闲端口。
 - **查看和停止**：`python -m discprobe webui status` 查看服务和光驱持锁状态，可加 `--json`。在大厅点“退出”，或运行 `python -m discprobe webui stop`。有任务时会提示正在进行的任务，`stop --force` 仅在没有光驱写入时允许。关掉启动服务的黑色窗口也会停止服务。
 - **启动选项**：`--local-only` 把服务限制在本机，`--no-drives` 或 `DISC_PROBE_NO_DRIVES=1` 用于离线设计。再次启动时如果参数不同，命令会打印已有实例的地址并提示先用 `webui stop`。
 - **新手引导**：大厅里点"看新手引导"。它按你已经做过的步骤，告诉你下一步做什么。

@@ -1124,7 +1124,7 @@
     "symptoms": {"zh": ["双击没反应", "开始批处理没开浏览器", "启动包点了打不开", "点开始后没弹浏览器", "命令行有地址但网页没弹出", "Linux 没有桌面打不开浏览器"], "en": ["double click does nothing", "start bat did not open browser", "windows launcher no browser", "launcher prints address but no browser opens", "headless linux no browser window"]},
     "error_patterns": [{"text": "Open this address in your browser"}, {"text": "请在浏览器打开此地址"}],
     "cause": {"zh": "启动器能打印服务地址时，可以手动打开该地址。Linux 无图形桌面时不会自动打开浏览器。", "en": "If the launcher prints a service address, you can open it manually. Headless Linux skips automatic browser opening."},
-    "steps": {"zh": ["在运行服务的电脑上复制它打印的完整地址，包括令牌。Windows 完整包先解压，再运行“开始 Start (Windows).bat”；Linux 完整包运行 ./start-linux.sh 或 bash start-linux.sh。"], "en": ["On the computer running the service, open the full printed address including the token. Extract the Windows full package before running 开始 Start (Windows).bat. On Linux use ./start-linux.sh or bash start-linux.sh from the full package."]},
+    "steps": {"zh": ["在运行服务的电脑上复制它打印的完整地址，包括令牌。Windows 完整包先解压，再运行“Start (Windows).bat”；Linux 完整包运行 ./start-linux.sh 或 bash start-linux.sh。"], "en": ["On the computer running the service, open the full printed address including the token. Extract the Windows full package before running Start (Windows).bat. On Linux use ./start-linux.sh or bash start-linux.sh from the full package."]},
     "commands": ["python -m discprobe webui --open"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
     "sources": [{"path": "README.en.md", "line": 82, "keyword": "Both platforms use the bundled Python and dependencies"}, {"path": "discprobe/web_instance.py", "line": 112, "keyword": "WAYLAND_DISPLAY"}, {"path": "discprobe/web_instance.py", "line": 119, "keyword": "Open this address in your browser"}]
@@ -1205,9 +1205,9 @@
     "error_patterns": [{"text": "Bundled Python is missing or not executable"}],
     "cause": {"zh": "启动窗口立刻消失时，启动可能在网页打开前就失败了。用已经打开的终端重跑，可以看到报错。", "en": "When the launch window vanishes immediately, startup may have failed before the page could open. Rerun in an already open terminal to read the error."},
     "steps": {"zh": ["确认已完整解压对应系统的完整包。在 Windows 打开命令提示符，进入解压目录，运行下面的批处理并保留完整报错。Linux 在解压目录运行 bash start-linux.sh。", "用 webui status 核对是否有服务在运行。如果显示正在运行，打开它列出的地址。", "如果系统没有单独安装 Python，在完整包目录用包内的 python\\python.exe（Windows）或 ./linux/python/bin/python3（Linux）运行 webui status。"], "en": ["Fully extract the full package for your OS. On Windows, open Command Prompt, change to the extracted directory, run the batch file below and keep the full error. On Linux, run bash start-linux.sh from the extracted directory.", "Use webui status to check for a running service. If one is running, open the address shown.", "If Python is not installed separately, run webui status from the full-package directory with its bundled python\\python.exe (Windows) or ./linux/python/bin/python3 (Linux)."]},
-    "commands": ["\"开始 Start (Windows).bat\"", "bash start-linux.sh", "python -m discprobe webui status"],
+    "commands": ["\"Start (Windows).bat\"", "bash start-linux.sh", "python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "tools/build_winpack.py", "line": 66, "keyword": "webui --open %*"}, {"path": "start-linux.sh", "line": 11, "keyword": "Bundled Python is missing or not executable"}, {"path": "discprobe/web_instance.py", "line": 212, "keyword": "if failures:"}, {"path": "discprobe/web_instance.py", "line": 262, "keyword": "正在运行 / Running"}, {"path": "start-linux.sh", "line": 14, "keyword": "./linux/python/bin/python3 -X utf8"}]
+    "sources": [{"path": "tools/build_winpack.py", "line": 68, "keyword": "webui --open %*"}, {"path": "start-linux.sh", "line": 11, "keyword": "Bundled Python is missing or not executable"}, {"path": "discprobe/web_instance.py", "line": 212, "keyword": "if failures:"}, {"path": "discprobe/web_instance.py", "line": 262, "keyword": "正在运行 / Running"}, {"path": "start-linux.sh", "line": 14, "keyword": "./linux/python/bin/python3 -X utf8"}]
   },
   {
     "id": "web-stop-busy",

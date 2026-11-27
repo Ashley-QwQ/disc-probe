@@ -2,7 +2,7 @@
 
 各命令的原理、参数、输出和自检结果。项目介绍和快速开始见 [README](../README.md)，实验记录见 [KNOWLEDGE.md](KNOWLEDGE.md)。
 
-打开网页大厅时，Windows 完整包双击 `开始 Start (Windows).bat`，Linux 完整包运行 `./start-linux.sh` 或 `bash start-linux.sh`。
+打开网页大厅时，Windows 完整包双击 `Start (Windows).bat`，Linux 完整包运行 `./start-linux.sh` 或 `bash start-linux.sh`。
 
 ## 安全
 

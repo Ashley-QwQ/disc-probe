@@ -4,7 +4,7 @@ Chinese original: [MANUAL.md](MANUAL.md) (in Chinese).
 
 How each command works, its parameters, outputs and self-test results. For an introduction and quick start, see [README](../README.en.md); for experiment records, see [KNOWLEDGE.md](KNOWLEDGE.md) (in Chinese).
 
-To open the web lobby, double-click `开始 Start (Windows).bat` in the Windows full package, or run `./start-linux.sh` or `bash start-linux.sh` in the Linux full package.
+To open the web lobby, double-click `Start (Windows).bat` in the Windows full package, or run `./start-linux.sh` or `bash start-linux.sh` in the Linux full package.
 
 ## Disc library and past works
 
