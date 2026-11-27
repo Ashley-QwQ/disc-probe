@@ -414,6 +414,17 @@ time.sleep(60)
             with self.subTest(path=path):
                 self.assertEqual(self.request(server, "GET", path)[0], 404)
 
+    def test_page_scripts_are_typed_javascript(self):
+        # Windows' registry reports .mjs as text/plain; a browser refuses to run that as a module, so the
+        # page stays blank while the server reports nothing wrong. The page's own scripts are typed by suffix.
+        server = self.http_server()
+        with patch.object(webui.mimetypes, "guess_type", return_value=("text/plain", None)):
+            for path in ("/home/batches.mjs", "/home/handshake.mjs", "/home/api.js"):
+                with self.subTest(path=path):
+                    code, _, headers = self.request(server, "GET", path, with_headers=True)
+                    self.assertEqual(code, 200)
+                    self.assertEqual(headers["Content-Type"], "text/javascript; charset=utf-8")
+
     def test_lan_token_sets_cookie_for_page_and_redirect(self):
         server = self.http_server(lan=True)
         cases = (("/home/?token=" + server.token, {}, 200),
