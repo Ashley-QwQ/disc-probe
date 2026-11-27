@@ -20,6 +20,11 @@ TEXTURES = (
     '8D91858EC8859195D18B92', 'RND',
 )
 RANDOM = ((24.6, 26.0), (57.85, 58.198))
+DIS_PRESET_REFUSAL = ('导入的 DiscImageStudio 预设不能用来做检查盘：照片要对照 disc-probe 的 geo 测量来量，'
+                      '结果也存进那次测量。请用这批盘的 geo 测量（在别的文件夹就把旧的 results 拷过来）。 / '
+                      'A check disc cannot be made from an imported DiscImageStudio preset: the photos are '
+                      'measured against a disc-probe geo run and their result is saved to it. Use the geo run '
+                      'this batch was measured with (copy the old results folder across if it is elsewhere).')
 
 
 def build_design() -> np.ndarray:
@@ -71,6 +76,10 @@ def run(args):
         fit = document['fit']
         if fit.get('media', 'dvd') != 'dvd':
             raise ValueError('The check disc is for DVD only; CD and Blu-ray are not supported yet.')
+        if fit.get('model') == 'dis_import':
+            # Its photos are read against a geo run and their result is saved there; an imported preset is
+            # neither, and laying the target out from u and v alone would also drop the preset's pitch terms.
+            raise ValueError(DIS_PRESET_REFUSAL)
         u, v, bit = (float(fit[k]) for k in ('u', 'v', 'bit_nm_assumed'))
     except (KeyError, TypeError, json.JSONDecodeError):
         raise ValueError('Use the geo run folder or its summary.json with a DVD geometry fit.') from None

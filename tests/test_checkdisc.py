@@ -139,3 +139,14 @@ def test_default_geo_ranges(media, audio, fractions):
     last, block = ladder.tp.last_lba, ladder.block
     assert ladder.ranges == [(int(last*fractions[0])//block*block,
                               int(last*fractions[1])//block*block)]
+
+
+def test_refuse_imported_dis_preset(tmp_path):
+    # An imported preset has u and v but no geo run for the photos, and its pitch terms would be dropped.
+    path, fit = geo(tmp_path)
+    fit.update(model='dis_import', image_compatible=True)
+    path.write_text(json.dumps(dict(fit=fit, preset={'id': 'x'}, setup=dict(last_lba=127))))
+    with pytest.raises(SystemExit, match='DiscImageStudio') as caught:
+        main(['checkdisc', '--geo', str(path), '--sectors', '128'])
+    assert '/ A check disc cannot be made' in str(caught.value)
+    assert not list(tmp_path.glob('**/*.iso'))
