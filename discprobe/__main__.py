@@ -13,7 +13,7 @@ from pathlib import Path
 import sys
 
 try:
-    from . import guide, i18n, info, mmc, timing, ui
+    from . import guide, i18n, info, mmc, qos, timing, ui
     from .drive_lock import DriveBusy, drive_operation
 except ImportError as e:    # half a copy of this folder: i18n may be what is missing, so it says so in both languages
     if (e.name or "").split(".")[0] != __package__:
@@ -3019,6 +3019,7 @@ def cmd_version(args):
 
 
 def main(argv=None):
+    qos.keep_full_speed()       # jobs started from the web page have no window; Windows must not park them
     try:
         flag, rest = i18n.take_flag(list(sys.argv[1:] if argv is None else argv))
     except ValueError as e:

@@ -23,6 +23,7 @@ import re
 import numpy as np
 
 from . import dvd, iso9660
+from .qos import keep_full_speed
 from .calib import GROUP_BYTES, SECTOR_BITS, SECTOR_BITS_BD, sector_bits
 
 CELL_MM = 0.02
@@ -348,6 +349,7 @@ def workers() -> int:
 
 
 def _job_init(job: dict) -> None:
+    keep_full_speed()       # a worker process is a new process: it opts out of EcoQoS for itself
     _JOB.clear()
     _JOB.update(job)
     if "design_file" in job:
